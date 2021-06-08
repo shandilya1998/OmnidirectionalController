@@ -290,9 +290,32 @@ params.update(params_per)
 params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.1,
-    'dt'                          : 0.001,
+    'dt'                          : 0.01,
     'reward_energy_coef'          : 0.2,
-    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 0.55, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
+    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
+}
+
+params_rl = {
+    'MAX_STEPS'                   : 250,
+    'OU_MEAN'                     : 0.0,
+    'OU_SIGMA'                    : 0.2,
+    'BATCH_SIZE'                  : 128,
+    'NET_ARCH'                    : [dict(pi=[64, 64], vf=[64, 64])],
+    'POLICY_TYPE'                 : "MultiInputPolicy",
+    'LEARNING_STARTS'             : 5000,
+    'TRAIN_FREQ'                  : [5, 'steps'],
+    'CHECK_FREQ'                  : 6000,
+    'sde_sample_freq'             : 4,
+    'n_epochs'                    : 20,
+    'gae_lambda'                  : 0.9,
+    'clip_range'                  : 0.4,
+    'vf_coef'                     : 0.4,
+    'LEARNING_RATE'               : 0.001,
+    'gamma'                       : 0.9,
+    'tau'                         : 0.02,
+    'steps'                       : int(1e6),
+    'n_steps'                     : 8
 }
 
 params.update(params_env)
+params.update(params_rl)

@@ -10,20 +10,16 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 from stable_baselines3.common.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from stable_baselines3.common.callbacks import BaseCallback
-from rl.torch.sb3.policy import TD3Policy, MultiInputPolicy, MultiInputPolicyV2, MultiInputPolicyV3
 import torch
 from torchsummary import summary
-from rl.torch.constants import params
-
-
+from constants import params
+from gym import envs
 
 info_kwargs = (
-    'reward',
-    'reward_position',
-    'reward_motion',
-    'reward_torque',
     'reward_velocity',
-    'reward_contact'
+    'reward_energy',
+    'reward',
+    'penalty'
 )
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
@@ -59,27 +55,17 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
         if self.n_calls % 100 == 1:
             df = load_results(self.log_dir)
             if len(df) > 0:
-                reward_position = np.mean(df.reward_position.values[-100:])
                 reward_velocity = np.mean(df.reward_velocity.values[-100:])
-                #reward_orientation = np.mean(df.reward_orientation.values[-100:])
-                #reward_rotation = np.mean(df.reward_rotation.values[-100:])
-                #reward_ctrl = np.mean(df.reward_ctrl.values[-100:])
-                reward_motion = np.mean(df.reward_motion.values[-100:])
-                reward_contact = np.mean(df.reward_contact.values[-100:])
-                reward_torque = np.mean(df.reward_torque.values[-100:])
+                reward_energy = np.mean(df.reward_energy.values[-100:])
                 reward = np.mean(df.reward.values[-100:])
-                self.logger.record('reward_position', reward_position)
+                penalty = np.mean(df.penalty.values[-100:])
                 self.logger.record('reward_velocity', reward_velocity)
-                #self.logger.record('reward_orientation', reward_orientation)
-                #self.logger.record('reward_rotation', reward_rotation)
-                #self.logger.record('reward_ctrl', reward_ctrl)
+                self.logger.record('reward_energy', reward_energy)
                 self.logger.record('reward', reward)
-                self.logger.record('reward_motion', reward_motion)
-                self.logger.record('reward_contact', reward_contact)
-                self.logger.record('reward_torque', reward_torque)
+                self.logger.record('penalty', penalty)
         if self.n_calls % self.check_freq == 0:
             # Retrieve training reward
-            df = load_results(self.log_dir).dropna()
+            df = load_results(self.log_dir)
             x, y = ts2xy(df, 'timesteps')
             if len(x) > 0:
             # Mean training reward over the last 100 episodes
@@ -149,18 +135,13 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--env_version',
-        type = str,
+        nargs='?', type = int, const = 1,
         help = 'environment version'
     )
     parser.add_argument(
-        '--model_dir',
+        '--env_class',
         type = str,
-        help = 'path of dir of the model to be loaded'
-    )
-    parser.add_argument(
-        '--test_env',
-        nargs='?', type=int, const=1,
-        help = 'choice to test env before loading'
+        help = 'entry point to custom environment'
     )
     parser.add_argument(
         '--her',
@@ -168,31 +149,27 @@ if __name__ == '__main__':
         help = 'choice to use HER replay buffer'
     )
     parser.add_argument(
+        '--td3',
+        nargs='?', type = int, const = 1,
+        help = 'choice to use TD3'
+    )
+    parser.add_argument(
         '--ppo',
         nargs='?', type = int, const = 1,
-        help = 'choice to use PPO instead of TD3'
+        help = 'choice to use PPO'
     )
     parser.add_argument(
         '--sac',
         nargs='?', type = int, const = 1,
-        help = 'choice to use SAC instead of TD3'
+        help = 'choice to use SAC'
     )
     parser.add_argument(
         '--a2c',
         nargs='?', type = int, const = 1,
-        help = 'choice to use A2C instead of TD3'
-    )
-    parser.add_argument(
-        '--standard',
-        nargs='?', type = int, const = 1,
-        help = 'choice to use standard policies instead of custom policies for baselines'
-    )
-    parser.add_argument(
-        '--evaluate',
-        nargs='?', type = int, const = 1,
-        help = 'choice to evaluate or train'
+        help = 'choice to use A2C'
     )
     args = parser.parse_args()
+
     path = os.path.join(args.out_path, 'exp{}'.format(args.experiment))
     if not os.path.exists(path):
         os.mkdir(path)
@@ -200,27 +177,26 @@ if __name__ == '__main__':
     if not os.path.exists(tensorboard_log):
         os.mkdir(tensorboard_log)
     log_dir = path
-    env_name = args.env + '-v' + args.env_version
-    import_name = args.env + 'V' + args.env_version
 
-    if env_name != 'Ant-v2':
+    env_name = args.env + '-v' + str(args.env_version)
+    all_envs = envs.registry.all()
+    env_ids = [env_spec.id for env_spec in all_envs]
+    if env_name not in env_ids and args.env_class is not None:
         gym.envs.registration.register(
             id=env_name,
-            entry_point='simulations.gym.ant:{}'.format(import_name),
-            max_episode_steps = params['rnn_steps'] * params['max_steps']
+            entry_point=args.env_class,
+            max_episode_steps = params['MAX_STEPS']
         )
-
-    if args.test_env is not None:
-        # Create and wrap the environment
-        env = gym.make(env_name)
-        from stable_baselines3.common.env_checker import check_env
-        print(check_env(env))
-        #env = _AntEnv()
-        # Logs will be saved in log_dir/monitor.csv
+    elif env_name not in env_ids:
+        raise ValueError('provide an entrypoint')
+    else:
+        raise ValueError('invalid env name')
 
 
     env = stable_baselines3.common.env_util.make_vec_env(
-        env_name, monitor_dir = log_dir, monitor_kwargs = {
+        env_name,
+        monitor_dir = log_dir,
+        monitor_kwargs = {
             'info_keywords' : info_kwargs
         },
     )
@@ -228,208 +204,146 @@ if __name__ == '__main__':
 
     # Create action noise because TD3 and DDPG use a deterministic policy
     n_actions = env.action_space.sample().shape[-1]
-    action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=0.2 * np.ones(n_actions))
+    action_noise = OrnsteinUhlenbeckActionNoise(mean = params['OU_MEAN'] * np.ones(n_actions), sigma= params['OU_SIGMA']* np.ones(n_actions))
     # Create the callback: check every 1000 steps
     # Create RL model
-    batch_size = 128
+
+    #batch_size = 128
+
     # Train the agent
-    callback = SaveOnBestTrainingRewardCallback(env, batch_size, check_freq=6000, log_dir=log_dir, verbose = 1)
+    callback = SaveOnBestTrainingRewardCallback(env, params['BATCH_SIZE'], check_freq = params['CHECK_FREQ'], log_dir=log_dir, verbose = 1)
+
+    policy_kwargs = {}
+    policy_kwargs['net_arch'] = params['NET_ARCH']
+    policy_kwargs['activation_fn'] = torch.nn.PReLU
+    policy = params['POLICY_TYPE']
 
     model = None
-    if args.ppo is None and args.a2c is None and args.sac is None:
-        policy = TD3Policy
-        if args.standard is not None:
-            policy = 'MlpPolicy'
-        model_class = TD3
-        if int(args.env_version) == 0:
-            model = model_class(
+    if args.td3 is not None:
+        params['TRAIN_FREQ'] = params['TRAIN_FREQ'][0]
+        if args.her is None:
+            model = TD3(
                 policy,
                 env,
+                policy_kwargs = policy_kwargs,
+                learning_starts = params['LEARNING_STARTS'],
                 action_noise = action_noise,
                 verbose = 1,
                 tensorboard_log = log_dir,
-                batch_size = batch_size,
-                learning_starts = 1000,
-                train_freq = (5, 'step')
+                batch_size = params['BATCH_SIZE'],
+                train_freq = params['TRAIN_FREQ'],
             )
-        elif int(args.env_version) > 0:
-            policy_kwargs = {}
-            policy = MultiInputPolicy
-            if int(args.env_version) >= 4 and args.sac is None:
-                policy = MultiInputPolicyV2
-                if int(args.env_version) == 4:
-                    policy = MultiInputPolicyV2
-                elif int(args.env_version) == 5:
-                    policy = MultiInputPolicyV3
-            if args.standard is not None or args.sac is not None:
-                policy = 'MultiInputPolicy'
-            print('[DDPG] MultiInputPolicy')
-            if args.her is None:
-                model = model_class(
-                    policy,
-                    env,
-                    learning_starts=5000,
-                    action_noise = action_noise,
-                    verbose = 1,
-                    tensorboard_log = log_dir,
-                    batch_size = batch_size,
-                    train_freq = (5, 'step'),
-                )
-            else:
-                print('[DDPG] Using HER')
-                model = model_class(
-                    policy,
-                    env,
-                    replay_buffer_class = HerReplayBuffer,
-                    replay_buffer_kwargs = dict(
-                        n_sampled_goal=4,
-                        goal_selection_strategy='future',
-                        online_sampling=True,
-                        max_episode_length = params['rnn_steps'] * params['max_steps'],
-                    ),
-                    learning_starts=5000,
-                    action_noise = action_noise,
-                    verbose = 1,
-                    tensorboard_log = log_dir,
-                    batch_size = batch_size,
-                    train_freq = (1, 'step'),
-                    policy_kwargs = {
-                        'net_arch' : [512, 512],
-                        'activation_fn' : torch.nn.Tanh,
-                    },
-                )
+        else:
+            print('[DDPG] Using HER')
+            model = TD3(
+                policy,
+                env,
+                policy_kwargs = policy_kwargs,
+                replay_buffer_class = HerReplayBuffer,
+                replay_buffer_kwargs = dict(
+                    n_sampled_goal=4,
+                    goal_selection_strategy='future',
+                    online_sampling=True,
+                    max_episode_length = params['MAX_STEPS'],
+                ),
+                learning_starts = params['LEARNING_STARTS'],
+                action_noise = action_noise,
+                verbose = 1,
+                tensorboard_log = log_dir,
+                batch_size = params['BATCH_SIZE'],
+                train_freq = params['TRAIN_FREQ'],
+            )
 
-            if args.model_dir is not None:
-                actor = torch.load(os.path.join(args.model_dir, 'actor.pth'))
-                critic = torch.load(os.path.join(args.model_dir, 'critic.pth'))
-                actor_state_dict = prev_model.policy.actor.state_dict()
-                critic_state_dict = prev_model.policy.critic.state_dict()
-                model.policy.actor.load_state_dict(actor_state_dict, strict = False)
-                model.policy.actor_target.load_state_dict(actor_state_dict, strict = False)
-                model.policy.critic.load_state_dict(critic_state_dict, strict = False)
-                model.policy.critic_target.load_state_dict(critic_state_dict, strict = False)
     elif args.ppo is not None:
         model = PPO(
-            policy = 'MultiInputPolicy',
-            env = env,
-            policy_kwargs = {
-                'net_arch' : [dict(pi=[512, 512], vf=[512, 512])],
-                'activation_fn' : torch.nn.Tanh,
-                'log_std_init' : -1,
-                'ortho_init' : False
-            },
+            policy,
+            env,
+            policy_kwargs = policy_kwargs,
             tensorboard_log = log_dir,
             verbose = 1,
-            batch_size = batch_size,
+            batch_size = params['BATCH_SIZE'],
             use_sde = True,
-            sde_sample_freq = 4,
-            n_epochs = 20,
-            n_steps = params['rnn_steps'] * params['max_steps'],
-            gae_lambda = 0.9,
-            clip_range = 0.4,
-            learning_rate = 0.0005,
+            sde_sample_freq = params['sde_sample_freq'], # 4
+            n_epochs = params['n_epochs'], # 20
+            n_steps = params['MAX_STEPS'],
+            gae_lambda = params['gae_lambda'],#0.9,
+            clip_range = params['clip_range']#0.4,
         )
     elif args.a2c is not None:
         model = A2C(
-            policy = 'MultiInputPolicy',
+            policy,
             env = env,
-            policy_kwargs = {
-                'net_arch' : [dict(pi=[512, 512], vf=[512, 512])],
-                'activation_fn' : torch.nn.Tanh,
-                'log_std_init' : -2,
-                'ortho_init' : False
-            },
+            policy_kwargs = policy_kwargs,
             tensorboard_log = log_dir,
             verbose = 1,
-            n_steps = 8,
-            gae_lambda = 0.9,
-            vf_coef=0.4,
-            learning_rate = 0.00096,
+            n_steps = params['n_steps'], #8,
+            gae_lambda = params['gae_lambda'], # 0.9
+            vf_coef = params['vf_coef'], #0.4,
+            learning_rate = params['LEARNING_RATE'],
             use_sde = True,
+            sde_sample_freq = params['sde_sample_freq'],
             normalize_advantage=True,
         )
     elif args.sac is not None:
+        params['TRAIN_FREQ'] = params['TRAIN_FREQ'][0]
         if args.her is None:
             model = SAC(
-                'MultiInputPolicy',
+                policy,
                 env,
-                learning_starts=10000,
+                learning_starts=params['LEARNING_STARTS'],
                 action_noise = action_noise,
                 verbose = 1,
                 tensorboard_log = log_dir,
-                batch_size = batch_size,
-                gamma = 0.98,
-                tau = 0.02,
-                train_freq = 64,
-                gradient_steps = 64,
+                batch_size = params['BATCH_SIZE'],
+                gamma = params['gamma'],
+                tau = params['tau'],
+                train_freq = params['TRAIN_FREQ'],
                 use_sde = True
             )
         else:
             print('[DDPG] Using HER')
             model = SAC(
-                'MultiInputPolicy',
+                policy,
                 env,
                 replay_buffer_class = HerReplayBuffer,
                 replay_buffer_kwargs = dict(
                     n_sampled_goal=4,
                     goal_selection_strategy='future',
                     online_sampling=True,
-                    max_episode_length = params['rnn_steps'] * params['max_steps'],
+                    max_episode_length = params['MAX_STEPS'],
                 ),
-                learning_starts=10000,
+                learning_starts=params['LEARNING_STARTS'],
                 action_noise = action_noise,
                 verbose = 1,
                 tensorboard_log = log_dir,
-                batch_size = batch_size,
-                gamma = 0.98,
-                tau = 0.02,
-                train_freq = 64,
-                gradient_steps = 64,
-                use_sde = True
+                batch_size = params['BATCH_SIZE'],
+                gamma = params['gamma'], #0.98,
+                tau = params['tau'], #0.02,
+                train_freq = params['TRAIN_FREQ'],
+                use_sde = True,
             )
 
 
-    steps = 1e5
-    if args.evaluate is None:
-        model.learn(total_timesteps=int(steps), callback=callback)
-        model.save(log_dir + '/Policy')
-        if args.ppo is not None or args.a2c is not None:
-            torch.save(model.policy.action_net, os.path.join(log_dir, 'action_net.pth'))
-            torch.save(model.policy.value_net, os.path.join(log_dir, 'value_net.pth'))
-        elif args.sac is not None:
-            torch.save(model.actor, os.path.join(log_dir, 'actor.pth'))
-            torch.save(model.critic, os.path.join(log_dir, 'critic.pth'))
-            torch.save(model.critic_target, os.path.join(log_dir, 'critic_target.pth'))
-        else:
-            torch.save(model.actor, os.path.join(log_dir, 'actor.pth'))
-            torch.save(model.critic, os.path.join(log_dir, 'critic.pth'))
-            torch.save(model.critic_target, os.path.join(log_dir, 'critic_target.pth'))
-            torch.save(model.actor_target, os.path.joint(log_dir, 'actor_target.pth'))
+    steps = params['steps']
+    model.learn(total_timesteps=int(steps), callback=callback)
+    model.save(log_dir + '/Policy')
+    if args.ppo is not None or args.a2c is not None:
+        torch.save(model.policy.action_net, os.path.join(log_dir, 'action_net.pth'))
+        torch.save(model.policy.value_net, os.path.join(log_dir, 'value_net.pth'))
+    elif args.sac is not None:
+        torch.save(model.actor, os.path.join(log_dir, 'actor.pth'))
+        torch.save(model.critic, os.path.join(log_dir, 'critic.pth'))
+        torch.save(model.critic_target, os.path.join(log_dir, 'critic_target.pth'))
     else:
-        model_class = None
-        if args.ppo is not None:
-            model_class = PPO
-        elif args.sac is not None:
-            model_class = SAC
-        elif args.a2c is not None:
-            model_class = A2C
-        else:
-            model_class = TD3
-        model = model_class.load(log_dir + '/Policy', env = env, custom_objects = {
-            "learning_rate": 0.0,
-            "lr_schedule": lambda _: 0.0,
-            "clip_range": lambda _: 0.0,
-        })
-        device = 'cpu'
-        if torch.cuda.is_available():
-            device = 'gpu'
-        if args.ppo is not None or args.a2c is not None:
-            model.policy.action_net.load_state_dict(torch.load(os.path.join(log_dir, 'action_net.pth'), map_location=torch.device('cpu')).state_dict())
-            model.policy.value_net.load_state_dict(torch.load(os.path.join(log_dir, 'value_net.pth'), map_location=torch.device('cpu')).state_dict())
-        else:
-            model.actor.load_state_dict(torch.load(os.path.join(log_dir, 'actor.pth'), map_location=torch.device('cpu')).state_dict())
-            model.critic.load_state_dict(torch.load(os.path.join(log_dir, 'critic.pth'), map_location=torch.device('cpu')).state_dict())
-            model.critic_target.load_state_dict(torch.load(os.path.join(log_dir, 'critic_target.pth'), map_location=torch.device('cpu')).state_dict())
-            if args.sac is None:
-                model.actor_target.load_state_dict(torch.load(os.path.join(log_dir, 'actor_target.pth'), map_location=torch.device('cpu')).state_dict())
-        print(stable_baselines3.common.evaluation.evaluate_policy(model, env, render=True))
+        torch.save(model.actor, os.path.join(log_dir, 'actor.pth'))
+        torch.save(model.critic, os.path.join(log_dir, 'critic.pth'))
+        torch.save(model.critic_target, os.path.join(log_dir, 'critic_target.pth'))
+        torch.save(model.actor_target, os.path.joint(log_dir, 'actor_target.pth'))
+
+
+    from stable_baselines3.common import results_plotter
+
+    # Helper from the library
+    #results_plotter.plot_results([log_dir], 1e5, results_plotter.X_TIMESTEPS, "DDPG Ant-v4")
+    print(stable_baselines3.common.evaluation.evaluate_policy(model, env, render=True))
+    print('DONE')

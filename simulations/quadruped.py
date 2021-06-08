@@ -8,6 +8,8 @@ from gym import utils, error
 import os
 import mujoco_py
 from collections import OrderedDict
+from tempfile import TemporaryFile
+
 
 def convert_observation_to_space(observation):
     if isinstance(observation, dict):
@@ -24,19 +26,22 @@ def convert_observation_to_space(observation):
 
     return space
 
-class Quadruped(gym.Env, utils.EzPickle):
+class Quadruped(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
-                 model_path,
+                 model_path = 'ant.xml',
                  frame_skip = 5,
                  render = True,
-                 gait = 'ls_crawl',
+                 gait = 'trot',
                  task = 'straight',
                  direction = 'forward',
                  policy_type = 'MultiInputPolicy',
+                 track_lst = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos'],
                  stairs = False):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
-
+        self._track_lst = track_lst
+        self._track_item = {key : [] for key in self._track_lst}
+        self._step = 0
         if model_path.startswith("/"):
             fullpath = model_path
         else:
@@ -113,7 +118,7 @@ class Quadruped(gym.Env, utils.EzPickle):
 
         self.init_qvel = np.concatenate([
             np.zeros((3,), dtype = np.float32), # base translational velocity
-            np.zeros((4,), dtype = np.float32), # base angular velocity (euler)
+            np.zeros((3,), dtype = np.float32), # base angular velocity (euler)
             np.zeros(shape = params['INIT_JOINT_POS'].shape, dtype = np.float32) # joint angular velocity
         ], -1)
 
@@ -192,7 +197,7 @@ class Quadruped(gym.Env, utils.EzPickle):
         self.s = 0.02200
 
     def _set_action_space(self):
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]]
+        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -227,7 +232,7 @@ class Quadruped(gym.Env, utils.EzPickle):
 
     def _set_init_gamma(self):
         if self.gait == 'ds_crawl':
-            self.init_gamma = [0, 0.5, 0.75, 0.25]
+            self.init_gamma = [0.0, 0.5, 0.75, 0.25]
         elif self.gait == 'ls_crawl':
             self.init_gamma = [0, 0.5, 0.25, 0.75]
         elif self.gait == 'trot':
@@ -241,22 +246,22 @@ class Quadruped(gym.Env, utils.EzPickle):
         elif self.gait == 'rotary_gallop':
             self.init_gamma = [0, 0.1, 0.5, 0.6]
         if self.task == 'straight':
+            if self.direction == 'backward':
+                self.init_gamma = self.init_gamma[-2:] + self.init_gamma[:2]
             if self.direction == 'left':
-                temp = self.init_gamma.pop(0)
-                self.init_gamma.append(temp)
-            elif self.direction == 'right':
-                temp = self.init_gamma.pop(-1)
-                self.init_gamma.inset(0, temp)
-            elif self.direction == 'backward':
-                self.init_gamma = self.init[-2:] + self.init_gamma[:2]
-        self.init_gamma = np.array(self.init_gamma, dtype = np.float32) * np.pi
+                self.init_gamma = self.init_gamma[1:] + self.init_gamma[:1]
+            if self.direction == 'right':
+                self.init_gamma = self.init_gamma[-1:] + self.init_gamma[:-1]
+        self.init_gamma = np.array(self.init_gamma, dtype = np.float32)
         return self.init_gamma
 
     def reset(self):
+        self._step = 0
         self._last_base_position = [0, 0, params['INIT_HEIGHT']]
         self.gamma = self.init_gamma.copy()
         self.sim.reset()
         self.ob = self.reset_model()
+        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
         if self.policy_type == 'MultiInputPolicy':
                 """
                     modify this according to observation space
@@ -265,15 +270,17 @@ class Quadruped(gym.Env, utils.EzPickle):
                 self.command = random.choice(self.commands)
                 print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
                 self.desired_goal = self.command
-        return {
-            'observation' : self.ob,
-            'desired_goal' : self.desired_goal,
-            'achieved_goal' : self.achieved_goal
-        }
+
+        if len(self._track_lst) > 0:
+            for item in self._track_lst:
+                with open(os.path.join('assets','ant_{}.npy'.format(item)), 'wb') as f:
+                    np.save(f, np.stack(self._track_item[item], axis = 0))
+
+        return self.ob
 
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(size = self.model.nq, low = -0.1, high = 0.1)
-        qvel = self.init_qvel + self.np_random.randn(size = self.model.nv, low = -0.1, high = 0.1)
+        qvel = self.init_qvel + self.np_random.uniform(size = self.model.nv, low = -0.1, high = 0.1)
         self.set_state(qpos, qvel)
         return self._get_obs()
 
@@ -302,67 +309,13 @@ class Quadruped(gym.Env, utils.EzPickle):
     def viewer_setup(self):
         self.viewer.cam.distance = self.model.stat.extent * 0.5
 
-    def _get_joint_pos(self, amplitude, gamma, counter, current_omega):
-        """
-            modify this according to joint value limits in xml file and leg construction
-        """
-        out = []
-        direction = 1.0
-        max_amplitude = 1.0471
-        for joint in range(self._num_joints):
-            max_amplitude = 1.0471
-            bias = 0.0
-            amp = amplitude[0]
-            if joint == 0 or joint == 9:
-                direction = 1.0
-            elif joint == 3 or joint == 6:
-                direction =  -1.0
-            elif joint in [1, 10]:
-                if gamma[joint % 3] > np.pi / 2 and gamma[joint % 3] < 3 * np.pi / 2:
-                    direction = 1.0
-                else:
-                    direction = 0.0
-            elif joint in [4, 7]:
-                if gamma[joint % 3] > np.pi / 2 and gamma[joint % 3] < 3 * np.pi / 2:
-                    direction = -1.0
-                else:
-                    direction = 0.0
-            """
-            if joint in [2, 5, 8, 11]:
-                max_amplitude = 1.7155
-                bias = 1.2217
-            """
-            if self._action_dim == 4:
-                if joint in [3, 4, 6, 7]:
-                    amp = amplitude[1]
-            if joint in [2, 5, 8, 11]:
-                """
-                    modify this according to leg construction
-                """
-                knee_pos = out[-1]
-                out.append(self._leg_kinematics(knee_pos))
-            else:
-                out.append(amp * np.sin(gamma[joint % 3]) * max_amplitude * direction + bias)
-        gamma += current_omega * counter * self.dt
-        gamma = gamma % (2 * np.pi)
-        #print(out)
-        return np.array(out, dtype = np.float32), gamma
-
-    def _get_current_omega(self, omega_st, omega_sw, gamma):
-        current_omega = omega_st
-        for leg in range(self._num_legs):
-            if gamma[leg] > np.pi / 2 and gamma[leg] < 3 * np.pi / 2:
-                current_omega = omega_sw
-            else:
-                current_omega = omega_st
-        return current_omega
-
     def _leg_kinematics(self, knee_pos):
         """
             modify this according to leg construction
         """
+        knee_pos = np.abs(knee_pos)
+        sign = np.sign(knee_pos)
         t = np.sqrt(self.p ** 2 + self.q ** 2 + self.r ** 2 - 2 * np.sqrt(self.p ** 2 + self.q ** 2) * self.r * np.cos(knee_pos))
-        print((self.c ** 2 + t ** 2 - self.s ** 2) / (2 * self.c * t))
         phi = np.arccos((self.c ** 2 + t ** 2 - self.s **2) / (2 * self.c * t))
         delta = np.arcsin((self.c * np.sin(phi)) / self.s)
         beta = np.arcsin((self.r * np.sin(knee_pos)) / t)
@@ -373,15 +326,95 @@ class Quadruped(gym.Env, utils.EzPickle):
         By = self.s * np.cos(epsilon) + self.v + self.q
         Cx = Ax + ((Bx - Ax) * self.e + (Ay - By) * self.h) / self.c
         Cy = Ay + ((By - Ay) * self.e + (Ax - Bx) * self.h) / self.c
-        alpha = np.arctan((Cy - Ay) / (Cx - Ax)) - np.pi
-        return alpha
+        alpha = np.arctan((Cy - Ay) / (Cx - Ax))
+        return alpha * sign
 
     def _track_attr(self):
         """
             modify this according to need
         """
-        raise NotImplementedError
+        self._track_item['joint_pos'].append(self.joint_pos.copy())
+        self._track_item['action'].append(self.action.copy())
+        self._track_item['velocity'].append(self.sim.data.qvel[:6].copy())
+        self._track_item['position'].append(self.sim.data.qpos[:3].copy())
+        self._track_item['true_joint_pos'].append(self.sim.data.qpos[-self._num_joints:].copy())
 
+    def _compute_joint_pos(self, t, T, theta_h, theta_k, beta, direction):
+        """
+            modify according to need
+        """
+        t = t % T
+        theta1 = 0.0
+        theta2 = 0.0
+        theta3 = 0.0
+        omega = 0.0
+        if 0 <= t <= beta * T/2:
+            theta1 = theta_h * np.sin(
+                np.pi * t / (
+                    T * beta
+                ) + np.pi
+            )
+            omega = 2 * np.pi / (T * beta)
+            theta2 = 0.0
+        elif T * beta / 2 < t < T * (2 - beta) / 2:
+            theta1 = theta_h * np.sin(
+                np.pi * t / (
+                    T * (1 - beta)
+                ) + np.pi * (3 - 4 * beta)/(2 * (1 - beta))
+            )
+            theta2 = theta_k * np.sin(
+                np.pi * t/(
+                    T * (1 - beta)
+                ) - np.pi * beta/(2 * (1 - beta))
+            )
+            omega = 2 * np.pi / (T * (1 - beta))
+        elif T * (2 - beta) / 2 <= t < T:
+            theta1 = theta_h * np.sin(
+                np.pi * t / (
+                    T * beta
+                ) + np.pi * (beta - 1) / beta
+            )
+            theta2 = 0.0
+            omega = 2 * np.pi / (T * beta)
+        #theta3 = self._leg_kinematics(theta2)  + direction * 0.75
+        theta3 = 0.5 * theta2
+        return [direction * theta1, -direction * theta2, direction * (theta3 + 1.3089)], omega
+
+    def _get_joint_pos(self, amplitude, omega):
+        """
+            modify this according to joint value limits in xml file and leg construction
+        """
+        out = []
+        amp = []
+        omg = []
+        amp.append(amplitude[0])
+        omg.append(omega[0])
+        timer_omega = 0.0
+        if self.task == 'turn':
+            amp.append(amplitude[1])
+            omg.append(omega[1])
+        else:
+            amp.append(amplitude[0])
+            omg.append(omega[0])
+        for leg in range(self._num_legs):
+            if leg in [0, 3]:
+                T = 2 * np.pi / omg[0]
+                ac, timer_omega = self._compute_joint_pos(self._step * self.dt + self.gamma[leg] * T, T, amp[0] * 1.0471, amp[0] * 1.0471, self.beta, 1.0)
+                out.extend(ac)
+            elif leg in [1,2]:
+                T = 2 * np.pi / omg[1]
+                ac, timer_omega = self._compute_joint_pos(self._step * self.dt + self.gamma[leg] * T, T, amp[1] * 1.0471, amp[1] * 1.0471, self.beta, -1.0)
+                out.extend(ac)
+        out = np.array(out, dtype = np.float32)
+        if self.task == 'straight':
+            if self.direction == 'backward':
+                #out = -out[np.array([6, 7 ,8, 9, 10, 11, 0, 1, 2, 3, 4, 5], dtype = np.int32)]
+                out[np.array([0, 3, 6, 9], dtype = np.int32)] *= -1.0
+            elif self.direction == 'left':
+                out[np.array([3, 9])] *= -1.0
+            elif self.direction == 'right':
+                out[np.array([0, 6])] *= -1.0
+        return np.array(out, dtype = np.float32), timer_omega
 
     def do_simulation(self, action, n_frames, callback=None):
         if self._action_dim == 2:
@@ -390,10 +423,8 @@ class Quadruped(gym.Env, utils.EzPickle):
         elif self._action_dim == 4:
             self._frequency = np.array([action[0], action[2]], dtype = np.float32)
             self._amplitude = np.array([action[1], action[3]], dtype = np.float32)
-        omega = 2 * np.pi * self._frequency + 1e-8
-        omega_st = omega / (self.beta + 1e-8)
-        omega_sw = omega / (1 - self.beta + 1e-8)
-        current_omega = self._get_current_omega(omega_st, omega_sw, self.gamma)
+        omega = 0.42 * 2 * np.pi * self._frequency + 1e-8
+        timer_omega = 0.0
         self.action = action
         counter = 0
         """
@@ -404,7 +435,8 @@ class Quadruped(gym.Env, utils.EzPickle):
         penalty = 0.0
         phase = 0.0
         while(np.abs(phase) <= np.pi * self._update_action_every):
-            self.joint_pos, self.gamma = self._get_joint_pos(self._amplitude, self.gamma, counter, current_omega)
+            self.joint_pos, timer_omega = self._get_joint_pos(self._amplitude, omega)
+            self.last_joint_pos.pop(0)
             self.last_joint_pos.append(self.joint_pos.copy())
             posbefore = self.get_body_com("torso").copy()
             penalty = 0.0
@@ -433,9 +465,10 @@ class Quadruped(gym.Env, utils.EzPickle):
                 reward_velocity += np.linalg.norm(velocity[0])
             reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
                 -np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
-            current_omega = self._get_current_omega(omega_st, omega_sw, self.gamma, )
             counter += 1
-            phase += current_omega.min() * self.dt * counter
+            phase += timer_omega * self.dt * counter
+            self._track_attr()
+            self._step += 1
         self._n_steps += 1
         reward = reward_velocity + reward_energy * params['reward_energy_coef'] + penalty
         info = {
