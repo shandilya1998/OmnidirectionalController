@@ -15,6 +15,7 @@ from torchsummary import summary
 from constants import params
 from gym import envs
 
+np.seterr('raise')
 info_kwargs = (
     'reward_velocity',
     'reward_energy',

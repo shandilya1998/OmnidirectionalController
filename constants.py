@@ -299,7 +299,7 @@ params_rl = {
     'MAX_STEPS'                   : 250,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.2,
-    'BATCH_SIZE'                  : 128,
+    'BATCH_SIZE'                  : 12,#8,
     'NET_ARCH'                    : [dict(pi=[64, 64], vf=[64, 64])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,

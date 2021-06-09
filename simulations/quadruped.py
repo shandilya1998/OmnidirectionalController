@@ -460,9 +460,9 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             if self._is_render:
                 self.render()
             if self.policy_type == 'MultiInputPolicy':
-                reward_velocity += np.linalg.norm(self.achieved_goal - self.desired_goal, -1)
+                reward_velocity += np.linalg.norm(self.achieved_goal - self.desired_goal + 1e-9, -1)
             else:
-                reward_velocity += np.linalg.norm(velocity[0])
+                reward_velocity += np.linalg.norm(velocity[0] + 1e-9)
             reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
                 -np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
             counter += 1
