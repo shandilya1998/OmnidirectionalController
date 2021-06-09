@@ -1,0 +1,2 @@
+#{"t_start": 1623274863.16732, "env_id": "quadruped-v1"}
+r,l,t,reward_velocity,reward_energy,reward_distance,reward,penalty

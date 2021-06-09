@@ -75,8 +75,17 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
 
-        self.init_qpos = self.sim.data.qpos.ravel().copy()
-        self.init_qvel = self.sim.data.qvel.ravel().copy()
+        self.init_qpos = np.concatenate([
+            self._last_base_position, # base position
+            np.zeros((4,), dtype = np.float32), # base angular position (quaternion)
+            params['INIT_JOINT_POS'] # joint angular position
+        ], -1)
+
+        self.init_qvel = np.concatenate([
+            np.zeros((3,), dtype = np.float32), # base translational velocity
+            np.zeros((3,), dtype = np.float32), # base angular velocity (euler)
+            np.zeros(shape = params['INIT_JOINT_POS'].shape, dtype = np.float32) # joint angular velocity
+        ], -1)
 
         self._is_stairs = stairs
         self._is_render = render
@@ -94,18 +103,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.seed()
         self.action = np.zeros(self._action_dim)
         self._distance_limit = float("inf")
-
-        self.init_qpos = np.concatenate([
-            self._last_base_position, # base position
-            np.zeros((4,), dtype = np.float32), # base angular position (quaternion)
-            params['INIT_JOINT_POS'] # joint angular position
-        ], -1)
-
-        self.init_qvel = np.concatenate([
-            np.zeros((3,), dtype = np.float32), # base translational velocity
-            np.zeros((3,), dtype = np.float32), # base angular velocity (euler)
-            np.zeros(shape = params['INIT_JOINT_POS'].shape, dtype = np.float32) # joint angular velocity
-        ], -1)
 
         self._cam_dist = 1.0
         self._cam_yaw = 0.0

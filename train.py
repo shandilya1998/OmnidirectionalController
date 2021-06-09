@@ -246,7 +246,7 @@ if __name__ == '__main__':
                 'task' : 'straight',
                 'direction' : 'left',
                 'policy_type' : 'MultiInputPolicy',
-                'track_lst' : ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos']
+                'track_lst' : params['track_list']
             }
         )
 
