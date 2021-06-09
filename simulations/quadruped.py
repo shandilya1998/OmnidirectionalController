@@ -35,7 +35,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                  task = 'straight',
                  direction = 'forward',
                  policy_type = 'MultiInputPolicy',
-                 track_lst = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos'],
+                 track_lst = ['desired_goal', 'joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', 'sensordata', 'qpos', 'qvel', 'achieved_goal', 'observation'],
                  stairs = False,
                  verbose = 0):
         gym.Env.__init__(self)
@@ -55,26 +55,9 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.task = task
         self.direction = direction
         self.policy_type = policy_type
-        assert self.gait in [
-            'ds_crawl',
-            'ls_crawl',
-            'trot',
-            'pace',
-            'bound',
-            'transverse_gallop',
-            'rotary_gallop'
-        ]
-        assert self.task in [
-            'rotate',
-            'turn',
-            'straight'
-        ]
-        assert self.direction in [
-            'forward',
-            'backward',
-            'left',
-            'right'
-        ]
+        assert self.gait in params['gait_list']
+        assert self.task in params['task_list']
+        assert self.direction in params['direction_list']
         assert not (self.gait not in ['ds_crawl', 'ls_crawl'] and self.task == 'rotate')
         self._n_steps = 0
         self.model = mujoco_py.load_model_from_path(fullpath)
@@ -263,25 +246,26 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.ob = self.reset_model()
         self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
         if self.policy_type == 'MultiInputPolicy':
-                """
-                    modify this according to observation space
-                """
-                self.achieved_goal = self.sim.data.qvel[:6].copy()
-                self.command = random.choice(self.commands)
-                if self.verbose > 0:
-                    print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
-                self.desired_goal = self.command
+            """
+                modify this according to observation space
+            """
+            self.achieved_goal = self.sim.data.qvel[:6].copy()
+            self.command = random.choice(self.commands)
+            if self.verbose > 0:
+                print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
+            self.desired_goal = self.command
 
-        if len(self._track_lst) > 0:
+        if len(self._track_lst) > 0 and self.verbose > 0:
             for item in self._track_lst:
-                with open(os.path.join('assets','ant_{}.npy'.format(item)), 'wb') as f:
+                with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
                     np.save(f, np.stack(self._track_item[item], axis = 0))
+        self._reset_track_lst()
 
         return self.ob
 
     def reset_model(self):
-        qpos = self.init_qpos + self.np_random.uniform(size = self.model.nq, low = -0.1, high = 0.1)
-        qvel = self.init_qvel + self.np_random.uniform(size = self.model.nv, low = -0.1, high = 0.1)
+        qpos = self.init_qpos
+        qvel = self.init_qvel
         self.set_state(qpos, qvel)
         return self._get_obs()
 
@@ -339,6 +323,24 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._track_item['velocity'].append(self.sim.data.qvel[:6].copy())
         self._track_item['position'].append(self.sim.data.qpos[:3].copy())
         self._track_item['true_joint_pos'].append(self.sim.data.qpos[-self._num_joints:].copy())
+        self._track_item['sensordata'].append(self.sim.data.sensordata.copy())
+        self._track_item['qpos'].append(self.sim.data.qpos.copy())
+        self._track_item['qvel'].append(self.sim.data.qvel.copy())
+        ob =  self._get_obs()
+        self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
+        self._track_item['observation'].append(ob['observation'].copy())
+        self._track_item['desired_goal'].append(ob['desired_goal'].copy())
+
+    def _get_track_item(self, item):
+        return self._track_item[item].copy()
+
+    def _reset_track_lst(self):
+        """
+             modify this according to need
+        """
+        del self._track_item
+        self._track_item = {key : [] for key in self._track_lst}
+        return self._track_item
 
     def _compute_joint_pos(self, t, T, theta_h, theta_k, beta, direction):
         """

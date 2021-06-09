@@ -51,7 +51,7 @@ def test_env(env, render = True):
         axes[int(i / 3)][i % 3].set_xlabel('time (s)')
         axes[int(i / 3)][i % 3].set_ylabel('joint position (radian)')
         i += 1
-    fig.savefig('assets/ant_joint_pos.png')
+    fig.savefig(os.path.join('assets', 'plots', 'ant_joint_pos.png'))
 
     return env
 
@@ -96,7 +96,7 @@ def plot_tracked_item(name = 'position'):
     axes.legend()
     axes.set_xlabel('time (s)')
     axes.set_ylabel('position (m)')
-    fig.savefig(os.path.join('assets', 'ant_{}.png'.format(name)))
+    fig.savefig(os.path.join('assets', 'plots', 'ant_{}.png'.format(name)))
 
 
 if __name__ =='__main__':

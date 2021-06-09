@@ -289,11 +289,11 @@ params.update(params_per)
 
 params_env = {
     'DEFAULT_SIZE'                : 500,
-    'INIT_HEIGHT'                 : 0.1,
+    'INIT_HEIGHT'                 : 0.0,
     'dt'                          : 0.01,
     'reward_energy_coef'          : 1e-2,
     'reward_velocity_coef'        : 1e2,
-    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
+    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype = np.float32)
 }
 
 
@@ -322,6 +322,40 @@ params_rl = {
     'n_envs'                      : n_envs,
     'dt'                          : 0.01,
     'max_step_length'             : 600,
+    'gait_list'                   : [
+                                        'ds_crawl',
+                                        'ls_crawl',
+                                        'trot',
+                                        'pace',
+                                        'bound',
+                                        'transverse_gallop',
+                                        'rotary_gallop'
+                                    ],
+    'task_list'                   : [
+                                        'rotate',
+                                        'turn',
+                                        'straight'
+                                    ],
+    'direction_list'              : [
+                                        'forward',
+                                        'backward',
+                                        'left',
+                                        'right'
+                                    ],
+    'track_list'                  : [
+                                        'joint_pos',
+                                        'action',
+                                        'velocity',
+                                        'position',
+                                        'true_joint_pos',
+                                        'sensordata',
+                                        'qpos',
+                                        'qvel',
+                                        'achieved_goal',
+                                        'observation',
+                                        'desired_goal'
+                                    ],
+    'total_steps'                 : 400,
 }
 
 params.update(params_env)
