@@ -244,7 +244,7 @@ if __name__ == '__main__':
                 'render' : False,
                 'gait' : 'trot',
                 'task' : 'straight',
-                'direction' : 'forward',
+                'direction' : 'left',
                 'policy_type' : 'MultiInputPolicy',
                 'track_lst' : ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos']
             }

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 OUT_PATH="assets/out/models"
-EXPERIMENT=1
+EXPERIMENT=2
 ENV="quadruped"
 ENV_VERSION=1
 ENV_CLASS="simulations:Quadruped"
