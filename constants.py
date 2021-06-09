@@ -289,11 +289,11 @@ params.update(params_per)
 
 params_env = {
     'DEFAULT_SIZE'                : 500,
-    'INIT_HEIGHT'                 : 0.0,
+    'INIT_HEIGHT'                 : 0.05,
     'dt'                          : 0.01,
     'reward_energy_coef'          : 1e-2,
     'reward_velocity_coef'        : 1e2,
-    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype = np.float32)
+    'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
 }
 
 
@@ -355,7 +355,7 @@ params_rl = {
                                         'observation',
                                         'desired_goal'
                                     ],
-    'total_steps'                 : 400,
+    'total_steps'                 : 10000,
 }
 
 params.update(params_env)
