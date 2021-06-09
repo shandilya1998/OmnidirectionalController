@@ -4,7 +4,7 @@ OUT_PATH="assets/out/models"
 EXPERIMENT=1
 ENV="quadruped"
 ENV_VERSION=1
-ENV_CLASS="simulations.quadruped:Quadruped"
+ENV_CLASS="simulations:Quadruped"
 
 python3 train.py \
     --experiment $EXPERIMENT \

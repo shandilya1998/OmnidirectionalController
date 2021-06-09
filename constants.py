@@ -291,30 +291,37 @@ params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.1,
     'dt'                          : 0.01,
-    'reward_energy_coef'          : 0.2,
+    'reward_energy_coef'          : 1e-2,
+    'reward_velocity_coef'        : 1e2,
     'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
 }
 
+
+max_steps = 128
+n_envs = 16
 params_rl = {
-    'MAX_STEPS'                   : 250,
+    'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
-    'OU_SIGMA'                    : 0.2,
-    'BATCH_SIZE'                  : 12,#8,
-    'NET_ARCH'                    : [dict(pi=[64, 64], vf=[64, 64])],
+    'OU_SIGMA'                    : 0.25,
+    'BATCH_SIZE'                  : max_steps * n_envs ,#8,
+    'NET_ARCH'                    : [dict(pi=[512, 512], vf=[512, 512])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
     'TRAIN_FREQ'                  : [5, 'steps'],
     'CHECK_FREQ'                  : 6000,
     'sde_sample_freq'             : 4,
-    'n_epochs'                    : 20,
+    'n_epochs'                    : 10,
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
     'LEARNING_RATE'               : 0.001,
     'gamma'                       : 0.9,
     'tau'                         : 0.02,
-    'steps'                       : int(1e6),
-    'n_steps'                     : 8
+    'steps'                       : int(1e5),
+    'n_steps'                     : 8,
+    'n_envs'                      : n_envs,
+    'dt'                          : 0.01,
+    'max_step_length'             : 600,
 }
 
 params.update(params_env)

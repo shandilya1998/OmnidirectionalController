@@ -7,7 +7,7 @@ import argparse
 from constants import params
 import os
 
-def test_env_from_xml(path = 'assets/ant.xml'):
+def test_env_from_xml(path = 'assets/ant.xml', render = True):
     f = open(path, 'r')
     model_xml = f.read()
     model = mujoco_py.load_model_from_xml(model_xml)
@@ -19,19 +19,21 @@ def test_env_from_xml(path = 'assets/ant.xml'):
         sim.data.ctrl[0] = math.sin(t / 20)
         sim.data.ctrl[2] = math.sin(t / 20)
         sim.step()
-        viewer.render()
+        if render:
+            viewer.render()
         t += 1
         if t > 2000:
             break
 
-def test_env(env):
+def test_env(env, render = True):
     t = 0
     ac = env.action_space.sample()
     while True:
         ob = env.step(ac)
-        env.render()
+        if render:
+            env.render()
         t += 1
-        if t > 100:
+        if t > 1000:
             break
     env.reset()
     fig, axes = plt.subplots(4,3, figsize = (15, 20))
@@ -96,8 +98,9 @@ def plot_tracked_item(name = 'position'):
     axes.set_ylabel('position (m)')
     fig.savefig(os.path.join('assets', 'ant_{}.png'.format(name)))
 
+
 if __name__ =='__main__':
     from simulations.quadruped import Quadruped
-    env = Quadruped('ant.xml')
-    env = test_env(env)
+    env = Quadruped('ant.xml', render = False)
+    env = test_env(env, False)
     plot_tracked_item()

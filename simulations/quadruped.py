@@ -30,18 +30,20 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
                  model_path = 'ant.xml',
                  frame_skip = 5,
-                 render = True,
+                 render = False,
                  gait = 'trot',
                  task = 'straight',
                  direction = 'forward',
                  policy_type = 'MultiInputPolicy',
                  track_lst = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos'],
-                 stairs = False):
+                 stairs = False,
+                 verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}
         self._step = 0
+        self.verbose = 0
         if model_path.startswith("/"):
             fullpath = model_path
         else:
@@ -150,22 +152,20 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         ]:
             if self.task == 'rotate' or self.task == 'turn':
                 if self.direction == 'left':
-                    yaw_rate = np.arange(-0.1, 0.001, 0.001).tolist()
+                    yaw_rate = np.arange(-0.05, 0.001, 0.001).tolist()
                 elif self.direction == 'right':
-                    yaw_rate = np.arange(0.001, 0.1, 0.001).tolist()
+                    yaw_rate = np.arange(0.001, 0.05, 0.001).tolist()
             elif self.task == 'straight':
                 if self.direction == 'left':
-                    yvel = np.arange(-0.1, 0.001, 0.001).tolist()
+                    yvel = np.arange(-0.05, 0.001, 0.001).tolist()
                 elif self.direction == 'right':
-                    yvel = np.arange(0.001, 0.1, 0.001).tolist()
+                    yvel = np.arange(0.001, 0.05, 0.001).tolist()
                 elif self.direction == 'forward':
-                    xvel = np.arange(0.001, 0.1, 0.001).tolist()
+                    xvel = np.arange(0.001, 0.05, 0.001).tolist()
                 elif self.direction == 'backward':
-                    xvel = np.arange(-0.1, 0.001, 0.001).tolist()
+                    xvel = np.arange(-0.05, 0.001, 0.001).tolist()
             else:
                 raise ValueError
-            if self.task == 'turn':
-                xvel = np.arange(1.0, 0.001, 0.001).tolist()
 
         for _x in xvel:
             for _y in yvel:
@@ -210,14 +210,14 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             self.achieved_goal = self.sim.data.qvel[:6].copy()
 
         if self.task != 'turn':
-            low = np.zeros((2,), dtype = np.float32)
+            low = np.ones((2,), dtype = np.float32) * 0.005
             high = np.ones((2,), dtype = np.float32)
             self._action_dim = 2
             self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
             return self.action_space
         else:
             self._action_dim = 4
-            low = np.zeros((4,), dtype = np.float32)
+            low = np.ones((4,), dtype = np.float32) * 0.005
             high = np.ones((4,), dtype = np.float32)
             self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
             return self.action_space
@@ -268,7 +268,8 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 """
                 self.achieved_goal = self.sim.data.qvel[:6].copy()
                 self.command = random.choice(self.commands)
-                print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
+                if self.verbose > 0:
+                    print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
                 self.desired_goal = self.command
 
         if len(self._track_lst) > 0:
@@ -417,6 +418,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         return np.array(out, dtype = np.float32), timer_omega
 
     def do_simulation(self, action, n_frames, callback=None):
+        #print(self._n_steps)
         if self._action_dim == 2:
             self._frequency = np.array([action[0]], dtype = np.float32)
             self._amplitude = np.array([action[1]], dtype = np.float32)
@@ -424,7 +426,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             self._frequency = np.array([action[0], action[2]], dtype = np.float32)
             self._amplitude = np.array([action[1], action[3]], dtype = np.float32)
         omega = 0.42 * 2 * np.pi * self._frequency + 1e-8
-        timer_omega = 0.0
+        timer_omega = omega[0]
         self.action = action
         counter = 0
         """
@@ -434,6 +436,8 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         reward_energy = 0.0
         penalty = 0.0
         phase = 0.0
+        if self.verbose > 0:
+            print(self._n_steps)
         while(np.abs(phase) <= np.pi * self._update_action_every):
             self.joint_pos, timer_omega = self._get_joint_pos(self._amplitude, omega)
             self.last_joint_pos.pop(0)
@@ -460,7 +464,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             if self._is_render:
                 self.render()
             if self.policy_type == 'MultiInputPolicy':
-                reward_velocity += np.linalg.norm(self.achieved_goal - self.desired_goal + 1e-9, -1)
+                reward_velocity += -np.linalg.norm(self.achieved_goal - self.desired_goal + 1e-9, -1)
             else:
                 reward_velocity += np.linalg.norm(velocity[0] + 1e-9)
             reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
@@ -469,11 +473,17 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             phase += timer_omega * self.dt * counter
             self._track_attr()
             self._step += 1
+            if self._step % params['max_step_length'] == 0:
+                break
         self._n_steps += 1
-        reward = reward_velocity + reward_energy * params['reward_energy_coef'] + penalty
+        reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
+        reward_velocity = np.exp(params['reward_velocity_coef'] * reward_velocity)
+        reward_energy = np.exp(params['reward_energy_coef'] * reward_energy)
+        reward = reward_distance + reward_velocity + reward_energy + penalty
         info = {
             'reward_velocity' : reward_velocity,
-            'reward_energy' : reward_energy * params['reward_energy_coef'],
+            'reward_distance' : reward_distance,
+            'reward_energy' : reward_energy,
             'reward' : reward,
             'penalty' : penalty
         }

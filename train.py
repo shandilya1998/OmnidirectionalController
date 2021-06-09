@@ -14,11 +14,14 @@ import torch
 from torchsummary import summary
 from constants import params
 from gym import envs
+import imp
+import sys
 
 np.seterr('raise')
 info_kwargs = (
     'reward_velocity',
     'reward_energy',
+    'reward_distance',
     'reward',
     'penalty'
 )
@@ -59,11 +62,13 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
                 reward_velocity = np.mean(df.reward_velocity.values[-100:])
                 reward_energy = np.mean(df.reward_energy.values[-100:])
                 reward = np.mean(df.reward.values[-100:])
+                reward_distance = np.mean(df.reward_distance.values[-100:])
                 penalty = np.mean(df.penalty.values[-100:])
                 self.logger.record('reward_velocity', reward_velocity)
                 self.logger.record('reward_energy', reward_energy)
                 self.logger.record('reward', reward)
                 self.logger.record('penalty', penalty)
+                self.logger.record('reward_distance', reward_distance)
         if self.n_calls % self.check_freq == 0:
             # Retrieve training reward
             df = load_results(self.log_dir)
@@ -115,6 +120,28 @@ def plot_results(log_folder, title='Learning Curve'):
     plt.title(title + " Smoothed")
     plt.show()
     fig.savefig(os.path.join(log_folder, 'learning_curve.png'))
+
+
+import sys
+
+def __import__(name, globals=None, locals=None, fromlist=None):
+    # Fast path: see if the module has already been imported.
+    try:
+        return sys.modules[name]
+    except KeyError:
+        pass
+
+    # If any of the following calls raises an exception,
+    # there's a problem we can't handle -- let the caller handle it.
+
+    fp, pathname, description = imp.find_module(name)
+
+    try:
+        return imp.load_module(name, fp, pathname, description)
+    finally:
+        # Since we may exit via an exception, close fp explicitly.
+        if fp:
+            fp.close()
 
 if __name__ == '__main__':
     # Create log dir
@@ -182,26 +209,46 @@ if __name__ == '__main__':
     env_name = args.env + '-v' + str(args.env_version)
     all_envs = envs.registry.all()
     env_ids = [env_spec.id for env_spec in all_envs]
+    env_class = None
+    env = None
+    import imp
+    if env_name in env_ids:
+        env = stable_baselines3.common.env_util.make_vec_env(
+            env_name,
+            monitor_dir = log_dir,
+            monitor_kwargs = {
+                'info_keywords' : info_kwargs
+            },
+        )
     if env_name not in env_ids and args.env_class is not None:
         gym.envs.registration.register(
             id=env_name,
             entry_point=args.env_class,
             max_episode_steps = params['MAX_STEPS']
         )
-    elif env_name not in env_ids:
-        raise ValueError('provide an entrypoint')
-    else:
-        raise ValueError('invalid env name')
-
-
-    env = stable_baselines3.common.env_util.make_vec_env(
-        env_name,
-        monitor_dir = log_dir,
-        monitor_kwargs = {
-            'info_keywords' : info_kwargs
-        },
-    )
-
+        """
+        module_name, class_name = args.env_class.split(':')
+        fp, pathname, description = imp.find_module(module_name)
+        module = imp.load_module(module_name, fp, pathname, description)
+        env_class = module.__dict__[class_name]
+        """
+        env = stable_baselines3.common.env_util.make_vec_env(
+            env_name,
+            n_envs = params['n_envs'],
+            monitor_dir = log_dir,
+            monitor_kwargs = {
+                'info_keywords' : info_kwargs
+            },
+            env_kwargs = {
+                'model_path' : 'ant.xml',
+                'render' : False,
+                'gait' : 'trot',
+                'task' : 'straight',
+                'direction' : 'forward',
+                'policy_type' : 'MultiInputPolicy',
+                'track_lst' : ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos']
+            }
+        )
 
     # Create action noise because TD3 and DDPG use a deterministic policy
     n_actions = env.action_space.sample().shape[-1]
@@ -216,8 +263,10 @@ if __name__ == '__main__':
 
     policy_kwargs = {}
     policy_kwargs['net_arch'] = params['NET_ARCH']
-    policy_kwargs['activation_fn'] = torch.nn.PReLU
+    policy_kwargs['activation_fn'] = torch.nn.Tanh
     policy = params['POLICY_TYPE']
+    policy_kwargs['log_std_init'] = -1
+    policy_kwargs['ortho_init'] = False
 
     model = None
     if args.td3 is not None:
@@ -268,7 +317,8 @@ if __name__ == '__main__':
             n_epochs = params['n_epochs'], # 20
             n_steps = params['MAX_STEPS'],
             gae_lambda = params['gae_lambda'],#0.9,
-            clip_range = params['clip_range']#0.4,
+            clip_range = params['clip_range'],#0.4,
+            device='cuda'
         )
     elif args.a2c is not None:
         model = A2C(
