@@ -297,7 +297,7 @@ params_env = {
 }
 
 
-max_steps = 128
+max_steps = 256
 n_envs = 16
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -332,9 +332,9 @@ params_rl = {
                                         'rotary_gallop'
                                     ],
     'task_list'                   : [
+                                        'straight',
                                         'rotate',
                                         'turn',
-                                        'straight'
                                     ],
     'direction_list'              : [
                                         'forward',
@@ -355,7 +355,6 @@ params_rl = {
                                         'observation',
                                         'desired_goal'
                                     ],
-    'total_steps'                 : 10000,
 }
 
 params.update(params_env)

@@ -1,0 +1,66 @@
+generate_reference.py:3: DeprecationWarning: the imp module is deprecated in favour of importlib; see the module's documentation for alternative uses
+  import imp
+Traceback (most recent call last):
+  File "generate_reference.py", line 23, in <module>
+    module = imp.load_module(module_name, fp, pathname, description)
+  File "/usr/local/Cellar/python@3.7/3.7.10_3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/imp.py", line 244, in load_module
+    return load_package(name, filename)
+  File "/usr/local/Cellar/python@3.7/3.7.10_3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/imp.py", line 216, in load_package
+    return _load(spec)
+  File "<frozen importlib._bootstrap>", line 696, in _load
+  File "<frozen importlib._bootstrap>", line 677, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 728, in exec_module
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "/Users/shreyasshandilya/Desktop/CNS/OmnidirectionalController/simulations/__init__.py", line 1, in <module>
+    from simulations.quadruped import Quadruped
+  File "/Users/shreyasshandilya/Desktop/CNS/OmnidirectionalController/simulations/quadruped.py", line 5, in <module>
+    from gym.envs.mujoco import mujoco_env
+  File "/usr/local/lib/python3.7/site-packages/gym/envs/mujoco/__init__.py", line 1, in <module>
+    from gym.envs.mujoco.mujoco_env import MujocoEnv
+  File "/usr/local/lib/python3.7/site-packages/gym/envs/mujoco/mujoco_env.py", line 12, in <module>
+    import mujoco_py
+  File "/usr/local/lib/python3.7/site-packages/mujoco_py-1.50.1.0-py3.7.egg/mujoco_py/__init__.py", line 1, in <module>
+    from mujoco_py.builder import cymj, ignore_mujoco_warnings, functions, MujocoException
+  File "/usr/local/lib/python3.7/site-packages/mujoco_py-1.50.1.0-py3.7.egg/mujoco_py/builder.py", line 283, in <module>
+    cymj = load_cython_ext(mjpro_path)
+  File "/usr/local/lib/python3.7/site-packages/mujoco_py-1.50.1.0-py3.7.egg/mujoco_py/builder.py", line 54, in load_cython_ext
+    cext_so_path = builder.build()
+  File "/usr/local/lib/python3.7/site-packages/mujoco_py-1.50.1.0-py3.7.egg/mujoco_py/builder.py", line 200, in build
+    so_file_path = super().build()
+  File "/usr/local/lib/python3.7/site-packages/mujoco_py-1.50.1.0-py3.7.egg/mujoco_py/builder.py", line 121, in build
+    dist.ext_modules = cythonize([self.extension])
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 980, in cythonize
+    aliases=aliases)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 834, in create_extension_list
+    kwds = deps.distutils_info(file, aliases, base).values
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 687, in distutils_info
+    return (self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 697, in transitive_merge
+    node, extract, merge, seen, {}, self.cimported_files)[0]
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 709, in transitive_merge_helper
+    sub_deps, sub_loop = self.transitive_merge_helper(next, extract, merge, seen, stack, outgoing)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 708, in transitive_merge_helper
+    for next in outgoing(node):
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Utils.py", line 66, in wrapper
+    res = cache[args] = f(self, *args)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 609, in cimported_files
+    pxd_file = self.find_pxd(module, filename)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Utils.py", line 66, in wrapper
+    res = cache[args] = f(self, *args)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Build/Dependencies.py", line 596, in find_pxd
+    return self.context.find_pxd_file(module, None)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Compiler/Main.py", line 244, in find_pxd_file
+    pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Compiler/Main.py", line 271, in search_include_directories
+    suffix, pos, include)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Utils.py", line 49, in wrapper
+    res = cache[args] = f(*args)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Compiler/Main.py", line 685, in search_include_directories
+    path = search_module_in_dir(package_dir, module_name, suffix)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Utils.py", line 49, in wrapper
+    res = cache[args] = f(*args)
+  File "/usr/local/lib/python3.7/site-packages/Cython-3.0a6-py3.7.egg/Cython/Compiler/Main.py", line 699, in search_module_in_dir
+    path = Utils.find_versioned_file(os.path.join(package_dir, module_name), "__init__", suffix)
+  File "/usr/local/Cellar/python@3.7/3.7.10_3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/posixpath.py", line 80, in join
+    a = os.fspath(a)
+KeyboardInterrupt

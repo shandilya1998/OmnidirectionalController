@@ -8,16 +8,12 @@ track_list = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', '
 def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, task_list, direction_list, track_list, env_name):
     DATA = {key : [] for key in track_list}
     TOTAL_STEPS = 0
+    PREV_TOTAL_STEPS = 0
+    num_files = 0
     for gait in gait_list:
-        if not os.path.exists(os.path.join(log_dir, gait)):
-            os.mkdir(os.path.join(log_dir, gait))
         for task in task_list:
-            if not os.path.exists(os.path.join(log_dir, gait, task)):
-                os.mkdir(os.path.join(log_dir, gait, task))
             for direction in direction_list:
                 try:
-                    if not os.path.exists(os.path.join(log_dir, gait, task, direction)):
-                        os.mkdir(os.path.join(log_dir, gait, task, direction))
                     ep = 0
                     data_case = {key : [] for key in track_list}
                     env = env_class(
@@ -27,12 +23,14 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                         track_lst = track_list,
                         **env_kwargs
                     )
-                    while ep < params['n_epochs']:
+                    while ep < params['n_epochs'] and \
+                        not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
+                        not (direction not in ['right', 'left'] and task == 'rotate'):
                         ep += 1
                         ac = env.action_space.sample()
                         ep_steps = 0
                         done = False
-                        while not done and env._step < params['total_steps']:
+                        while not done and ep_steps < params['MAX_STEPS']:
                             ob, reward, done, info = env.step(ac)
                             ep_steps += 1
                         data = {}
@@ -41,29 +39,33 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                         """
                             modify according to need
                         """
-                        mean_qvel = sum(data['achieved_goal'].copy()) / len(data['sensordata'])
-                        mean_qvel[np.array([2, 3, 4], dtype = np.int32)] = 0.0 * np.array([2, 3, 4], dtype = np.int32)
-                        data['desired_goal'] = [mean_qvel.copy()] * len(data['sensordata'])
+                        data['desired_goal'] = []
+                        for i in range(len(data['sensordata'])):
+                            if i + 1 <= 100 :
+                                mean_qvel = sum(data['achieved_goal'][:i+1]) / (i + 1)
+                            else:
+                                mean_qvel = sum(data['achieved_goal'][i+1-100:i+1]) / 100
+                            mean_qvel[np.array([2, 3, 4], dtype = np.int32)] = 0.0 * np.array([2, 3, 4], dtype = np.int32)
+                            data['desired_goal'].append(mean_qvel.copy())
+                        TOTAL_STEPS += len(data['sensordata'])
                         """
                             ------------------------
                         """
-                        if env._step < params['total_steps']:
-                            while env._step < params['total_steps']:
-                                for item in track_list:
-                                    data[item].append(data[item][-1].copy())
-                                env._step += 1
-                        TOTAL_STEPS += env._step
-                        ob = env.reset()
                         for item in track_list:
-                            data_case[item].append(np.stack(data[item][:params['total_steps']], axis = 0).copy())
-                    for item in track_list:
-                        with open(os.path.join(log_dir, gait, task, direction, '{}_{}.npy'.format(env_name, item)), 'wb') as f:
-                            np.save(f, np.stack(data_case[item], axis = 0))
+                            with open(os.path.join(log_dir, '{}_{}_{}.npy'.format(env_name, num_files, item)), 'wb') as f:
+                                np.save(f, np.stack(data[item], axis = 0))
+                        num_files += 1
+                        env.reset()
                     env.close()
                 except AssertionError:
                     pass
             print("------------------------")
             print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
             print('Saved {} {}'.format(gait, task))
+            print('Case Steps {}'.format(TOTAL_STEPS - PREV_TOTAL_STEPS))
             print('------------------------')
+            PREV_TOTAL_STEPS += TOTAL_STEPS
 
+
+def read_multi_goal_generated_gait_data(log_dir, track_list, env_name):
+    files = os.listdir(log_dir)

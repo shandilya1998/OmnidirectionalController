@@ -59,6 +59,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         assert self.task in params['task_list']
         assert self.direction in params['direction_list']
         assert not (self.gait not in ['ds_crawl', 'ls_crawl'] and self.task == 'rotate')
+        assert not (self.direction not in ['left', 'right'] and self.task == 'rotate')
         self._n_steps = 0
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
@@ -232,6 +233,11 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 self.init_gamma = self.init_gamma[1:] + self.init_gamma[:1]
             if self.direction == 'right':
                 self.init_gamma = self.init_gamma[-1:] + self.init_gamma[:-1]
+        if self.task == 'rotate':
+            if self.direction == 'left':
+                self.init_gamma = [0.75, 0.5, 0.25, 0.0]
+            if self.direction == 'right':
+                self.init_gamma = [0, 0.25, 0.5, 0.75]
         self.init_gamma = np.array(self.init_gamma, dtype = np.float32)
         return self.init_gamma
 
@@ -414,17 +420,22 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 out[np.array([3, 9])] *= -1.0
             elif self.direction == 'right':
                 out[np.array([0, 6])] *= -1.0
+        elif self.task == 'rotate':
+            if self.direction == 'left':
+                out[np.array([3, 6], dtype = np.int32)] *= -1.0
+            elif self.direction == 'right':
+                out[np.array([0, 9], dtype = np.int32)] *= -1.0
         return np.array(out, dtype = np.float32), timer_omega
 
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         if self._action_dim == 2:
             self._frequency = np.array([action[0]], dtype = np.float32)
-            self._amplitude = np.array([action[1]], dtype = np.float32)
+            self._amplitude = 0.9 * np.array([action[1]], dtype = np.float32)
         elif self._action_dim == 4:
             self._frequency = np.array([action[0], action[2]], dtype = np.float32)
-            self._amplitude = np.array([action[1], action[3]], dtype = np.float32)
-        omega = 0.42 * 2 * np.pi * self._frequency + 1e-8
+            self._amplitude = 0.9 * np.array([action[1], action[3]], dtype = np.float32)
+        omega = 0.5 * 2 * np.pi * self._frequency + 1e-8
         timer_omega = omega[0]
         self.action = action
         counter = 0

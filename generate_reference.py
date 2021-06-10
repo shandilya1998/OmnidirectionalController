@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     env_kwargs = {
         'model_path' : 'ant.xml',
-        'render' : True,
+        'render' : False,
         'verbose' : 0
     }
     generate_multi_goal_gait_data(

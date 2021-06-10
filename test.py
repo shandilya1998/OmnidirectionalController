@@ -101,6 +101,13 @@ def plot_tracked_item(name = 'position'):
 
 if __name__ =='__main__':
     from simulations.quadruped import Quadruped
-    env = Quadruped('ant.xml', render = False)
+    env = Quadruped(
+        model_path = 'ant.xml',
+        frame_skip = 5,
+        render = True,
+        gait = 'trot',
+        task = 'straight',
+        direction = 'forward',
+    )
     env = test_env(env, False)
     plot_tracked_item()
