@@ -45,6 +45,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         assert self.direction in params['direction_list']
         assert not (self.gait not in ['ds_crawl', 'ls_crawl'] and self.task == 'rotate')
         assert not (self.direction not in ['left', 'right'] and self.task == 'rotate')
+        assert not (self.direction not in ['left', 'right'] and self.task == 'turn')
         self._n_steps = 0
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)

@@ -52,7 +52,35 @@ def test_env(env, render = True):
         axes[int(i / 3)][i % 3].set_ylabel('joint position (radian)')
         i += 1
     fig.savefig(os.path.join('assets', 'plots', 'ant_joint_pos.png'))
+    env.reset()
+    return env
 
+def test_rl_env(env, render = True):
+    t = 0
+    done = False
+    print(env.ref_command)
+    while not done:
+        ac = env.ref_data['joint_pos'][t, :]
+        ob, reward, done, info = env.step(ac)
+        if render:
+            env.render()
+        t += 1
+    fig, axes = plt.subplots(4,3, figsize = (15, 20))
+    i = 0
+    joint_pos = np.nan_to_num(np.vstack(env._track_item['joint_pos']))
+    true_joint_pos = np.nan_to_num(np.vstack(env._track_item['true_joint_pos']))
+    num_joints = joint_pos.shape[-1]
+    t = np.arange(joint_pos.shape[0], dtype = np.float32) * env.dt
+    while True:
+        if i >= num_joints:
+            break
+        axes[int(i / 3)][i % 3].plot(t[:500], joint_pos[:500, i], color = 'r')
+        axes[int(i / 3)][i % 3].plot(t[:500], true_joint_pos[:500, i], color = 'b')
+        axes[int(i / 3)][i % 3].set_title('Joint {}'.format(i))
+        axes[int(i / 3)][i % 3].set_xlabel('time (s)')
+        axes[int(i / 3)][i % 3].set_ylabel('joint position (radian)')
+        i += 1
+    fig.savefig(os.path.join('assets', 'plots', 'ant_joint_pos.png'))
     return env
 
 def test():
@@ -100,7 +128,8 @@ def plot_tracked_item(name = 'position'):
 
 
 if __name__ =='__main__':
-    from simulations.quadruped import Quadruped
+    from simulations.quadruped_v2 import QuadrupedV2
+    """
     env = Quadruped(
         model_path = 'ant.xml',
         frame_skip = 5,
@@ -108,6 +137,6 @@ if __name__ =='__main__':
         gait = 'trot',
         task = 'straight',
         direction = 'forward',
-    )
-    env = test_env(env, False)
-    plot_tracked_item()
+    )"""
+    env = QuadrupedV2()
+    env = test_rl_env(env, True)

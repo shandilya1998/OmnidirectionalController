@@ -356,7 +356,7 @@ params_rl = {
                                         'observation',
                                         'desired_goal'
                                     ],
-    'ref_path'                    : os.path.join('out', 'reference'),
+    'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
 }
 

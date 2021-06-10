@@ -28,7 +28,8 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                     )
                     while ep < params['n_epochs'] and \
                         not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
-                        not (direction not in ['right', 'left'] and task == 'rotate'):
+                        not (direction not in ['right', 'left'] and task == 'rotate') and \
+                        not (direction not in ['right', 'left'] and task == 'turn'):
                         print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
                         ep += 1
                         ac = env.action_space.sample()
@@ -75,7 +76,7 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
 def get_reference_info(log_dir, track_list, env_name):
     files = os.listdir(log_dir)
     num_data = int(len(files) / len(track_list))
-    data_path = [{key : os.path.join(log_dir, '{}_{}_{}.npy'.format(env_class, i, key)) for key in track_list} for i in range(num_data)]
+    data_path = [{key : os.path.join(log_dir, '{}_{}_{}.npy'.format(env_name, i, key)) for key in track_list} for i in range(num_data)]
     return num_data, data_path
 
 
