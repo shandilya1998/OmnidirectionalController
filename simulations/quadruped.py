@@ -25,6 +25,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                  verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
+        self.cap = 1.0
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}
         self._step = 0
@@ -198,6 +199,10 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             self.beta = 0.25
 
     def _set_init_gamma(self):
+        if self.gait in ['ds_crawl', 'ls_crawl']:
+            self.cap = 0.5
+        else:
+            self.cap = 1.0
         if self.gait == 'ds_crawl':
             self.init_gamma = [0.0, 0.5, 0.75, 0.25]
         elif self.gait == 'ls_crawl':
@@ -416,12 +421,12 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         if self._action_dim == 2:
-            self._frequency = np.array([action[0]], dtype = np.float32)
-            self._amplitude = 0.9 * np.array([action[1]], dtype = np.float32)
+            self._frequency = self.cap * np.array([action[0]], dtype = np.float32)
+            self._amplitude = self.cap * np.array([action[1]], dtype = np.float32)
         elif self._action_dim == 4:
-            self._frequency = np.array([action[0], action[2]], dtype = np.float32)
-            self._amplitude = 0.9 * np.array([action[1], action[3]], dtype = np.float32)
-        omega = 0.5 * 2 * np.pi * self._frequency + 1e-8
+            self._frequency = self.cap * np.array([action[0], action[2]], dtype = np.float32)
+            self._amplitude = self.cap * np.array([action[1], action[3]], dtype = np.float32)
+        omega = 2 * np.pi * self._frequency + 1e-8
         timer_omega = omega[0]
         self.action = action
         counter = 0

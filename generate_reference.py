@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     env_kwargs = {
         'model_path' : 'ant.xml',
-        'render' : False,
+        'render' : True,
         'verbose' : 0
     }
     print('Starting.')
@@ -41,5 +41,4 @@ if __name__ == '__main__':
         params['track_list'],
         class_name
     )
-    print('Done.')
     print('Thank you.')

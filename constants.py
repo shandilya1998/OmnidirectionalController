@@ -363,8 +363,6 @@ params_rl = {
 params.update(params_env)
 params.update(params_rl)
 
-"""
-params['gait_list'] = ['ds_crawl']
-params['task_list'] = ['straight']
-params['direction_list'] = ['forward']
-"""
+params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']
+params['task_list'] = ['straight', 'rotate', 'turn']
+params['direction_list'] = ['forward', 'backward', 'left', 'right']

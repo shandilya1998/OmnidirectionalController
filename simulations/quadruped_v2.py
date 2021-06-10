@@ -109,6 +109,15 @@ class QuadrupedV2(Quadruped):
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['desired_goal'].append(ob['desired_goal'].copy())
 
+    def _episode_stats(self):
+        info = {
+            'desired_goal' : self.desired_goal,
+            'episode_length' : self.ref_command[3],
+            'gait' : self.ref_command[0],
+            'task' : self.ref_command[1],
+            'direction' : self.ref_command[2],
+        }
+
     def do_simulation(self, action, n_frames, callback=None):
         self.sim.data.ctrl[:] = action
         self.action = action.copy()
