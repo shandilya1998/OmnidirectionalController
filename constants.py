@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
@@ -297,7 +298,7 @@ params_env = {
 }
 
 
-max_steps = 256
+max_steps = 150
 n_envs = 16
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -355,7 +356,15 @@ params_rl = {
                                         'observation',
                                         'desired_goal'
                                     ],
+    'ref_path'                    : os.path.join('out', 'reference'),
+    'env_name'                    : 'Quadruped',
 }
 
 params.update(params_env)
 params.update(params_rl)
+
+"""
+params['gait_list'] = ['ds_crawl']
+params['task_list'] = ['straight']
+params['direction_list'] = ['forward']
+"""

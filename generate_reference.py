@@ -18,6 +18,8 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    print('Module Initialized.')
+
     module_name, class_name = args.env_class.split(':')
     fp, pathname, description = imp.find_module(module_name)
     module = imp.load_module(module_name, fp, pathname, description)
@@ -28,6 +30,7 @@ if __name__ == '__main__':
         'render' : False,
         'verbose' : 0
     }
+    print('Starting.')
     generate_multi_goal_gait_data(
         args.log_dir,
         env_class,
@@ -38,3 +41,5 @@ if __name__ == '__main__':
         params['track_list'],
         class_name
     )
+    print('Done.')
+    print('Thank you.')

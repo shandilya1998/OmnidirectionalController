@@ -1,15 +1,18 @@
 import os
 import numpy as np
-from constants import params
 import argparse
+import pandas as pd
 
 track_list = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', 'sensordata', 'qpos', 'qvel', 'achieved_goal', 'observation', 'desired_goal']
 
 def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, task_list, direction_list, track_list, env_name):
+    from constants import params
     DATA = {key : [] for key in track_list}
     TOTAL_STEPS = 0
     PREV_TOTAL_STEPS = 0
     num_files = 0
+    cases = {'gait' : [], 'task' : [], 'direction' : [], 'id' : [], 'length' : []}
+    print('Starting Data Generation.')
     for gait in gait_list:
         for task in task_list:
             for direction in direction_list:
@@ -26,6 +29,7 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                     while ep < params['n_epochs'] and \
                         not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
                         not (direction not in ['right', 'left'] and task == 'rotate'):
+                        print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
                         ep += 1
                         ac = env.action_space.sample()
                         ep_steps = 0
@@ -47,6 +51,11 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                                 mean_qvel = sum(data['achieved_goal'][i+1-100:i+1]) / 100
                             mean_qvel[np.array([2, 3, 4], dtype = np.int32)] = 0.0 * np.array([2, 3, 4], dtype = np.int32)
                             data['desired_goal'].append(mean_qvel.copy())
+                        cases['gait'].append(gait)
+                        cases['task'].append(task)
+                        cases['direction'].append(direction)
+                        cases['id'].append('{}_{}'.format(env_name, num_files))
+                        cases['length'].append(len(data['sensordata']))
                         TOTAL_STEPS += len(data['sensordata'])
                         """
                             ------------------------
@@ -59,13 +68,14 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                     env.close()
                 except AssertionError:
                     pass
-            print("------------------------")
-            print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
-            print('Saved {} {}'.format(gait, task))
-            print('Case Steps {}'.format(TOTAL_STEPS - PREV_TOTAL_STEPS))
-            print('------------------------')
-            PREV_TOTAL_STEPS += TOTAL_STEPS
+    df = pd.DataFrame(cases)
+    df.to_csv(os.path.join(log_dir, 'info.csv'))
+    print('Data Generation Done.')
 
-
-def read_multi_goal_generated_gait_data(log_dir, track_list, env_name):
+def get_reference_info(log_dir, track_list, env_name):
     files = os.listdir(log_dir)
+    num_data = int(len(files) / len(track_list))
+    data_path = [{key : os.path.join(log_dir, '{}_{}_{}.npy'.format(env_class, i, key)) for key in track_list} for i in range(num_data)]
+    return num_data, data_path
+
+

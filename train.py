@@ -17,7 +17,7 @@ from gym import envs
 import imp
 import sys
 
-np.seterr('raise')
+np.seterr('ignore')
 info_kwargs = (
     'reward_velocity',
     'reward_energy',
@@ -246,7 +246,8 @@ if __name__ == '__main__':
                 'task' : 'straight',
                 'direction' : 'left',
                 'policy_type' : 'MultiInputPolicy',
-                'track_lst' : params['track_list']
+                'track_lst' : params['track_list'],
+                'verbose' : 1
             }
         )
 
@@ -265,8 +266,9 @@ if __name__ == '__main__':
     policy_kwargs['net_arch'] = params['NET_ARCH']
     policy_kwargs['activation_fn'] = torch.nn.Tanh
     policy = params['POLICY_TYPE']
-    policy_kwargs['log_std_init'] = -1
-    policy_kwargs['ortho_init'] = False
+    if args.ppo is not None:
+        policy_kwargs['log_std_init'] = -1
+        policy_kwargs['ortho_init'] = False
 
     model = None
     if args.td3 is not None:
