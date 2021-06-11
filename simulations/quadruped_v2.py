@@ -129,17 +129,16 @@ class QuadrupedV2(Quadruped):
             self.render()
         self.achieved_goal = self.sim.data.qvel[:6].copy()
 
-        self.w = [0.15, 0.3, 0.24, 0.13, 0.06, 0.06, 0.06]
+        self.w = [0.10, 2.0, 0.10, 0.10, 0.10, 0.10, 0.10]
         reward_velocity = np.exp(-np.linalg.norm(self.achieved_goal[:3] - self.desired_goal[:3], axis = -1)) * self.w[0]
-        reward_ctrl = (0.85 * np.exp(-np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])) + \
-            0.15 * np.exp(-np.linalg.norm(action - self.ref_data['true_joint_pos'][self._step, :]))) * self.w[1]
+        reward_ctrl = np.exp(-np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])) * self.w[1]
         reward_position = np.exp(-np.linalg.norm(self.sim.data.qpos[:3] - self.ref_data['qpos'][self._step, :3], axis = -1)) * self.w[2]
         reward_orientation = np.exp(-np.linalg.norm(self.sim.data.qpos[3:7] * self.ref_data['qpos'][self._step, 3:7])) * self.w[3]
         reward_ang_vel = np.exp(-np.linalg.norm(self.achieved_goal[3:6] - self.desired_goal[3:6], axis = -1)) * self.w[4]
-        reward_contact = np.exp(-5e-4 * np.sum( 
-            np.square(np.clip(self.sim.data.cfrc_ext, -1, 1))
+        reward_contact = np.exp(-np.sum(
+            np.square(self.sim.data.cfrc_ext.flat)
         )) * self.w[5]
-        reward_energy = np.exp(-5e-4 * np.square(np.linalg.norm(self.sim.data.actuator_force))) * self.w[6]
+        reward_energy = np.exp(-1e-2 * np.linalg.norm(self.sim.data.actuator_force)) * self.w[6]
 
         self._step += 1
         state = self.state_vector()

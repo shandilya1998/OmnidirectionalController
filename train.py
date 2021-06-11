@@ -229,6 +229,8 @@ if __name__ == '__main__':
     render = False
     if args.render is not None:
         render = True
+    if torch.cuda.is_available():
+        render = False
     if env_name in env_ids:
         env = stable_baselines3.common.env_util.make_vec_env(
             env_name,

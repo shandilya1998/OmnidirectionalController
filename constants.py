@@ -298,14 +298,14 @@ params_env = {
 }
 
 
-max_steps = 10000
-n_envs = 1
+max_steps = 10000 # 150 #data collection env
+n_envs = 16
 params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.08,
     'BATCH_SIZE'                  : max_steps * n_envs ,#8,
-    'NET_ARCH'                    : [dict(pi=[64, 64], vf=[64, 64])],
+    'NET_ARCH'                    : [dict(pi=[256, 256], vf=[256, 256])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
     'TRAIN_FREQ'                  : [1, 'steps'],
@@ -318,7 +318,7 @@ params_rl = {
     'LEARNING_RATE'               : 0.001,
     'gamma'                       : 0.9,
     'tau'                         : 0.02,
-    'steps'                       : int(1e6),
+    'steps'                       : int(1e7),
     'n_steps'                     : 8,
     'n_envs'                      : n_envs,
     'dt'                          : 0.001,
