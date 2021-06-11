@@ -20,10 +20,13 @@ import sys
 np.seterr('ignore')
 info_kwargs = (
     'reward_velocity',
+    'reward_position',
     'reward_energy',
-    'reward_distance',
+    'reward_ang_vel',
+    'reward_orientation',
+    'reward_contact',
+    'reward_ctrl',
     'reward',
-    'penalty'
 )
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
@@ -62,13 +65,19 @@ class SaveOnBestTrainingRewardCallback(BaseCallback):
                 reward_velocity = np.mean(df.reward_velocity.values[-100:])
                 reward_energy = np.mean(df.reward_energy.values[-100:])
                 reward = np.mean(df.reward.values[-100:])
-                reward_distance = np.mean(df.reward_distance.values[-100:])
-                penalty = np.mean(df.penalty.values[-100:])
+                reward_position = np.mean(df.reward_position.values[-100:])
+                reward_ang_vel = np.mean(df.reward_ang_vel.values[-100:])
+                reward_orientation = np.mean(df.reward_ang_vel.values[-100:])
+                reward_contact = np.mean(df.reward_contact.values[-100:])
+                reward_ctrl = np.mean(df.reward_ctrl.values[-100:])
                 self.logger.record('reward_velocity', reward_velocity)
                 self.logger.record('reward_energy', reward_energy)
                 self.logger.record('reward', reward)
-                self.logger.record('penalty', penalty)
-                self.logger.record('reward_distance', reward_distance)
+                self.logger.record('reward_ang_vel', reward_ang_vel)
+                self.logger.record('reward_position', reward_position)
+                self.logger.record('reward_orientation', reward_orientation)
+                self.logger.record('reward_contact', reward_contact)
+                self.logger.record('reward_ctrl', reward_ctrl)
         if self.n_calls % self.check_freq == 0:
             # Retrieve training reward
             df = load_results(self.log_dir)
@@ -196,6 +205,11 @@ if __name__ == '__main__':
         nargs='?', type = int, const = 1,
         help = 'choice to use A2C'
     )
+    parser.add_argument(
+        '--render',
+        nargs='?', type = int, const = 1,
+        help = 'choice to render env'
+    )
     args = parser.parse_args()
 
     path = os.path.join(args.out_path, 'exp{}'.format(args.experiment))
@@ -212,6 +226,9 @@ if __name__ == '__main__':
     env_class = None
     env = None
     import imp
+    render = False
+    if args.render is not None:
+        render = True
     if env_name in env_ids:
         env = stable_baselines3.common.env_util.make_vec_env(
             env_name,
@@ -241,7 +258,7 @@ if __name__ == '__main__':
             },
             env_kwargs = {
                 'model_path' : 'ant.xml',
-                'render' : False,
+                'render' : render,
                 'gait' : 'trot',
                 'task' : 'straight',
                 'direction' : 'left',
@@ -272,8 +289,8 @@ if __name__ == '__main__':
 
     model = None
     if args.td3 is not None:
-        params['TRAIN_FREQ'] = params['TRAIN_FREQ'][0]
         if args.her is None:
+            print(params['TRAIN_FREQ'])
             model = TD3(
                 policy,
                 env,
@@ -283,7 +300,7 @@ if __name__ == '__main__':
                 verbose = 1,
                 tensorboard_log = log_dir,
                 batch_size = params['BATCH_SIZE'],
-                train_freq = params['TRAIN_FREQ'],
+                train_freq = params['TRAIN_FREQ'][0],
             )
         else:
             print('[DDPG] Using HER')
@@ -303,7 +320,7 @@ if __name__ == '__main__':
                 verbose = 1,
                 tensorboard_log = log_dir,
                 batch_size = params['BATCH_SIZE'],
-                train_freq = params['TRAIN_FREQ'],
+                train_freq = params['TRAIN_FREQ'][0],
             )
 
     elif args.ppo is not None:
@@ -338,7 +355,6 @@ if __name__ == '__main__':
             normalize_advantage=True,
         )
     elif args.sac is not None:
-        params['TRAIN_FREQ'] = params['TRAIN_FREQ'][0]
         if args.her is None:
             model = SAC(
                 policy,

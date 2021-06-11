@@ -298,8 +298,8 @@ params_env = {
 }
 
 
-max_steps = 150
-n_envs = 16
+max_steps = 10000
+n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
@@ -318,7 +318,7 @@ params_rl = {
     'LEARNING_RATE'               : 0.001,
     'gamma'                       : 0.9,
     'tau'                         : 0.02,
-    'steps'                       : int(6e4),
+    'steps'                       : int(1e6),
     'n_steps'                     : 8,
     'n_envs'                      : n_envs,
     'dt'                          : 0.001,

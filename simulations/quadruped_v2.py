@@ -125,6 +125,8 @@ class QuadrupedV2(Quadruped):
         for _ in range(n_frames):
             self.sim.step()
 
+        if self._is_render:
+            self.render()
         self.achieved_goal = self.sim.data.qvel[:6].copy()
 
         self.w = [0.15, 0.3, 0.24, 0.13, 0.06, 0.06, 0.06]
