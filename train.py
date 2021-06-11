@@ -394,7 +394,6 @@ if __name__ == '__main__':
                 use_sde = True,
             )
 
-
     steps = params['steps']
     model.learn(total_timesteps=int(steps), callback=callback)
     model.save(log_dir + '/Policy')
@@ -410,7 +409,6 @@ if __name__ == '__main__':
         torch.save(model.critic, os.path.join(log_dir, 'critic.pth'))
         torch.save(model.critic_target, os.path.join(log_dir, 'critic_target.pth'))
         torch.save(model.actor_target, os.path.joint(log_dir, 'actor_target.pth'))
-
 
     from stable_baselines3.common import results_plotter
 

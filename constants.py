@@ -299,12 +299,12 @@ params_env = {
 
 
 max_steps = 10000 # 150 #data collection env
-n_envs = 16
+n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.08,
-    'BATCH_SIZE'                  : max_steps * n_envs ,#8,
+    'BATCH_SIZE'                  : 8, #max_steps * n_envs ,#8,
     'NET_ARCH'                    : [dict(pi=[256, 256], vf=[256, 256])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
@@ -360,8 +360,44 @@ params_rl = {
     'env_name'                    : 'Quadruped',
 }
 
+
+action_dim = 12
+units_osc = 60#action_dim#60 exp 68 units_osc = 8
+params_pretrain = {
+    'action_dim'                  : action_dim,
+    'batch_size'                  : 128,
+    'n_epochs'                    : 128,
+    'n_steps'                     : 3500,
+    'n_update_steps'              : 5,
+    'n_eval_steps'                : 10000,
+    'n_episodes'                  : 128,
+    'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
+    'robot_state_size'            : 54,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
+    'dt'                          : 0.01,
+    'units_output_mlp'            : [60,100, 100, action_dim],
+    'units_osc'                   : units_osc,
+    'units_combine_rddpg'         : [200, units_osc],
+    'units_combine'               : [200, units_osc],
+    'units_robot_state'           : [145, 250, units_osc],
+    'units_motion_state'          : [150, 75],
+    'units_mu'                    : [150, 75],
+    'units_mean'                  : [150, 75],
+    'units_omega'                 : [150, 75],
+    'units_dim_omega'             : 1,
+    'units_robot_state_critic'    : [200, 120],
+    'units_gru_rddpg'             : 400,
+    'units_q'                     : 1,
+    'actor_version'               : 2,
+    'hopf_version'                : 1,
+    'units_motion_state_critic'   : [200, 120],
+    'units_action_critic'         : [200, 120],
+    'units_history'               : 24, 
+
+}
+
 params.update(params_env)
 params.update(params_rl)
+params.update(params_pretrain)
 
 params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']
