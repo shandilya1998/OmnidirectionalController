@@ -5,6 +5,8 @@ import numpy as np
 import gym
 from collections import OrderedDict
 from torch.autograd import Variable
+import os
+import shutil
 
 USE_CUDA = torch.cuda.is_available()
 FLOAT = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
@@ -41,3 +43,13 @@ def to_tensor(ndarray, volatile=False, requires_grad=False, dtype=FLOAT):
     except Exception as e:
         print(ndarray)
         raise e
+
+
+def remove(path):
+    """ param <path> could either be relative or absolute. """
+    if os.path.isfile(path) or os.path.islink(path):
+        os.remove(path)  # remove the file
+    elif os.path.isdir(path):
+        shutil.rmtree(path)  # remove dir and all contains
+    else:
+        raise ValueError("file {} is not a file or dir.".format(path))

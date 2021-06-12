@@ -122,7 +122,7 @@ class Learner:
         while self._ep < params['n_episodes']:
             loss = self._pretrain(experiment)
             print('Episode {} Loss {:.6f}'.format(self._ep, loss))
-            self.logger.add_scalar('Train/Episode Loss', loss)
+            self.logger.add_scalar('Train/Episode Loss', loss, self._ep)
             self._ep += 1
         print('Pretraining Done.')
 
@@ -141,7 +141,7 @@ class Learner:
         self._optim.zero_grad()
         self._last_osc = self._osc.detach()
         self._osc = self._osc.detach()
-        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), (self._ep + 1) * (self._epoch + 1 ) * self._step)
+        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), (self._ep + 1) * self._epoch)
         return loss.detach().cpu().numpy()
 
     def _pretrain_epoch(self, x, y, steps):
@@ -250,6 +250,10 @@ if __name__ == '__main__':
 
     if not os.path.exists(os.path.join(args.out_path, str(args.experiment), 'tensorboard')):
         os.mkdir(os.path.join(args.out_path, str(args.experiment), 'tensorboard'))
+    path = os.path.join(args.out_path, 'exp{}'.format(str(args.experiment)), 'tensorboard')
+    if os.path.exists(path):
+        remove(path)
+        os.mkdir(path)
     writer = torch.utils.tensorboard.SummaryWriter(os.path.join(args.out_path, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
     module_name, class_name = args.model_class.split(':')
     fp, pathname, description = imp.find_module(module_name)
