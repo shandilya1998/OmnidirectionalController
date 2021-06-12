@@ -40,6 +40,11 @@ class QuadrupedV2(Quadruped):
         self.desired_goal = self.command
         self.achieved_goal = self.sim.data.qvel[:6].copy()
         self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
+        self.init_b = np.concatenate([
+            self.init_qpos[:7].copy(),
+            self.init_qvel[:6].copy(),
+        ], -1)
+        self.last_ob = [self.init_b.copy()] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -47,6 +52,8 @@ class QuadrupedV2(Quadruped):
         self.gamma = self.init_gamma.copy()
         bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         low, high = bounds.T
+        low = low.min() * np.ones((params['action_dim'],), dtype = np.float32)
+        high = high.min() * np.ones((params['action_dim'],), dtype = np.float32)
         self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
         self._action_dim = low.shape[-1]
         return self.action_space
@@ -61,6 +68,7 @@ class QuadrupedV2(Quadruped):
         self.desired_goal = self.command
         self.achieved_goal = self.sim.data.qvel[:6].copy()
         self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
+        self.last_ob = [self.init_b.copy()] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -70,7 +78,6 @@ class QuadrupedV2(Quadruped):
         self.gamma = self.init_gamma.copy()
         self.sim.reset()
         self.ob = self.reset_model()
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
         """
         if self.policy_type == 'MultiInputPolicy':
         """
@@ -119,9 +126,22 @@ class QuadrupedV2(Quadruped):
         }
 
     def do_simulation(self, action, n_frames, callback=None):
+        out = []
+        for i in range(action.shape[-1]):
+            out.append(action[i])
+            if i % 2 == 1:
+                out.append(0.5 * action[i])
+        action = np.array(out, dtype = np.float32)
         self.sim.data.ctrl[:] = action
         self.action = action.copy()
         self.joint_pos = action.copy()
+        self.last_joint_pos.pop(0)
+        self.last_joint_pos.append(self.joint_pos.copy())
+        self.last_ob.pop(0)
+        self.last_ob.append(np.concatenate([
+            self.init_qpos[:7].copy(),
+            self.init_qvel[:6].copy(),
+        ], -1))
         for _ in range(n_frames):
             self.sim.step()
 
@@ -130,16 +150,15 @@ class QuadrupedV2(Quadruped):
         self.achieved_goal = self.sim.data.qvel[:6].copy()
 
         self.w = [0.20, 2.0, 0.10, 0.10, 0.10, 0.05, 0.05]
-        reward_velocity = np.exp(-np.linalg.norm(self.achieved_goal[:3] - self.desired_goal[:3], axis = -1)) * self.w[0]
-        reward_ctrl = np.exp(-np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])) * self.w[1]
+        reward_velocity = -np.linalg.norm(self.achieved_goal[:3] - self.desired_goal[:3], axis = -1)
+        reward_ctrl = -np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])
         reward_position = np.exp(-np.linalg.norm(self.sim.data.qpos[:3] - self.ref_data['qpos'][self._step, :3], axis = -1)) * self.w[2]
         reward_orientation = np.exp(-np.linalg.norm(self.sim.data.qpos[3:7] * self.ref_data['qpos'][self._step, 3:7])) * self.w[3]
-        reward_ang_vel = np.exp(-np.linalg.norm(self.achieved_goal[3:6] - self.desired_goal[3:6], axis = -1)) * self.w[4]
+        reward_ang_vel = -np.linalg.norm(self.achieved_goal[3:6] - self.desired_goal[3:6], axis = -1)
         reward_contact = np.exp(-np.sum(
             np.square(self.sim.data.cfrc_ext.flat)
         )) * self.w[5]
         reward_energy = np.exp(-1e-2 * np.linalg.norm(self.sim.data.actuator_force)) * self.w[6]
-
         self._step += 1
         state = self.state_vector()
         notdone = np.isfinite(state).all() \

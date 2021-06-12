@@ -35,7 +35,6 @@ def test_env(env, render = True):
         t += 1
         if t > 1000:
             break
-    env.reset()
     fig, axes = plt.subplots(4,3, figsize = (15, 20))
     i = 0
     joint_pos = np.nan_to_num(np.vstack(env._track_item['joint_pos']))
@@ -128,8 +127,7 @@ def plot_tracked_item(name = 'position'):
 
 
 if __name__ =='__main__':
-    from simulations.quadruped_v2 import QuadrupedV2
-    """
+    from simulations import QuadrupedV2, Quadruped
     env = Quadruped(
         model_path = 'ant.xml',
         frame_skip = 5,
@@ -137,6 +135,6 @@ if __name__ =='__main__':
         gait = 'trot',
         task = 'straight',
         direction = 'forward',
-    )"""
-    env = QuadrupedV2()
-    env = test_rl_env(env, True)
+    )
+    #env = QuadrupedV2()
+    env = test_env(env, True)

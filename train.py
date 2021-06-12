@@ -302,7 +302,7 @@ if __name__ == '__main__':
                 verbose = 1,
                 tensorboard_log = log_dir,
                 batch_size = params['BATCH_SIZE'],
-                train_freq = params['TRAIN_FREQ'][0],
+                train_freq = params['TRAIN_FREQ'],
             )
         else:
             print('[DDPG] Using HER')

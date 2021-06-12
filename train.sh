@@ -12,4 +12,4 @@ python3 train.py \
     --env $ENV \
     --env_version $ENV_VERSION \
     --env_class $ENV_CLASS \
-    --a2c
+    --ppo --render

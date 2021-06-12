@@ -166,6 +166,11 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
 
     def _set_action_space(self):
         self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
+        self.init_b = np.concatenate([
+            self.init_qpos[:7].copy(),
+            self.init_qvel[:6].copy(),
+        ], -1)
+        self.last_ob = [self.init_b.copy()] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -239,6 +244,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.sim.reset()
         self.ob = self.reset_model()
         self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
+        self.last_ob = [self.init_b.copy()] * 4
         if self.policy_type == 'MultiInputPolicy':
             """
                 modify this according to observation space
@@ -270,7 +276,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         ob = {}
         if self.policy_type == 'MultiInputPolicy':
             ob = {
-                'observation' : np.concatenate(self.last_joint_pos, -1),
+                'observation' : np.concatenate(self.last_ob + self.last_joint_pos, -1),
                 'desired_goal' : self.desired_goal,
                 'achieved_goal' : self.achieved_goal
             }
@@ -443,6 +449,11 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             self.joint_pos, timer_omega = self._get_joint_pos(self._amplitude, omega)
             self.last_joint_pos.pop(0)
             self.last_joint_pos.append(self.joint_pos.copy())
+            self.last_ob.pop(0)
+            self.last_ob.append(np.concatenate([
+                self.init_qpos[:7].copy(),
+                self.init_qvel[:6].copy(),
+            ], -1))
             posbefore = self.get_body_com("torso").copy()
             penalty = 0.0
             if np.isnan(self.joint_pos).any():

@@ -178,6 +178,7 @@ class Controller(torch.nn.Module):
         self.param_net = ParamNet(params)
         self.hopf = Hopf(params)
 
+        """
         robot_state_enc_seq = OrderedDict()
         input_size = params['robot_state_size']
         for i, units in enumerate(params['units_robot_state']):
@@ -188,7 +189,7 @@ class Controller(torch.nn.Module):
             robot_state_enc_seq['ac{i}'.format(i = i)] = torch.nn.PReLU()
             input_size = units
         self.robot_state_enc = torch.nn.Sequential(robot_state_enc_seq)
-
+        """
         output_mlp_seq = []
         for i, units in enumerate(params['units_omega']):
             output_mlp_seq.append(ComplexLinear(
@@ -212,10 +213,13 @@ class Controller(torch.nn.Module):
     def forward(self, ob, z):
         desired_goal, achieved_goal, observation = ob
         omega, mu = self.param_net(desired_goal)
+        """
         z_r = self.robot_state_enc(torch.cat([achieved_goal, observation], -1))
         z_i = torch.zeros_like(z_r)
+        """
         z = self.hopf(z, omega, mu)
-        out = self.output_mlp(z + torch.cat([z_r, z_i], -1))
+        #out = self.output_mlp(z + torch.cat([z_r, z_i], -1))
+        out = self.output_mlp(z)
         x, y = torch.split(out, [params['action_dim'], params['action_dim']], -1)
         x = params['max_action'] * self.out_tanh(x)
         out = torch.cat([x, z], -1)
