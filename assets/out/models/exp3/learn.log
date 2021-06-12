@@ -1,12 +1,2 @@
 Environment Name: Quadruped-v2
 running build_ext
-Environment Name: Quadruped-v2
-running build_ext
-Traceback (most recent call last):
-  File "pretrain.py", line 255, in <module>
-    os.remove(path)
-IsADirectoryError: [Errno 21] Is a directory: 'assets/out/models/exp3/tensorboard'
-Environment Name: Quadruped-v2
-running build_ext
-Environment Name: Quadruped-v2
-running build_ext
