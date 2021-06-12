@@ -135,6 +135,12 @@ class Learner:
         while it < params['n_update_steps'] and self._step < steps:
             out = self._model(x, self._osc)
             y_pred, self._osc = torch.split(out, [params['action_dim'], 2 * params['units_osc']], -1)
+            out = []
+            for i in range(y_pred.shape[-1]):
+                out.append(y_pred[:, i])
+                if i % 2 == 1:
+                    out.append(y_pred[:, i] * 0.5)
+            y_pred = torch.stack(out, -1)
             loss += torch.nn.functional.mse_loss(y_pred, y)
             it += 1
             self._step += 1

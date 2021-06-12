@@ -361,7 +361,7 @@ params_rl = {
 }
 
 
-action_dim = 12
+action_dim = 8
 units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
@@ -399,7 +399,7 @@ params_pretrain = {
 
 params.update(params_env)
 params.update(params_rl)
-#params.update(params_pretrain)
+params.update(params_pretrain)
 
 params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']

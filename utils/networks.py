@@ -94,14 +94,13 @@ class Hopf(torch.nn.Module):
         super(Hopf, self).__init__()
         self.params = params
         self.dt = torch.Tensor([self.params['dt']]).type(FLOAT)
-        self.arange = torch.arange(0, self.params['units_osc'], 1.0).type(FLOAT)
 
     def forward(self, z, omega, mu):
         units_osc = z.shape[-1]
         x, y = torch.split(z, units_osc // 2, -1)
         r = torch.sqrt(x ** 2 + y ** 2)
         phi = torch.atan2(y,x)
-        delta_phi = self.dt * omega * self.arange
+        delta_phi = self.dt * omega
         phi = phi + delta_phi
         r = r + self.dt * (mu - r ** 2) * r
         z = torch.cat([x, y], -1)
@@ -139,7 +138,7 @@ class ParamNet(torch.nn.Module):
 
         omega_seq.append(torch.nn.Linear(
             input_size,
-            1
+            params['units_osc']
         ))
         omega_seq.append(torch.nn.ReLU())
 
@@ -190,6 +189,7 @@ class Controller(torch.nn.Module):
             input_size = units
         self.robot_state_enc = torch.nn.Sequential(robot_state_enc_seq)
         """
+        input_size = params['units_osc']
         output_mlp_seq = []
         for i, units in enumerate(params['units_omega']):
             output_mlp_seq.append(ComplexLinear(
