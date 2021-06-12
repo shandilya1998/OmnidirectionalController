@@ -129,7 +129,7 @@ class QuadrupedV2(Quadruped):
             self.render()
         self.achieved_goal = self.sim.data.qvel[:6].copy()
 
-        self.w = [0.10, 2.0, 0.10, 0.10, 0.10, 0.10, 0.10]
+        self.w = [0.20, 2.0, 0.10, 0.10, 0.10, 0.05, 0.05]
         reward_velocity = np.exp(-np.linalg.norm(self.achieved_goal[:3] - self.desired_goal[:3], axis = -1)) * self.w[0]
         reward_ctrl = np.exp(-np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])) * self.w[1]
         reward_position = np.exp(-np.linalg.norm(self.sim.data.qpos[:3] - self.ref_data['qpos'][self._step, :3], axis = -1)) * self.w[2]

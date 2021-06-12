@@ -368,7 +368,7 @@ params_pretrain = {
     'batch_size'                  : 512,
     'n_epochs'                    : 25,
     'n_steps'                     : 3500,
-    'n_update_steps'              : 5,
+    'n_update_steps'              : 20,
     'n_eval_steps'                : 100,
     'n_episodes'                  : 500,
     'min_epoch_size'              : 3500,
@@ -392,7 +392,8 @@ params_pretrain = {
     'hopf_version'                : 1,
     'units_motion_state_critic'   : [200, 120],
     'units_action_critic'         : [200, 120],
-    'units_history'               : 24, 
+    'units_history'               : 24,
+    'max_action'                  : 2.0,
 
 }
 

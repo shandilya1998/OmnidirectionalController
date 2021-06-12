@@ -203,6 +203,8 @@ class Controller(torch.nn.Module):
             params['action_dim']
         ))
 
+        self.out_tanh = torch.nn.Tanh()
+
         self.output_mlp = torch.nn.Sequential(
             *output_mlp_seq
         )
@@ -215,6 +217,7 @@ class Controller(torch.nn.Module):
         z = self.hopf(z, omega, mu)
         out = self.output_mlp(z + torch.cat([z_r, z_i], -1))
         x, y = torch.split(out, [params['action_dim'], params['action_dim']], -1)
+        x = params['max_action'] * self.out_tanh(x)
         out = torch.cat([x, z], -1)
         """
             get x and concat with z
