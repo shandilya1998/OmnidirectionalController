@@ -122,7 +122,7 @@ class Learner:
         while self._ep < params['n_episodes']:
             loss = self._pretrain(experiment)
             print('Episode {} Loss {:.6f}'.format(self._ep, loss))
-            self.logger.add_scalar('Train/Episode Loss', loss, self._ep)
+            self.logger.add_scalar('Train/Episode Loss', loss)
             self._ep += 1
         print('Pretraining Done.')
 
@@ -141,7 +141,7 @@ class Learner:
         self._optim.zero_grad()
         self._last_osc = self._osc.detach()
         self._osc = self._osc.detach()
-        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), (self._ep + 1) * self._epoch)
+        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy())
         return loss.detach().cpu().numpy()
 
     def _pretrain_epoch(self, x, y, steps):
@@ -165,9 +165,9 @@ class Learner:
             if steps > 0:
                 epoch_loss = epoch_loss / steps
             ep_loss += epoch_loss
-            self.logger.add_scalar('Train/Epoch Loss', epoch_loss, (self._ep + 1) * self._epoch)
+            self.logger.add_scalar('Train/Epoch Loss', epoch_loss)
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
-                self.logger.add_scalar('Evaluate/Reward', self._eval(), int(self._epoch / params['n_eval_steps']))
+                self.logger.add_scalar('Evaluate/Reward', self._eval())
                 self._save(experiment)
         return ep_loss / params['n_epochs']
 

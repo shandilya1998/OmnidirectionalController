@@ -8,3 +8,5 @@ Traceback (most recent call last):
 IsADirectoryError: [Errno 21] Is a directory: 'assets/out/models/exp3/tensorboard'
 Environment Name: Quadruped-v2
 running build_ext
+Environment Name: Quadruped-v2
+running build_ext
