@@ -6,7 +6,7 @@ USE_CUDA = torch.cuda.is_available()
 FLOAT = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
 DEVICE = 'cpu'
 if USE_CUDA:
-    DEVICE = 'gpu'
+    DEVICE = 'cuda'
 
 def complex_relu(input):
     size = input.shape[-1]//2

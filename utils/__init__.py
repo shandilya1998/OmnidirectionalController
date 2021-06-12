@@ -10,7 +10,7 @@ USE_CUDA = torch.cuda.is_available()
 FLOAT = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
 DEVICE = 'cpu'
 if USE_CUDA:
-    DEVICE = 'gpu'
+    DEVICE = 'cuda'
 
 def convert_observation_to_space(observation):
     if isinstance(observation, dict):

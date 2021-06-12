@@ -371,6 +371,7 @@ params_pretrain = {
     'n_update_steps'              : 5,
     'n_eval_steps'                : 10000,
     'n_episodes'                  : 128,
+    'min_epoch_size'              : 3500,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 54,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
     'dt'                          : 0.01,
