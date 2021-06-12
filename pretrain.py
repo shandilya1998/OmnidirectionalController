@@ -64,6 +64,8 @@ class Learner:
             self._model.parameters(),
             lr = params['LEARNING_RATE']
         )
+        self._n_step = 0
+        self._n_epoch = 0
         self._mse = torch.nn.functional.mse_loss
         self._waitlist_samples = self.env.ref_info.sample(params['BATCH_SIZE']).reset_index(drop = True).copy()
         self.init_osc = np.concatenate([np.ones((params['units_osc'],), dtype = np.float32), np.zeros((params['units_osc'],), dtype = np.float32)], -1)
@@ -122,7 +124,7 @@ class Learner:
         while self._ep < params['n_episodes']:
             loss = self._pretrain(experiment)
             print('Episode {} Loss {:.6f}'.format(self._ep, loss))
-            self.logger.add_scalar('Train/Episode Loss', loss)
+            self.logger.add_scalar('Train/Episode Loss', loss, self._ep)
             self._ep += 1
         print('Pretraining Done.')
 
@@ -141,7 +143,8 @@ class Learner:
         self._optim.zero_grad()
         self._last_osc = self._osc.detach()
         self._osc = self._osc.detach()
-        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy())
+        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), self._n_step)
+        self._n_step += 1
         return loss.detach().cpu().numpy()
 
     def _pretrain_epoch(self, x, y, steps):
@@ -165,7 +168,8 @@ class Learner:
             if steps > 0:
                 epoch_loss = epoch_loss / steps
             ep_loss += epoch_loss
-            self.logger.add_scalar('Train/Epoch Loss', epoch_loss)
+            self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._n_epoch)
+            self._n_epoch += 1
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
                 self.logger.add_scalar('Evaluate/Reward', self._eval())
                 self._save(experiment)
