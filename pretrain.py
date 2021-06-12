@@ -245,7 +245,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(os.path.join(args.out_path, str(args.experiment), 'tensorboard')):
         os.mkdir(os.path.join(args.out_path, str(args.experiment), 'tensorboard'))
-    writer = torch.utils.tensorboard.SummaryWriter(os.path.join(args.out_path, str(args.experiment), 'tensorboard'))
+    writer = torch.utils.tensorboard.SummaryWriter(os.path.join(args.out_path, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
     module_name, class_name = args.model_class.split(':')
     fp, pathname, description = imp.find_module(module_name)
     module = imp.load_module(module_name, fp, pathname, description)
