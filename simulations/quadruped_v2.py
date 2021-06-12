@@ -17,7 +17,7 @@ class QuadrupedV2(Quadruped):
     def __init__(self,
                  model_path = 'ant.xml',
                  frame_skip = 5,
-                 render = True,
+                 render = False,
                  gait = 'trot',
                  task = 'straight',
                  direction = 'forward',

@@ -55,9 +55,11 @@ class Learner:
         self.logger = logger
         self.env
         self.env.ref_info['start'] = np.zeros((len(self.env.ref_info),), dtype = np.int32)
+        self.env.ref_info.dropna(inplace = True)
         self._epoch = 0
         self._step = 0
         self._model = model_class()
+        self._model.to(DEVICE)
         self._optim  = torch.optim.Adam(
             self._model.parameters(),
             lr = params['LEARNING_RATE']
@@ -75,10 +77,12 @@ class Learner:
         self._osc = self._last_osc.detach()
         for i in range(len(self._waitlist_samples)):
             if self._current_samples['length'][i] - self._current_samples['start'][i] <= steps:
-                self._waitlist_samples.iloc[i:i + 1] = self.env.ref_info.sample().copy()
+                sample = self.env.ref_info.sample().copy().reset_index()
+                for col in self.env.ref_info.columns:
+                    self._waitlist_samples.loc[i, col] = sample.loc[0, col]
                 self._osc[i] = to_tensor(self.init_osc.copy())
             else:
-                self._waitlist_samples['start'][i] += steps
+                self._waitlist_samples['start'][i] += int(steps)
         return steps
 
     def _get_data(self):
@@ -117,7 +121,7 @@ class Learner:
         self._ep = 0
         while self._ep < params['n_episodes']:
             loss = self._pretrain(experiment)
-            print('Episode {} Loss {:.6f}'.format(self._epoch, loss))
+            print('Episode {} Loss {:.6f}'.format(self._ep, loss))
             self.logger.add_scalar('Train/Episode Loss', loss)
             self._ep += 1
         print('Pretraining Done.')
@@ -143,7 +147,7 @@ class Learner:
     def _pretrain_epoch(self, x, y, steps):
         epoch_loss = 0.0
         self._step = 0
-        while self._step <= steps - 1:
+        while self._step < steps:
             epoch_loss += self._pretrain_step([item[:, self._step, :] for item in x], y[:, self._step, :], steps)
         return epoch_loss
 
@@ -153,6 +157,7 @@ class Learner:
         """
         steps = params['min_epoch_size']
         ep_loss = 0.0
+        self._epoch = 0
         while self._epoch < params['n_epochs']:
             x, y, steps = self._get_data()
             epoch_loss = self._pretrain_epoch(x, y, steps)

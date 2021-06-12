@@ -365,12 +365,12 @@ action_dim = 12
 units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
-    'batch_size'                  : 128,
-    'n_epochs'                    : 128,
+    'batch_size'                  : 512,
+    'n_epochs'                    : 25,
     'n_steps'                     : 3500,
     'n_update_steps'              : 5,
-    'n_eval_steps'                : 10000,
-    'n_episodes'                  : 128,
+    'n_eval_steps'                : 100,
+    'n_episodes'                  : 500,
     'min_epoch_size'              : 3500,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 54,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,

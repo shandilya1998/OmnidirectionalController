@@ -14394,3 +14394,83 @@ Best mean reward: 2260.12 - Last mean reward per episode: 2059.49
 |    std                | 0.763    |
 |    value_loss         | 0.0101   |
 ------------------------------------
+------------------------------------
+| reward                | 0.606    |
+| reward_ang_vel        | 0.0948   |
+| reward_contact        | 0.0984   |
+| reward_ctrl           | 0.115    |
+| reward_energy         | 0.0765   |
+| reward_orientation    | 0.0948   |
+| reward_position       | 0.0802   |
+| reward_velocity       | 0.098    |
+| rollout/              |          |
+|    ep_len_mean        | 3.49e+03 |
+|    ep_rew_mean        | 2.12e+03 |
+| time/                 |          |
+|    fps                | 1081     |
+|    iterations         | 38800    |
+|    time_elapsed       | 4591     |
+|    total_timesteps    | 4966400  |
+| train/                |          |
+|    entropy_loss       | -46.8    |
+|    explained_variance | 0.983    |
+|    learning_rate      | 0.001    |
+|    n_updates          | 38799    |
+|    policy_loss        | -0.133   |
+|    std                | 0.763    |
+|    value_loss         | 0.0459   |
+------------------------------------
+------------------------------------
+| reward                | 0.605    |
+| reward_ang_vel        | 0.0945   |
+| reward_contact        | 0.0984   |
+| reward_ctrl           | 0.115    |
+| reward_energy         | 0.0765   |
+| reward_orientation    | 0.0945   |
+| reward_position       | 0.0798   |
+| reward_velocity       | 0.0979   |
+| rollout/              |          |
+|    ep_len_mean        | 3.44e+03 |
+|    ep_rew_mean        | 2.09e+03 |
+| time/                 |          |
+|    fps                | 1081     |
+|    iterations         | 38900    |
+|    time_elapsed       | 4603     |
+|    total_timesteps    | 4979200  |
+| train/                |          |
+|    entropy_loss       | -46.8    |
+|    explained_variance | 0.996    |
+|    learning_rate      | 0.001    |
+|    n_updates          | 38899    |
+|    policy_loss        | 0.609    |
+|    std                | 0.762    |
+|    value_loss         | 0.00836  |
+------------------------------------
+Num timesteps: 4992000
+Best mean reward: 2260.12 - Last mean reward per episode: 2113.06
+------------------------------------
+| reward                | 0.606    |
+| reward_ang_vel        | 0.0945   |
+| reward_contact        | 0.0984   |
+| reward_ctrl           | 0.115    |
+| reward_energy         | 0.0765   |
+| reward_orientation    | 0.0945   |
+| reward_position       | 0.0799   |
+| reward_velocity       | 0.0979   |
+| rollout/              |          |
+|    ep_len_mean        | 3.48e+03 |
+|    ep_rew_mean        | 2.11e+03 |
+| time/                 |          |
+|    fps                | 1081     |
+|    iterations         | 39000    |
+|    time_elapsed       | 4615     |
+|    total_timesteps    | 4992000  |
+| train/                |          |
+|    entropy_loss       | -46.7    |
+|    explained_variance | 0.991    |
+|    learning_rate      | 0.001    |
+|    n_updates          | 38999    |
+|    policy_loss        | 0.33     |
+|    std                | 0.762    |
+|    value_loss         | 0.0217   |
+------------------------------------
