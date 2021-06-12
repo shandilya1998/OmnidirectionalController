@@ -96,7 +96,7 @@ class Learner:
         ob = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'observation')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
         x = [desired_goal, achieved_goal, ob]
         x = [ to_tensor(item) for item in x]
-        y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'joint_pos')))[:steps, :] for f in files], axis = 0)
+        y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'true_joint_pos')))[:steps, :] for f in files], axis = 0)
         return x, to_tensor(y), steps
 
     def _save(self, experiment):
