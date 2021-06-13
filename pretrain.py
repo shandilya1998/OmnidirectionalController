@@ -172,8 +172,7 @@ class Learner:
                 count += 1
             out.append(np.mean(achieved_goal[:, count:count+i, :], axis = 1))
         desired_goal = np.nan_to_num(np.stack(out, axis = 1))
-        x = desired_goal
-        #np.concatenate([desired_goal, achieved_goal, ob], -1)
+        x = np.concatenate([desired_goal, achieved_goal, ob], -1)
         x = to_tensor(x)
         y = to_tensor(y[:, :, np.array([0, 1, 3, 4, 6, 7, 9, 10])])
         return x, y, steps

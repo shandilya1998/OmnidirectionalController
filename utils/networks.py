@@ -230,7 +230,7 @@ class Controller(torch.nn.Module):
 class ControllerV2(torch.nn.Module):
     def __init__(self):
         super(ControllerV2, self).__init__()
-        self.linear = torch.nn.Linear(params['motion_state_size'], 1000)
+        self.linear = torch.nn.Linear(params['robot_state_size'] + 2 * params['motion_state_size'], 1000)
         self.conv0 = torch.nn.Conv2d(1, 16, 3, stride = (2, 1), padding = (1, 1))
         self.conv1 = torch.nn.Conv2d(16, 24, 3, stride = (4, 1), padding = (1, 1))
         self.conv2 = torch.nn.Conv2d(24, 16, 3, stride = (2, 1), padding = (1,1))
