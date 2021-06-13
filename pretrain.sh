@@ -5,7 +5,7 @@ EXPERIMENT=3
 ENV="quadruped"
 ENV_VERSION=2
 ENV_CLASS="simulations:QuadrupedV2"
-MODEL_CLASS="utils:Controller"
+MODEL_CLASS="utils:ControllerV2"
 
 python3 pretrain.py \
     --experiment $EXPERIMENT \

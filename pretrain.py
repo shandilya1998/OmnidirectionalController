@@ -18,6 +18,7 @@ import imp
 import sys
 from utils.plot_utils import *
 from utils import *
+from torch.fft import fft
 
 np.seterr('ignore')
 
@@ -87,12 +88,19 @@ class Learner:
         steps = self._set_current_samples()
         files = self._current_samples['id'].values.tolist()
         starts = self._current_samples['start'].values.tolist()
-        desired_goal = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'desired_goal')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
         achieved_goal = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'achieved_goal')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
+        out = []
+        count = 0
+        for i in range(achieved_goal.shape[1]):
+            if count > 500:
+                count += 1
+            out.append(np.mean(achieved_goal[:, count:count+i], axis = 1))
+        desired_goal = np.nan_to_num(np.stack(out, axis = 1))
         ob = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'observation')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
-        x = np.concatenate([desired_goal, achieved_goal, ob], -1)
+        x = desired_goal
+        #np.concatenate([desired_goal, achieved_goal, ob], -1)
         x = to_tensor(x)
-        y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'true_joint_pos')))[:steps, :] for f in files], axis = 0)
+        y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'joint_pos')))[:steps, np.array([0, 1, 3, 4, 6, 7, 9, 10])] for f in files], axis = 0)
         return x, to_tensor(y), steps
 
     def _save(self, experiment):
@@ -126,14 +134,11 @@ class Learner:
         loss = 0.0
         self._model.zero_grad()
         y_pred = self._model(x)
-        out = []
-        for i in range(y_pred.shape[-1]):
-            out.append(y_pred[:, i])
-            if i % 2 == 1:
-                out.append(y_pred[:, i] * 0.5)
-        y_pred = torch.stack(out, -1)
+        FFT = fft(y, n = params['h'], dim = 1)
+        y = torch.cat([FFT.real, FFT.imag], 1)
+        y = torch.transpose(y, 1, 2)
         loss += torch.nn.functional.mse_loss(y_pred, y)
-        self._step += 1
+        self._step += params['stride']
         loss.backward()
         self._optim.step()
         self._optim.zero_grad()
@@ -144,8 +149,8 @@ class Learner:
     def _pretrain_epoch(self, x, y, steps):
         epoch_loss = 0.0
         self._step = 0
-        while self._step < steps:
-            epoch_loss += self._pretrain_step(x[:, self._step, :], y[:, self._step, :], steps)
+        while self._step < steps - params['h']:
+            epoch_loss += self._pretrain_step(torch.squeeze(x[:, self._step: self._step + params['h'], :], 1), y[:, self._step: self._step + params['h'], :], steps)
         return epoch_loss
 
     def _pretrain(self, experiment):

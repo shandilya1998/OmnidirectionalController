@@ -399,12 +399,13 @@ params_pretrain = {
 
 params_conv = {
     'h'                           : 250,
-    'w'                           : params_pretrain['robot_state_size'] + 2 * params_pretrain['motion_state_size']
+    'w'                           : params_pretrain['motion_state_size'],
+    'stride'                      : 100,
 }
 
 params.update(params_env)
 params.update(params_rl)
-#params.update(params_pretrain)
+params.update(params_pretrain)
 params.update(params_conv)
 
 params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']

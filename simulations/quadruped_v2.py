@@ -122,7 +122,7 @@ class QuadrupedV2(Quadruped):
         for i in range(action.shape[-1]):
             out.append(action[i])
             if i % 2 == 1:
-                out.append(0.5 * action[i])
+                out.append(action[i] * 0.5)
         action = np.array(out, dtype = np.float32)
         self.sim.data.ctrl[:] = action
         self.action = action.copy()
