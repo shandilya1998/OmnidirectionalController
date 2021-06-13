@@ -6,6 +6,7 @@ import  numpy as np
 import argparse
 from constants import params
 import os
+import pandas as pd
 
 def test_env_from_xml(path = 'assets/ant.xml', render = True):
     f = open(path, 'r')
@@ -125,6 +126,14 @@ def plot_tracked_item(name = 'position'):
     axes.set_ylabel('position (m)')
     fig.savefig(os.path.join('assets', 'plots', 'ant_{}.png'.format(name)))
 
+
+def test_reference_data():
+    info = pd.read_csv(os.path.join(params['ref_path'], 'info.csv'), index_col = 0)
+    sample = info.sample().reset_index()
+    f = sample['id'][0]
+    joint_pos = np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'joint_pos')))
+    desired_goal = np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'desired_goal')))
+    return joint_pos, desired_goal, info, sample
 
 if __name__ =='__main__':
     from simulations import QuadrupedV2, Quadruped

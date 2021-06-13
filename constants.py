@@ -298,7 +298,7 @@ params_env = {
 }
 
 
-max_steps = 10000 # 150 #data collection env
+max_steps = 150 # 150 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -311,7 +311,7 @@ params_rl = {
     'TRAIN_FREQ'                  : [1, 'steps'],
     'CHECK_FREQ'                  : 6000,
     'sde_sample_freq'             : 4,
-    'n_epochs'                    : 20,
+    'n_epochs'                    : 25,
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
@@ -373,9 +373,9 @@ params_pretrain = {
     'n_episodes'                  : 500,
     'min_epoch_size'              : 3500,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
-    'robot_state_size'            : 54,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
+    'robot_state_size'            : 18,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
     'dt'                          : 0.01,
-    'units_output_mlp'            : [60,100, 100, action_dim],
+    'units_output_mlp'            : [256,512,100,action_dim],
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
     'units_combine'               : [200, units_osc],
@@ -397,9 +397,15 @@ params_pretrain = {
 
 }
 
+params_conv = {
+    'h'                           : 250,
+    'w'                           : params_pretrain['robot_state_size'] + 2 * params_pretrain['motion_state_size']
+}
+
 params.update(params_env)
 params.update(params_rl)
-params.update(params_pretrain)
+#params.update(params_pretrain)
+params.update(params_conv)
 
 params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']

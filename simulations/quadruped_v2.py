@@ -39,12 +39,6 @@ class QuadrupedV2(Quadruped):
         self.command = np.mean(self.ref_data['desired_goal'], axis = 0)
         self.desired_goal = self.command
         self.achieved_goal = self.sim.data.qvel[:6].copy()
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
-        self.init_b = np.concatenate([
-            self.init_qpos[:7].copy(),
-            self.init_qvel[:6].copy(),
-        ], -1)
-        self.last_ob = [self.init_b.copy()] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -67,8 +61,6 @@ class QuadrupedV2(Quadruped):
         self.command = np.mean(self.ref_data['desired_goal'], axis = 0)
         self.desired_goal = self.command
         self.achieved_goal = self.sim.data.qvel[:6].copy()
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
-        self.last_ob = [self.init_b.copy()] * 4
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -135,13 +127,6 @@ class QuadrupedV2(Quadruped):
         self.sim.data.ctrl[:] = action
         self.action = action.copy()
         self.joint_pos = action.copy()
-        self.last_joint_pos.pop(0)
-        self.last_joint_pos.append(self.joint_pos.copy())
-        self.last_ob.pop(0)
-        self.last_ob.append(np.concatenate([
-            self.init_qpos[:7].copy(),
-            self.init_qvel[:6].copy(),
-        ], -1))
         for _ in range(n_frames):
             self.sim.step()
 

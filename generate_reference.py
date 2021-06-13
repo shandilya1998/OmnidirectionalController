@@ -16,6 +16,11 @@ if __name__ == '__main__':
         type = str,
         help = 'Entrypoint of environment class'
     )
+    parser.add_argument(
+        '--render',
+        nargs='?', type = int, const = 1,
+        help = 'choice to render env'
+    )
     args = parser.parse_args()
 
     print('Module Initialized.')
@@ -25,9 +30,13 @@ if __name__ == '__main__':
     module = imp.load_module(module_name, fp, pathname, description)
     env_class = module.__dict__[class_name]
 
+    render = False
+    if args.render is not None:
+        render = True
+
     env_kwargs = {
         'model_path' : 'ant.xml',
-        'render' : False,
+        'render' : render,
         'verbose' : 0
     }
     print('Starting.')

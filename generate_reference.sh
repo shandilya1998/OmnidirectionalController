@@ -1,8 +1,8 @@
 #!/bin/sh
 
 LOGDIR="assets/out/reference"
-CLASS="simulation:Quadruped"
+CLASS="simulations:Quadruped"
 
-python3 generate_reference.py --log_dir $LOGDIR --env_class $CLASS
+python3 generate_reference.py --log_dir $LOGDIR --env_class $CLASS --render
 rm "$LOGDIR.zip"
 zip -r "$LOGDIR.zip" "$LOGDIR/"

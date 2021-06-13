@@ -69,20 +69,16 @@ class Learner:
         self._mse = torch.nn.functional.mse_loss
         self._waitlist_samples = self.env.ref_info.sample(params['BATCH_SIZE']).reset_index(drop = True).copy()
         self.init_osc = np.concatenate([np.ones((params['units_osc'],), dtype = np.float32), np.zeros((params['units_osc'],), dtype = np.float32)], -1)
-        self._osc = to_tensor(np.stack([self.init_osc.copy()] * params['BATCH_SIZE'], axis = 0))
-        self._last_osc = self._osc.detach()
         #self._get_data()
 
     def _set_current_samples(self):
         self._current_samples = self._waitlist_samples.copy()
         steps = (self._current_samples['length'] - self._current_samples['start']).min()
-        self._osc = self._last_osc.detach()
         for i in range(len(self._waitlist_samples)):
             if self._current_samples['length'][i] - self._current_samples['start'][i] <= steps:
                 sample = self.env.ref_info.sample().copy().reset_index()
                 for col in self.env.ref_info.columns:
                     self._waitlist_samples.loc[i, col] = sample.loc[0, col]
-                self._osc[i] = to_tensor(self.init_osc.copy())
             else:
                 self._waitlist_samples['start'][i] += int(steps)
         return steps
@@ -94,8 +90,8 @@ class Learner:
         desired_goal = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'desired_goal')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
         achieved_goal = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'achieved_goal')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
         ob = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'observation')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
-        x = [desired_goal, achieved_goal, ob]
-        x = [ to_tensor(item) for item in x]
+        x = np.concatenate([desired_goal, achieved_goal, ob], -1)
+        x = to_tensor(x)
         y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'true_joint_pos')))[:steps, :] for f in files], axis = 0)
         return x, to_tensor(y), steps
 
@@ -104,16 +100,14 @@ class Learner:
 
     def _eval(self):
         ob = self.env.reset()
-        osc = to_tensor(np.concatenate([np.ones((1, params['units_osc']), dtype = np.float32), np.zeros((1, params['units_osc']), dtype = np.float32)], axis = -1))
         total_reward = 0.0
         done = False
         while not done:
-            out = self._model([
+            ac = self._model(torch.cat([
                 to_tensor(np.expand_dims(ob['desired_goal'], 0)),
                 to_tensor(np.expand_dims(ob['achieved_goal'], 0)),
                 to_tensor(np.expand_dims(ob['observation'], 0))
-            ], osc)
-            ac, osc = torch.split(out, [params['action_dim'], 2 * params['units_osc']], -1)
+            ], -1))
             ob, reward, done, info = env.step(ac[0].detach().cpu().numpy())
             total_reward += reward
         return total_reward
@@ -129,26 +123,20 @@ class Learner:
         print('Pretraining Done.')
 
     def _pretrain_step(self, x, y, steps):
-        it = 0
         loss = 0.0
         self._model.zero_grad()
-        while it < params['n_update_steps'] and self._step < steps:
-            out = self._model(x, self._osc)
-            y_pred, self._osc = torch.split(out, [params['action_dim'], 2 * params['units_osc']], -1)
-            out = []
-            for i in range(y_pred.shape[-1]):
-                out.append(y_pred[:, i])
-                if i % 2 == 1:
-                    out.append(y_pred[:, i] * 0.5)
-            y_pred = torch.stack(out, -1)
-            loss += torch.nn.functional.mse_loss(y_pred, y)
-            it += 1
-            self._step += 1
+        y_pred = self._model(x)
+        out = []
+        for i in range(y_pred.shape[-1]):
+            out.append(y_pred[:, i])
+            if i % 2 == 1:
+                out.append(y_pred[:, i] * 0.5)
+        y_pred = torch.stack(out, -1)
+        loss += torch.nn.functional.mse_loss(y_pred, y)
+        self._step += 1
         loss.backward()
         self._optim.step()
         self._optim.zero_grad()
-        self._last_osc = self._osc.detach()
-        self._osc = self._osc.detach()
         self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), self._n_step)
         self._n_step += 1
         return loss.detach().cpu().numpy()
@@ -157,7 +145,7 @@ class Learner:
         epoch_loss = 0.0
         self._step = 0
         while self._step < steps:
-            epoch_loss += self._pretrain_step([item[:, self._step, :] for item in x], y[:, self._step, :], steps)
+            epoch_loss += self._pretrain_step(x[:, self._step, :], y[:, self._step, :], steps)
         return epoch_loss
 
     def _pretrain(self, experiment):
@@ -177,7 +165,6 @@ class Learner:
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._n_epoch)
             self._n_epoch += 1
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
-                self.logger.add_scalar('Evaluate/Reward', self._eval())
                 self._save(experiment)
         return ep_loss / params['n_epochs']
 

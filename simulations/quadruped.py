@@ -25,7 +25,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                  verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
-        self.cap = 1.0
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}
         self._step = 0
@@ -79,8 +78,12 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._is_render = render
         self._num_joints = self.init_qpos.shape[-1] - 7
         self._num_legs = 4
+        self.joint_pos = self.sim.data.qpos[-self._num_joints:]
 
         self._set_action_space()
+        action = self.action_space.sample()
+        self.action = np.zeros(self._action_dim)
+        self._track_attr()
 
         action = self.action_space.sample()
         observation, _reward, done, _info = self.step(action)
@@ -89,7 +92,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._set_observation_space(observation)
 
         self.seed()
-        self.action = np.zeros(self._action_dim)
         self._distance_limit = float("inf")
 
         self._cam_dist = 1.0
@@ -165,12 +167,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.s = 0.02200
 
     def _set_action_space(self):
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
-        self.init_b = np.concatenate([
-            self.init_qpos[:7].copy(),
-            self.init_qvel[:6].copy(),
-        ], -1)
-        self.last_ob = [self.init_b.copy()] * 4
+        self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
@@ -204,10 +201,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             self.beta = 0.25
 
     def _set_init_gamma(self):
-        if self.gait in ['ds_crawl', 'ls_crawl']:
-            self.cap = 0.5
-        else:
-            self.cap = 1.0
         if self.gait == 'ds_crawl':
             self.init_gamma = [0.0, 0.5, 0.75, 0.25]
         elif self.gait == 'ls_crawl':
@@ -243,8 +236,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.gamma = self.init_gamma.copy()
         self.sim.reset()
         self.ob = self.reset_model()
-        self.last_joint_pos = [self.init_qpos[-self._num_joints:]] * 4
-        self.last_ob = [self.init_b.copy()] * 4
         if self.policy_type == 'MultiInputPolicy':
             """
                 modify this according to observation space
@@ -260,7 +251,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
                     np.save(f, np.stack(self._track_item[item], axis = 0))
         self._reset_track_lst()
-
+        self._track_attr()
         return self.ob
 
     def reset_model(self):
@@ -276,13 +267,15 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         ob = {}
         if self.policy_type == 'MultiInputPolicy':
             ob = {
-                'observation' : np.concatenate(self.last_ob + self.last_joint_pos, -1),
+                'observation' : np.concatenate([
+                    self.joint_pos,
+                    self.sim.data.sensordata.copy()
+                ], -1),
                 'desired_goal' : self.desired_goal,
                 'achieved_goal' : self.achieved_goal
             }
         else:
-            ob = np.concatentate(self.last_joint_pos, -1)
-
+            ob = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         return ob
 
     def step(self, action, callback=None):
@@ -427,11 +420,11 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         if self._action_dim == 2:
-            self._frequency = self.cap * np.array([action[0]], dtype = np.float32)
-            self._amplitude = self.cap * np.array([action[1]], dtype = np.float32)
+            self._frequency = np.array([action[0]], dtype = np.float32)
+            self._amplitude = np.array([action[1]], dtype = np.float32)
         elif self._action_dim == 4:
-            self._frequency = self.cap * np.array([action[0], action[2]], dtype = np.float32)
-            self._amplitude = self.cap * np.array([action[1], action[3]], dtype = np.float32)
+            self._frequency = np.array([action[0], action[2]], dtype = np.float32)
+            self._amplitude = np.array([action[1], action[3]], dtype = np.float32)
         omega = 2 * np.pi * self._frequency + 1e-8
         timer_omega = omega[0]
         self.action = action
@@ -447,13 +440,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             print(self._n_steps)
         while(np.abs(phase) <= np.pi * self._update_action_every):
             self.joint_pos, timer_omega = self._get_joint_pos(self._amplitude, omega)
-            self.last_joint_pos.pop(0)
-            self.last_joint_pos.append(self.joint_pos.copy())
-            self.last_ob.pop(0)
-            self.last_ob.append(np.concatenate([
-                self.init_qpos[:7].copy(),
-                self.init_qvel[:6].copy(),
-            ], -1))
             posbefore = self.get_body_com("torso").copy()
             penalty = 0.0
             if np.isnan(self.joint_pos).any():

@@ -1,6 +1,6 @@
 import torch
 from utils import data_generator, networks
-from utils.networks import Controller
+from utils.networks import Controller, ControllerV2
 import numpy as np
 import gym
 from collections import OrderedDict

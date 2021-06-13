@@ -89,6 +89,33 @@ class ComplexLinear(torch.nn.Module):
     def forward(self, input):
         return apply_complex(self.fc_r, self.fc_i, input)
 
+class ComplexConvTranspose2d(torch.nn.Module):
+
+    def __init__(self,in_channels, out_channels, kernel_size, stride=1, padding=0,
+                 output_padding=0, groups=1, bias=True, dilation=1, padding_mode='zeros'):
+
+        super(ComplexConvTranspose2d, self).__init__()
+
+        self.conv_tran_r = torch.nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding,
+                                       output_padding, groups, bias, dilation, padding_mode)
+        self.conv_tran_i = torch.nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding,
+                                       output_padding, groups, bias, dilation, padding_mode)
+
+
+    def forward(self,input):
+        return apply_complex(self.conv_tran_r, self.conv_tran_i, input)
+
+class ComplexConv2d(torch.nn.Module):
+
+    def __init__(self,in_channels, out_channels, kernel_size=3, stride=1, padding = 0,
+                 dilation=1, groups=1, bias=True):
+        super(ComplexConv2d, self).__init__()
+        self.conv_r = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+        self.conv_i = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+
+    def forward(self,input):
+        return apply_complex(self.conv_r, self.conv_i, input)
+
 class Hopf(torch.nn.Module):
     def __init__(self, params):
         super(Hopf, self).__init__()
@@ -174,32 +201,17 @@ class ParamNet(torch.nn.Module):
 class Controller(torch.nn.Module):
     def __init__(self):
         super(Controller, self).__init__()
-        self.param_net = ParamNet(params)
-        self.hopf = Hopf(params)
-
-        """
-        robot_state_enc_seq = OrderedDict()
-        input_size = params['robot_state_size']
-        for i, units in enumerate(params['units_robot_state']):
-            robot_state_enc_seq['fc{i}'.format(i = i)] = torch.nn.Linear(
-                input_size,
-                units
-            )
-            robot_state_enc_seq['ac{i}'.format(i = i)] = torch.nn.PReLU()
-            input_size = units
-        self.robot_state_enc = torch.nn.Sequential(robot_state_enc_seq)
-        """
-        input_size = params['units_osc']
+        input_size = params['motion_state_size'] * 2 + params['robot_state_size']
         output_mlp_seq = []
-        for i, units in enumerate(params['units_omega']):
-            output_mlp_seq.append(ComplexLinear(
+        for i, units in enumerate(params['units_output_mlp']):
+            output_mlp_seq.append(torch.nn.Linear(
                 input_size,
                 units
             ))
             output_mlp_seq.append(torch.nn.PReLU())
             input_size = units
 
-        output_mlp_seq.append(ComplexLinear(
+        output_mlp_seq.append(torch.nn.Linear(
             input_size,
             params['action_dim']
         ))
@@ -210,21 +222,26 @@ class Controller(torch.nn.Module):
             *output_mlp_seq
         )
 
-    def forward(self, ob, z):
-        desired_goal, achieved_goal, observation = ob
-        omega, mu = self.param_net(desired_goal)
-        """
-        z_r = self.robot_state_enc(torch.cat([achieved_goal, observation], -1))
-        z_i = torch.zeros_like(z_r)
-        """
-        z = self.hopf(z, omega, mu)
-        #out = self.output_mlp(z + torch.cat([z_r, z_i], -1))
-        out = self.output_mlp(z)
-        x, y = torch.split(out, [params['action_dim'], params['action_dim']], -1)
-        x = params['max_action'] * self.out_tanh(x)
-        out = torch.cat([x, z], -1)
-        """
-            get x and concat with z
-        """
-        return out
+    def forward(self, ob):
+        out = self.output_mlp(ob)
+        x = params['max_action'] * self.out_tanh(out)
+        return x
+
+class ControllerV2(torch.nn.Module):
+    def __init__(self):
+        super(ControllerV2, self).__init__()
+        self.linear = torch.nn.Linear(params['motion_state_size'], 1000)
+        self.conv0 = torch.nn.Conv2d(1, 16, 3, stride = (2, 1), padding = (1, 1))
+        self.conv1 = torch.nn.Conv2d(16, 24, 3, stride = (4, 1), padding = (1, 1))
+        self.conv2 = torch.nn.Conv2d(24, 16, 3, stride = (2, 1), padding = (1,1))
+        self.conv3 = torch.nn.Conv2d(16, 1, 3, stride = (2, 2), padding = (1,1))
+
+    def forward(self, x):
+        x = self.linear(torch.unsqueeze(x, 1))
+        x = self.conv0(x)
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = torch.squeeze(x)
+        return x
 
