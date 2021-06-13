@@ -354,7 +354,7 @@ params_rl = {
                                         'qvel',
                                         'achieved_goal',
                                         'observation',
-                                        'desired_goal'
+                                        'desired_goal',
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
@@ -409,6 +409,6 @@ params.update(params_rl)
 params.update(params_pretrain)
 params.update(params_conv)
 
-params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl']
+params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl', 'pace']
 params['task_list'] = ['straight', 'rotate', 'turn']
 params['direction_list'] = ['forward', 'backward', 'left', 'right']
