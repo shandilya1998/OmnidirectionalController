@@ -304,7 +304,7 @@ params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.08,
-    'BATCH_SIZE'                  : 8, #max_steps * n_envs ,#8,
+    'BATCH_SIZE'                  : 128, #max_steps * n_envs ,#8,
     'NET_ARCH'                    : [dict(pi=[256, 256], vf=[256, 256])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
@@ -401,6 +401,7 @@ params_conv = {
     'h'                           : 250,
     'w'                           : params_pretrain['motion_state_size'],
     'stride'                      : 100,
+    'window_length'               : 2500,
 }
 
 params.update(params_env)

@@ -509,3 +509,5 @@ Episode 497 Loss 0.041908
 Episode 498 Loss 0.030826
 Episode 499 Loss 0.027965
 Pretraining Done.
+Environment Name: quadruped-v2
+running build_ext

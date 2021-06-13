@@ -72,36 +72,112 @@ class Learner:
         self.init_osc = np.concatenate([np.ones((params['units_osc'],), dtype = np.float32), np.zeros((params['units_osc'],), dtype = np.float32)], -1)
         #self._get_data()
 
-    def _set_current_samples(self):
+
+    def _get_remaining_steps(self, remaining, index, arrays, items):
+        sample = self.env.ref_info.sample().copy().reset_index()
+        for col in self.env.ref_info.columns:
+                self._waitlist_samples.loc[index, col] = sample.loc[0, col]
+        if self._waitlist_samples['length'][index] - self._waitlist_samples['start'][index] > remaining:
+            f = self._waitlist_samples['id'][index]
+            start = self._waitlist_samples['start'][index]
+            for item in items:
+                remaining_arr = np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, item)))[start:remaining, :]
+                arrays[item] = np.concatenate([arrays[item], remaining_arr.copy()], 0)
+            self._waitlist_samples.loc[index, 'start'] = self._waitlist_samples.loc[index, 'start'] + remaining
+            return arrays
+        else:
+            f = self._waitlist_samples['id'][index]
+            start = self._waitlist_samples['start'][index]
+            for item in items:
+                remaining_arr = np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, item)))[start:, :]
+                arrays[item] = np.concatenate([arrays[item], remaining_arr.copy()], 0)
+            remaining = remaining - (self._waitlist_samples['length'][index] - start)
+            if remaining == 0:
+                sample = self.env.ref_info.sample().copy().reset_index()
+                for col in self.env.ref_info.columns:
+                    self._waitlist_samples.loc[index, col] = sample.loc[0, col]
+                return arrays
+            else:
+                return self._get_remaining_steps(remaining, index, arrays, items)
+
+    def _get_data(self):
         self._current_samples = self._waitlist_samples.copy()
-        steps = (self._current_samples['length'] - self._current_samples['start']).min()
-        for i in range(len(self._waitlist_samples)):
-            if self._current_samples['length'][i] - self._current_samples['start'][i] <= steps:
+        files = self._current_samples['id'].values.tolist()
+        starts = self._current_samples['start'].values.tolist()
+        steps = params['window_length']
+        achieved_goal = [
+            np.load(
+                os.path.join(
+                    params['ref_path'],
+                    '{}_{}.npy'.format(
+                        f,
+                        'achieved_goal'
+                    )
+                )
+            )[start:, :] for f,start in zip(files,starts)
+        ]
+        ob = [
+            np.load(
+                os.path.join(
+                    params['ref_path'],
+                    '{}_{}.npy'.format(
+                        f,
+                        'observation'
+                    )
+                )
+            )[start:, :] for f,start in zip(files,starts)
+        ]
+        y = [
+            np.load(
+                os.path.join(
+                    params['ref_path'],
+                    '{}_{}.npy'.format(
+                        f,
+                        'joint_pos'
+                    )
+                )
+            )[start:, :] for f, start in zip(files, starts)
+        ]
+        for i in range(len(self._current_samples)):
+            if self._current_samples['length'][i] - starts[i] < steps:
+                remaining = steps - (self._current_samples['length'][i] - starts[i])
+                arrays = self._get_remaining_steps(remaining, i, {
+                    'achieved_goal' : achieved_goal[i],
+                    'observation' : ob[i],
+                    'joint_pos' : y[i]
+                }, ['achieved_goal', 'observation', 'joint_pos'])
+                achieved_goal[i] = arrays['achieved_goal']
+                ob[i] = arrays['observation']
+                y[i] = arrays['joint_pos']
+            elif self._current_samples['length'][i] - starts[i] == steps:
                 sample = self.env.ref_info.sample().copy().reset_index()
                 for col in self.env.ref_info.columns:
                     self._waitlist_samples.loc[i, col] = sample.loc[0, col]
             else:
-                self._waitlist_samples['start'][i] += int(steps)
-        return steps
-
-    def _get_data(self):
-        steps = self._set_current_samples()
-        files = self._current_samples['id'].values.tolist()
-        starts = self._current_samples['start'].values.tolist()
-        achieved_goal = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'achieved_goal')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
+                achieved_goal[i] = achieved_goal[i][:steps, :]
+                ob[i] = ob[i][:steps, :]
+                y[i] = y[i][:steps, :]
+                self._current_samples.loc[i, 'start'] = self._current_samples.loc[i, 'start'] + int(steps)
+                self._waitlist_samples.loc[i, 'start'] = self._waitlist_samples.loc[i, 'start'] + int(steps)
         out = []
         count = 0
-        for i in range(achieved_goal.shape[1]):
+        for i, item in enumerate(y):
+            if item.shape[0] != 2500:
+                print(i, item.shape)
+        achieved_goal = np.stack(achieved_goal, 0)
+        y = np.stack(y, 0)
+        out.append(achieved_goal[:, 0, :])
+        for i in range(1, achieved_goal.shape[1]):
             if count > 500:
                 count += 1
-            out.append(np.mean(achieved_goal[:, count:count+i], axis = 1))
+            out.append(np.mean(achieved_goal[:, count:count+i, :], axis = 1))
         desired_goal = np.nan_to_num(np.stack(out, axis = 1))
-        ob = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'observation')))[start:start+steps, :] for f,start in zip(files,starts)], axis = 0)
         x = desired_goal
         #np.concatenate([desired_goal, achieved_goal, ob], -1)
         x = to_tensor(x)
-        y = np.stack([np.load(os.path.join(params['ref_path'], '{}_{}.npy'.format(f, 'joint_pos')))[:steps, np.array([0, 1, 3, 4, 6, 7, 9, 10])] for f in files], axis = 0)
-        return x, to_tensor(y), steps
+        y = to_tensor(y[:, :, np.array([0, 1, 3, 4, 6, 7, 9, 10])])
+        return x, y, steps
+
 
     def _save(self, experiment):
         torch.save(self._model, os.path.join(self.log_dir, 'exp{}'.format(experiment),'controller.pth'))
@@ -162,6 +238,12 @@ class Learner:
         self._epoch = 0
         while self._epoch < params['n_epochs']:
             x, y, steps = self._get_data()
+            if steps > params['h']:
+                while steps < params['h'] + params['stride']:
+                    x_, y_, steps_ = self.get_data()
+                    x = torch.cat([x, x_], 1)
+                    y = torch,cat([y, y_], 1)
+                    steps += steps_
             epoch_loss = self._pretrain_epoch(x, y, steps)
             self._epoch += 1
             if steps > 0:
