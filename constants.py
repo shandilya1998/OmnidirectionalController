@@ -7,7 +7,7 @@ units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.01,
+    'dt'                          : 0.001,
     'units_output_mlp'            : [60,100, 100, action_dim],
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
@@ -291,7 +291,7 @@ params.update(params_per)
 params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.05,
-    'dt'                          : 0.01,
+    'dt'                          : 0.001,
     'reward_energy_coef'          : 1e-2,
     'reward_velocity_coef'        : 1e2,
     'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
@@ -358,6 +358,7 @@ params_rl = {
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
+    'osc_omega_offset'            : 0.0
 }
 
 
@@ -374,7 +375,7 @@ params_pretrain = {
     'min_epoch_size'              : 3500,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 18,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.01,
+    'dt'                          : 0.001,
     'units_output_mlp'            : [256,512,100,action_dim],
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
@@ -394,7 +395,6 @@ params_pretrain = {
     'units_action_critic'         : [200, 120],
     'units_history'               : 24,
     'max_action'                  : 2.0,
-
 }
 
 params_conv = {
@@ -409,6 +409,13 @@ params.update(params_rl)
 params.update(params_pretrain)
 params.update(params_conv)
 
-params['gait_list'] = ['trot', 'ls_crawl', 'ds_crawl', 'pace']
+params.update({
+    'version'                     : 0,
+    'offset'                      : np.array([0.25, 0.25, 0.25, 0.25], dtype = np.float32),
+    'degree'                      : 15,
+    'thresholds'                  : np.array([0.0, np.pi / 6, 5 * np.pi / 6, np.pi, 11 * np.pi / 6 - np.pi / 10, 11 * np.pi / 6,  2 * np.pi], dtype = np.float32)
+})
+
+params['gait_list'] = ['ls_crawl', 'trot', 'ds_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']
 params['direction_list'] = ['forward', 'backward', 'left', 'right']

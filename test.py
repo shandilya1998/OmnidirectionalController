@@ -24,18 +24,49 @@ def test_env_from_xml(path = 'assets/ant.xml', render = True):
         if render:
             viewer.render()
         t += 1
-        if t > 2000:
+        if t > 150:
             break
 
 def test_env(env, render = True):
     t = 0
     ac = env.action_space.sample()
+    omega = 3.55
+    if env.gait == 'trot':
+        if env._action_dim == 2:
+            mu = (np.random.random() * 1.5 ) % 1
+            omega = 3.55
+            ac = np.array([ omega / (2 * np.pi), mu])
+        elif env._action_dim == 4:
+            omega = 3.55
+            mu1 = np.random.random()
+            mu2 = np.random.uniform(low = mu[-1], high = 1.0)
+            if env.direction == 'left':
+                mu = np.array([mu2, mu1], dtype = np.float32)
+                ac = np.array([(omega) / (2 * np.pi), mu[0], omega / (2 * np.pi), mu[1]], dtype = np.float32)
+            elif env.direction == 'right':
+                mu = np.array([mu1, mu2], dtype = np.float32)
+                ac = np.array(omega / (2 * np.pi), mu[0], (omega) / (2 * np.pi), mu[1], dtype = np.float32)
+    if 'crawl' in env.gait:
+        if env._action_dim == 2:
+            mu = 0.5
+            omega = 1.6
+            ac = np.array([omega / (2 * np.pi), mu])
+        elif env._action_dim == 4:
+            omega = 1.6
+            mu1 = np.random.random()
+            mu2 = np.random.uniform(low = mu1, high = 1.0)
+            if env.direction == 'left':
+                mu = np.array([mu2, mu1], dtype = np.float32)
+                ac = np.array([omega / (2 * np.pi), mu[0], (omega)/ (2 * np.pi), mu[1]], dtype = np.float32)
+            elif env.direction == 'right':
+                mu = np.array([mu1, mu2], dtype = np.float32)
+                ac = np.array([omega / (2 * np.pi), mu[0], omega / (2 * np.pi), mu[1]], dtype = np.float32)
     while True:
         ob = env.step(ac)
         if render:
             env.render()
         t += 1
-        if t > 1000:
+        if t > 750:
             break
     fig, axes = plt.subplots(4,3, figsize = (15, 20))
     i = 0
@@ -46,11 +77,13 @@ def test_env(env, render = True):
     while True:
         if i >= num_joints:
             break
-        axes[int(i / 3)][i % 3].plot(t[:500], joint_pos[:500, i], color = 'r')
-        axes[int(i / 3)][i % 3].plot(t[:500], true_joint_pos[:500, i], color = 'b')
+        num_steps = int(np.pi / (omega * params['dt']))
+        axes[int(i / 3)][i % 3].plot(t[:num_steps], joint_pos[:num_steps, i], color = 'r', label = 'Input')
+        axes[int(i / 3)][i % 3].plot(t[:num_steps], true_joint_pos[:num_steps, i], color = 'b', linestyle = '--', label = 'Response')
         axes[int(i / 3)][i % 3].set_title('Joint {}'.format(i))
         axes[int(i / 3)][i % 3].set_xlabel('time (s)')
         axes[int(i / 3)][i % 3].set_ylabel('joint position (radian)')
+        axes[int(i / 3)][i % 3].legend()
         i += 1
     fig.savefig(os.path.join('assets', 'plots', 'ant_joint_pos.png'))
     env.reset()
@@ -142,9 +175,9 @@ if __name__ =='__main__':
         model_path = 'ant.xml',
         frame_skip = 5,
         render = True,
-        gait = 'trot',
-        task = 'straight',
-        direction = 'forward',
+        gait = 'ds_crawl',
+        task = 'turn',
+        direction = 'right',
     )
     #env = QuadrupedV2()
     env = test_env(env, True)
