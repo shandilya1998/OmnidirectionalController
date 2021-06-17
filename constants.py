@@ -358,7 +358,11 @@ params_rl = {
                                         'heading_ctrl',
                                         'omega',
                                         'z',
-                                        'mu'
+                                        'mu',
+                                        'd1',
+                                        'd2',
+                                        'd3',
+                                        'stability',
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',

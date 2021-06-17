@@ -365,6 +365,10 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._track_item['omega'].append(self.w.copy())
         self._track_item['z'].append(self.z.copy())
         self._track_item['mu'].append(self.mu.copy())
+        self._track_item['d1'].append(np.array([self.d1], dtype = np.float32))
+        self._track_item['d2'].append(np.array([self.d2], dtype = np.float32))
+        self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
+        self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
 
     def _get_track_item(self, item):
         return self._track_item[item].copy()

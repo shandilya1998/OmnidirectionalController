@@ -94,6 +94,12 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                         """
                         for item in track_list:
                             with open(os.path.join(log_dir, '{}_{}_{}.npy'.format(env_name, num_files, item)), 'wb') as f:
+                                print(item)
+                                if item == 'd1':
+                                    print(data[item])
+                                    print(len(data[item]))
+                                    if len(data[item]) > 0:
+                                        print(data[item][0].shape)
                                 np.save(f, np.stack(data[item], axis = 0))
                         num_files += 1
                         env.reset()
