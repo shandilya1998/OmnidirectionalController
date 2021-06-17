@@ -11,6 +11,7 @@ from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef
+from reward import FitnessFunctionV2
 
 class Quadruped(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
@@ -26,7 +27,9 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                      'velocity', 'position', 'true_joint_pos',
                      'sensordata', 'qpos', 'qvel',
                      'achieved_goal', 'observation', 'heading_ctrl',
-                     'omega', 'z', 'mu'
+                     'omega', 'z', 'mu',
+                     'd1', 'd2', 'd3',
+                     'stability',
                  ],
                  stairs = False,
                  verbose = 0):
@@ -87,6 +90,13 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._num_legs = 4
         self.joint_pos = self.sim.data.qpos[-self._num_joints:]
 
+        self.end_eff = [5, 9, 13, 17]
+        self.support_points = []
+        self.times = []
+        self.current_supports = []
+        self.t = 0
+        self.reward = FitnessFunctionV2(params)
+
         self._set_action_space()
         action = self.action_space.sample()
         self.action = np.zeros(self._action_dim)
@@ -105,6 +115,102 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._cam_yaw = 0.0
         self._cam_pitch = 0.0
 
+    def get_feet_contacts(self):
+        contact_points = []
+        contact_names = []
+        for c in range(self.sim.data.ncon):
+            if self.sim.data.contact[c].geom2 in self.end_eff and \
+                    self.sim.data.contact[c].geom2 not in contact_names:
+                contact_names.append(self.sim.data.contact[c].geom2)
+                contact_points.append(self.sim.data.contact[c].pos)
+        return list(zip(contact_names, contact_points))
+
+    def set_support_points(self):
+        contacts = self.get_feet_contacts()
+        self.t += 1
+        upright = True
+        if len(contacts) > 0:
+            upright = True
+            if len(contacts) > 2:
+                contacts = contacts[:2]
+            for c in contacts:
+                if c[0] in self.current_supports:
+                    index = self.current_supports.index(c[0])
+                    if len(self.current_supports) > 1:
+                        self.support_points.pop(-2 + index)
+                        self.support_points.insert(-2 + index, copy.deepcopy(c[1]))
+                        self.times.pop(-2 + index)
+                        self.times.insert(-2 + index, copy.deepcopy(self.t))
+                        order = [len(self.current_supports) - 1 - index, index]
+                        self.current_supports = [self.current_supports[-2 + i] \
+                            for i in  order]
+                        order = list(range(len(self.support_points)))
+                        order[-2 + index] = -2 - index + 1
+                        order[-2 - index +1] = -2 + index
+                        self.support_points = [self.support_points[i] \
+                            for i in  order]
+                        self.times = [self.times[i] for i in order]
+                    else:
+                        if len(self.support_points) > 1:
+                            self.support_points.pop(-2 + index)
+                            self.support_points.insert(-2 + index, copy.deepcopy(c[1]))
+                            self.times.pop(-2 + index)
+                            self.times.insert(-2 + index, copy.deepcopy(self.t))
+                        else:
+                            self.support_points.append(copy.deepcopy(c[1]))
+                            self.times.append(copy.deepcopy(self.t))
+                else:
+                    self.current_supports.append(c[0])
+                    self.support_points.append(copy.deepcopy(c[1]))
+                    self.times.append(copy.deepcopy(self.t))
+                    if len(self.current_supports) > 2:
+                        self.current_supports.pop(0)
+                    if len(self.support_points) > 6:
+                        self.support_points.pop(0)
+                    if len(self.times) > 6:
+                        self.times.pop(0)
+
+        else:
+            upright = False
+        return upright
+
+    def calculate_stability_reward(self, d):
+        reward = 0.0
+        d1 = 0.0
+        d2 = 0.0
+        d3 = 0.0
+        upright = self.set_support_points()
+        if len(self.support_points) < 6:
+            pass
+        else:
+            if not upright:
+                reward += -2.0
+            else:
+                Tb = self.times[-1] - self.times[0]
+                t = self.times[3] - self.times[1]
+                self.reward.build(
+                    t, Tb,
+                    self.support_points[2],
+                    self.support_points[3],
+                    self.support_points[0],
+                    self.support_points[1],
+                    self.support_points[4],
+                    self.support_points[5]
+                )
+                eta = 0
+                vd = np.linalg.norm(d[:3])
+                if vd != 0:
+                    eta = (params['L'] + params['W'])/(2*vd)
+                d1, d2, d3, stability = \
+                    self.reward.stability_reward(
+                        self.sim.data.qpos[:3],
+                        self.sim.data.qacc[:3],
+                        self.sim.data.qvel[:3],
+                        d[3:],
+                        eta
+                    )
+                reward += stability
+        return d1, d2, d3, reward, upright
 
     def _set_observation_space(self, observation):
         self.observation_space = convert_observation_to_space(observation)
@@ -288,6 +394,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             for item in self._track_lst:
                 with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
                     np.save(f, np.stack(self._track_item[item], axis = 0))
+        self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_motion)
         self._reset_track_lst()
         self._track_attr()
         return self.ob
@@ -513,6 +620,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         reward_velocity = 0.0
         reward_energy = 0.0
         penalty = 0.0
+        done = False
         phase = 0.0
         if self.verbose > 0:
             print(self._n_steps)
@@ -548,6 +656,9 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 reward_velocity += np.linalg.norm(velocity[0] + 1e-9)
             reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
                 -np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
+            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(d)
+            if not upright:
+                done = True
             counter += 1
             phase += timer_omega * self.dt * counter
             self._track_attr()
