@@ -298,7 +298,7 @@ params_env = {
 }
 
 
-max_steps = 150 # 150 #data collection env
+max_steps = 2000 # 150 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -311,7 +311,7 @@ params_rl = {
     'TRAIN_FREQ'                  : [1, 'steps'],
     'CHECK_FREQ'                  : 6000,
     'sde_sample_freq'             : 4,
-    'n_epochs'                    : 25,
+    'n_epochs'                    : 1,
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
@@ -355,6 +355,10 @@ params_rl = {
                                         'achieved_goal',
                                         'observation',
                                         'desired_goal',
+                                        'heading_ctrl',
+                                        'omega',
+                                        'z',
+                                        'mu'
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
@@ -367,7 +371,7 @@ units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
     'batch_size'                  : 512,
-    'n_epochs'                    : 25,
+    'n_epochs'                    : 1,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
     'n_eval_steps'                : 100,
@@ -410,12 +414,12 @@ params.update(params_pretrain)
 params.update(params_conv)
 
 params.update({
-    'version'                     : 0,
+    'version'                     : 1,
     'offset'                      : np.array([0.25, 0.25, 0.25, 0.25], dtype = np.float32),
     'degree'                      : 15,
     'thresholds'                  : np.array([0.0, np.pi / 6, 5 * np.pi / 6, np.pi, 11 * np.pi / 6 - np.pi / 10, 11 * np.pi / 6,  2 * np.pi], dtype = np.float32)
 })
 
-params['gait_list'] = ['ls_crawl', 'trot', 'ds_crawl']
+params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']
 params['direction_list'] = ['forward', 'backward', 'left', 'right']

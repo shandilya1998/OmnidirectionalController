@@ -33,6 +33,30 @@ def hopf(omega, mu, z, N = 10000, dt = 0.001):
         Z.append(z.copy() * np.concatenate([np.tanh(1e3 * omega)] * 2, -1))
     return np.stack(Z, 0)
 
+def plot_hopf_amplitude(logdir, omega, mu, z, N = 10000, dt = 0.001):
+    Z = []
+    for i in tqdm(range(N)):
+        units_osc = z.shape[-1]
+        x, y = np.split(z, 2, -1)
+        r = np.sqrt(np.square(x) + np.square(y))
+        phi = np.arctan2(y,x)
+        phi = phi + dt * np.sqrt(np.square(omega))
+        r = r + dt * (mu - r ** 2) * r
+        x = r * np.cos(phi)
+        y = r * np.sin(phi)
+        z = np.concatenate([x, y], -1)
+        Z.append(z.copy() * np.concatenate([np.tanh(1e3 * omega)] * 2, -1))
+
+    fig, ax = plt.subplots(1, 1, figsize = (5, 5))
+    T = np.arange(N) * dt
+    ax.plot(T, np.sqrt(np.sum(np.square(Z), -1)), color = 'b', linestyle = '--')
+    ax.set_xlabel('time (s)')
+    ax.set_ylabel('amplitude')
+    ax.set_title('Amplitude vs Time')
+    fig.savefig(os.path.join(logdir, 'amplitude_hopf.png'))
+    plt.show()
+    plt.close()
+
 def _get_pattern(thresholds, dx = 0.001):
     out = []
     x = 0.0
@@ -180,34 +204,33 @@ if __name__ == '__main__':
     print('Plotting Output.')
     for i in tqdm(range(num_osc)):
         num_steps = int(num_osc / ((i + 1) * dt))
-        fig, axes = plt.subplots(2,2, figsize = (10,10))
+        fig, axes = plt.subplots(2,2, figsize = (12,12))
         axes[0][0].plot(T[:num_steps], Z_hopf[:num_steps, i], linestyle = ':', color = 'r', label = 'constant omega')
         axes[0][0].plot(T[:num_steps], Z_mod[:num_steps, i], color = 'b', label = 'variable omega')
-        axes[0][0].set_xlabel('time (s)')
-        axes[0][0].set_ylabel('real part')
-        axes[0][0].set_title('Trend in Real Part')
+        axes[0][0].set_xlabel('time (s)',fontsize=15)
+        axes[0][0].set_ylabel('real part',fontsize=15)
+        axes[0][0].set_title('Trend in Real Part',fontsize=15)
         axes[0][0].legend()
         axes[0][1].plot(T[:num_steps], Z_hopf[:num_steps, i + num_osc], linestyle = ':', color = 'r', label = 'constant omega')
         axes[0][1].plot(T[:num_steps], Z_mod[:num_steps, i + num_osc], color = 'b', label = 'variable omega')
-        axes[0][1].set_xlabel('time (s)')
-        axes[0][1].set_ylabel('imaginary part')
-        axes[0][1].set_title('Trend in Imaginary Part')
+        axes[0][1].set_xlabel('time (s)',fontsize=15)
+        axes[0][1].set_ylabel('imaginary part',fontsize=15)
+        axes[0][1].set_title('Trend in Imaginary Part',fontsize=15)
         axes[0][1].legend()
         axes[1][0].plot(Z_hopf[:, i], Z_hopf[:, i + num_osc], linestyle = ':', color = 'r', label = 'constant omega')
         axes[1][0].plot(Z_mod[:, i], Z_mod[:, i + num_osc], color = 'b', label = 'variable omega')
-        axes[1][0].set_xlabel('real part')
-        axes[1][0].set_ylabel('imaginary part')
-        axes[1][0].set_title('Phase Space')
+        axes[1][0].set_xlabel('real part',fontsize=15)
+        axes[1][0].set_ylabel('imaginary part',fontsize=15)
+        axes[1][0].set_title('Phase Space',fontsize=15)
         axes[1][0].legend()
         axes[1][1].plot(T[:num_steps], np.arctan2(Z_hopf[:num_steps, i], Z_hopf[:num_steps, i + num_osc]), linestyle = ':', color = 'r', label = 'constant omega')
         axes[1][1].plot(T[:num_steps], np.arctan2(Z_mod[:num_steps, i], Z_mod[:num_steps, i + num_osc]), color = 'b', label = 'variable omega')
-        axes[1][1].set_xlabel('time (s)')
-        axes[1][1].set_ylabel('phase (radians)')
-        axes[1][1].set_title('Trend in Phase')
+        axes[1][1].set_xlabel('time (s)',fontsize=15)
+        axes[1][1].set_ylabel('phase (radians)',fontsize=15)
+        axes[1][1].set_title('Trend in Phase',fontsize=15)
         axes[1][1].legend()
         fig.savefig(os.path.join(plot_path, 'hopf', 'oscillator_{}.png'.format(i)))
         plt.close('all')
-
     phi = np.array([0.0, 0.25, 0.5, 0.75], dtype = np.float32)
     phi = phi + np.cos(phi * 2 * np.pi) * 3 * (1 - 0.75) / 8
     z = np.concatenate([np.cos(phi * 2 * np.pi), np.sin(phi * 2 * np.pi)], -1)

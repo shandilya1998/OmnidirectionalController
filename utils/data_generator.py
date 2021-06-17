@@ -33,48 +33,42 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                         print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
                         ep += 1
                         ac = env.action_space.sample()
-
-                        low = env.action_space.low
-                        high = env.action_space.high
-                        if 'crawl' in gait:
-                            low = np.zeros(shape = low.shape, dtype = low.dtype)
-                            if np.any(high > 1/8):
-                                high[np.where(high > 1 / 8)] = 1 / 8
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-                        elif gait == 'trot':
-                            low = np.ones(shape = low.shape, dtype = low.dtype) * 1 / 8
-                            high = np.ones(shape = high.shape, dtype = high.dtype) * 0.75
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-                        elif gait == 'bound':
-                            low = np.ones(shape = low.shape, dtype = low.dtype) * 0.75
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-
+                        if env.gait == 'trot':
+                            if env._action_dim == 2:
+                                mu = (np.random.random() * 1.5 ) % 1
+                                omega = 3.55
+                                ac = np.array([ omega / (2 * np.pi), mu])
+                            elif env._action_dim == 4:
+                                omega = 3.55
+                                mu1 = np.random.random()
+                                mu2 = np.random.uniform(low = mu1, high = 1.0)
+                                if env.direction == 'left':
+                                    mu = np.array([mu2, mu1], dtype = np.float32)
+                                    ac = np.array([(omega) / (2 * np.pi), mu[0], omega / (2 * np.pi), mu[1]], dtype = np.float32)
+                                elif env.direction == 'right':
+                                    mu = np.array([mu1, mu2], dtype = np.float32)
+                                    ac = np.array([omega / (2 * np.pi), mu[0], (omega) / (2 * np.pi), mu[1]], dtype = np.float32)
+                        if 'crawl' in env.gait:
+                            if env._action_dim == 2:
+                                mu = 0.5
+                                omega = 1.6
+                                ac = np.array([omega / (2 * np.pi), mu])
+                            elif env._action_dim == 4:
+                                omega = 1.6
+                                mu1 = np.random.random()
+                                mu2 = np.random.uniform(low = mu1, high = 1.0)
+                                if env.direction == 'left':
+                                    mu = np.array([mu2, mu1], dtype = np.float32)
+                                    ac = np.array([omega / (2 * np.pi), mu[0], (omega)/ (2 * np.pi), mu[1]], dtype = np.float32)
+                                elif env.direction == 'right':
+                                    mu = np.array([mu1, mu2], dtype = np.float32)
+                                    ac = np.array([omega / (2 * np.pi), mu[0], omega / (2 * np.pi), mu[1]], dtype = np.float32)
                         ep_steps = 0
                         done = False
                         while not done and ep_steps < params['MAX_STEPS'] // 2:
                             ob, reward, done, info = env.step(ac)
                             ep_steps += 1
 
-                        ac = env.action_space.sample()
-
-                        low = env.action_space.low
-                        high = env.action_space.high
-                        if 'crawl' in gait:
-                            low = np.zeros(shape = low.shape, dtype = low.dtype)
-                            if np.any(high > 1/8):
-                                high[np.where(high > 1 / 8)] = 1 / 8
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-                        elif gait == 'trot':
-                            low = np.ones(shape = low.shape, dtype = low.dtype) * 1 / 8
-                            high = np.ones(shape = high.shape, dtype = high.dtype) * 0.75
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-                        elif gait == 'bound':
-                            low = np.ones(shape = low.shape, dtype = low.dtype) * 0.75
-                            ac = np.random.uniform(low = low, high = high, size = low.shape)
-
-                        while not done and ep_steps < params['MAX_STEPS']:
-                            ob, reward, done, info = env.step(ac)
-                            ep_steps += 1
                         data = {}
                         for item in track_list:
                             data[item] = env._track_item[item]

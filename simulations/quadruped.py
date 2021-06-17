@@ -21,7 +21,13 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                  task = 'straight',
                  direction = 'forward',
                  policy_type = 'MultiInputPolicy',
-                 track_lst = ['desired_goal', 'joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', 'sensordata', 'qpos', 'qvel', 'achieved_goal', 'observation'],
+                 track_lst = [
+                     'desired_goal', 'joint_pos', 'action',
+                     'velocity', 'position', 'true_joint_pos',
+                     'sensordata', 'qpos', 'qvel',
+                     'achieved_goal', 'observation', 'heading_ctrl',
+                     'omega', 'z', 'mu'
+                 ],
                  stairs = False,
                  verbose = 0):
         gym.Env.__init__(self)
@@ -241,6 +247,9 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         #self.z = np.concatenate([np.cos((self.init_gamma + params['offset']) * np.pi * 2), np.sin((self.init_gamma + params['offset']) * np.pi * 2)], -1)
         #print(self.init_gamma)
         self.z = self._get_z()
+        self.omega = np.zeros((4,), dtype = np.float32)
+        self.w = np.zeros((4,), dtype = np.float32)
+        self.mu = np.zeros((4,), dtype = np.float32)
         self.heading_ctrl *= 1.0
         self.C = np.load('assets/out/plots/coef.npy')
         return self.init_gamma
@@ -254,7 +263,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             else:
                 phi.append(params['offset'][i] + self.init_gamma[i])
         phi = np.array(phi, dtype = np.float32)
-        print(np.cos(phi * 2 * np.pi))
         phi = phi + np.cos(phi * 2 * np.pi) * 3 * (1 - self.beta) / 8
         return np.concatenate([np.cos(phi * 2 * np.pi), np.sin(phi * 2 * np.pi)], -1)
 
@@ -353,6 +361,10 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['desired_goal'].append(ob['desired_goal'].copy())
+        self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
+        self._track_item['omega'].append(self.w.copy())
+        self._track_item['z'].append(self.z.copy())
+        self._track_item['mu'].append(self.mu.copy())
 
     def _get_track_item(self, item):
         return self._track_item[item].copy()
@@ -464,6 +476,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.mu = np.array(amp, dtype = np.float32)
         self.omega = np.array(omg, dtype = np.float32) * self.heading_ctrl
         self.z, w = hopf_step(self.omega, self.mu, self.z, self.C, params['degree'])
+        self.w = w
         out = []
         for i in range(self._num_legs):
             direction = 1.0
