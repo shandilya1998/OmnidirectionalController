@@ -12,6 +12,7 @@ from tempfile import TemporaryFile
 from utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef
 from reward import FitnessFunctionV2
+import copy
 
 class Quadruped(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
@@ -278,6 +279,10 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self.e = -0.06000
         self.h = -0.02820
         self.s = 0.02200
+        self.d1 = 0.0
+        self.d2 = 0.0
+        self.d3 = 0.0
+        self.stability = 0.0
 
     def _set_action_space(self):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
@@ -394,7 +399,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             for item in self._track_lst:
                 with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
                     np.save(f, np.stack(self._track_item[item], axis = 0))
-        self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_motion)
+        self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
         self._reset_track_lst()
         self._track_attr()
         return self.ob
@@ -656,7 +661,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                 reward_velocity += np.linalg.norm(velocity[0] + 1e-9)
             reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
                 -np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
-            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(d)
+            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
             if not upright:
                 done = True
             counter += 1

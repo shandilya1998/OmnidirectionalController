@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+<title>Web controlled Servo</title>
+<script src="web_controlled_servo_files/jquery.js"></script>
+</head>
+<body>
+<h1> <b> Arduino Web Controlled Servo by Electrosome </b> </h1>
+<h4> <b> Enter the IP address below </b> </h4>
+<div style="margin: 0; width:500px; height:80px;">
+<form name="form" action="" method="GET">
+ESP8266 IP Address:
+<input type="text" name="inputbox" value="192.168.1.15">
+</form>
+</div>
+<h3> Scroll it to move the servo </h3>
+<input type="range" min="20" max="170" onmouseup="servo1(this.value)" value="95">
+
+<script>
+$.ajaxSetup({timeout:1000});
+function servo1(angle)
+{
+	TextVar = form.inputbox.value;
+	ArduinoVar = "http://" + TextVar + ":80";
+	$.get( ArduinoVar, { "sr1": angle })	;
+	{Connection: close};
+}
+</script>
+
+</body></html>

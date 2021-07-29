@@ -1,6 +1,5 @@
 from reward.support_plane_v2 import SupportPlane
 import numpy as np
-import rospy
 
 class ZMP:
     def __init__(self, params):

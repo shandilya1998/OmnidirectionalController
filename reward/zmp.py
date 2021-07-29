@@ -1,34 +1,20 @@
 from reward.support_plane import SupportPlane
 import numpy as np
-import rospy
-from gazebo_msgs.srv import GetPhysicsProperties
 
 class ZMP:
     def __init__(self, params):
         self.params = params
         self.support_plane = SupportPlane(params)
-        self.get_physics_prop_proxy = rospy.ServiceProxy(
-            '/gazebo/get_physics_properties',
-            GetPhysicsProperties
-        )
-        g = self.get_physics_prop_proxy().gravity
         self.g = np.array([
-            g.x,
-            g.y,
-            g.z
+            0.0,
+            0.0,
+            -9.8
         ])
         self.zmp_s = np.zeros((3,))
         self.zmp = np.zeros((3,))
         self.inertial_plane = np.eye(N = 3)
         self.plane = self.inertial_plane
 
-    def update_g(self):
-        g = self.get_physics_prop_proxy().gravity
-        self.g = np.array([
-            g.x,
-            g.y,
-            g.z
-        ])
 
     def build(self, t, Tb, A, B, AL, BL, AF, BF):
         self.support_plane.build(t, Tb, A, B, AL, BL, AF, BF)
