@@ -30,7 +30,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                      'achieved_goal', 'observation', 'heading_ctrl',
                      'omega', 'z', 'mu',
                      'd1', 'd2', 'd3',
-                     'stability',
+                     'stability', 'omega_o'
                  ],
                  stairs = False,
                  verbose = 0):
@@ -474,6 +474,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['desired_goal'].append(ob['desired_goal'].copy())
         self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
+        self._track_item['omega_o'].append(self.omega.copy())
         self._track_item['omega'].append(self.w.copy())
         self._track_item['z'].append(self.z.copy())
         self._track_item['mu'].append(self.mu.copy())

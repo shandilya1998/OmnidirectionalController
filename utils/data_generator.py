@@ -3,7 +3,14 @@ import numpy as np
 import argparse
 import pandas as pd
 
-track_list = ['joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', 'sensordata', 'qpos', 'qvel', 'achieved_goal', 'observation', 'desired_goal']
+track_list = [
+    'joint_pos', 'action', 'velocity', \
+    'position', 'true_joint_pos', 'sensordata', \
+    'qpos', 'qvel', 'achieved_goal', \
+    'observation', 'desired_goal', 'heading_ctrl', \
+    'omega', 'z', 'mu', 'd1', 'd2', 'd3', \
+    'stability', 'omega_o'
+]
 
 def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, task_list, direction_list, track_list, env_name):
     from constants import params

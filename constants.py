@@ -298,7 +298,7 @@ params_env = {
 }
 
 
-max_steps = 2000 # 150 #data collection env
+max_steps = 300 # 150 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -311,7 +311,7 @@ params_rl = {
     'TRAIN_FREQ'                  : [1, 'steps'],
     'CHECK_FREQ'                  : 6000,
     'sde_sample_freq'             : 4,
-    'n_epochs'                    : 1,
+    'n_epochs'                    : 15,
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
@@ -363,6 +363,7 @@ params_rl = {
                                         'd2',
                                         'd3',
                                         'stability',
+                                        'omega_o'
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
@@ -375,7 +376,7 @@ units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
     'batch_size'                  : 512,
-    'n_epochs'                    : 1,
+    'n_epochs'                    : 15,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
     'n_eval_steps'                : 100,
