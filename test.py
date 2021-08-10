@@ -172,12 +172,12 @@ def test_reference_data():
 if __name__ =='__main__':
     from simulations import QuadrupedV2, Quadruped
     env = Quadruped(
-        model_path = 'ant.xml',
+        model_path = 'ant_v2.xml',
         frame_skip = 5,
         render = True,
         gait = 'ds_crawl',
-        task = 'turn',
-        direction = 'right',
+        task = 'straight',
+        direction = 'forward',
     )
     #env = QuadrupedV2()
     env = test_env(env, True)

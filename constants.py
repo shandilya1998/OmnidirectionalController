@@ -422,7 +422,16 @@ params.update({
     'version'                     : 1,
     'offset'                      : np.array([0.25, 0.25, 0.25, 0.25], dtype = np.float32),
     'degree'                      : 15,
-    'thresholds'                  : np.array([0.0, np.pi / 6, 5 * np.pi / 6, np.pi, 11 * np.pi / 6 - np.pi / 10, 11 * np.pi / 6,  2 * np.pi], dtype = np.float32)
+    'thresholds'                  : np.array([
+                                        0.0,
+                                        np.pi / 6,
+                                        5 * np.pi / 6,
+                                        np.pi,
+                                        11 * np.pi / 6 - np.pi / 10,
+                                        11 * np.pi / 6,
+                                        2 * np.pi
+                                    ], dtype = np.float32),
+    'camera_name'                 : 'esp32cam',
 })
 
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']
