@@ -12,6 +12,66 @@ track_list = [
     'stability', 'omega_o'
 ]
 
+def create_training_data(logdir, datapath):
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
+    y_items = ['omega_o', 'mu', 'z']
+    x_items = ['desired_goal']
+    items = y_items + x_items
+    X = []
+    Y = []
+    for index, row in info.iterrows():
+        direction = row['direction']
+        length = row['length']
+        task = row['task']
+        f = os.path.join(datapath, row['id'])
+        data = {}
+        for item in items:
+            data[item] = np.load(f + '_' + item + '.npy')
+        speed = np.sqrt(np.sum(np.square(
+            np.mean(
+                data['desired_goal'][int(length * 0.25):],
+                0
+            )[:2]
+        )))
+        yaw = np.mean(data['desired_goal'][int(length * 0.25):, -1])
+        x = np.zeros(6, dtype = np.float32)
+        y = np.concatenate([np.mean(data[item], 0) for item in y_items])
+        Y.append(y.copy())
+        if task == 'straight':
+            if direction == 'forward':
+                x[1] = speed
+            elif direction == 'backward':
+                x[1] = -speed
+            elif direction == 'left':
+                x[0] = -speed
+            elif direction == 'right':
+                x[0] = speed
+            else:
+                raise ValueError('Expected one of `forward`, `backward`, \
+                        `left` or `right`, got {}'.format(direction))
+        elif task == 'turn':
+            x[0] = np.mean(data['desired_goal'][int(length * 0.25):, 0], 0)
+            x[1] = np.mean(data['desired_goal'][int(length * 0.25):, 1], 0)
+            x[-1] = np.mean(data['desired_goal'][int(length * 0.25):, -1], 0)
+        elif task == 'rotate':
+            if direction == 'left':
+                x[-1] = -yaw
+            elif direction == 'right':
+                x[-1] = yaw
+            else:
+                raise ValueError('Expected one of `left` or `right`, got \
+                        {}'.format(direction))
+        else:
+            raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
+                    got {}'.format(task))
+        X.append(x.copy())
+    Y = np.stack(Y, 0)
+    X = np.stack(X, 0)
+    with open(os.path.join(logdir, 'X.npy'), 'wb') as f:
+        np.save(f, X)
+    with open(os.path.join(logdir, 'Y.npy'), 'wb') as f:
+        np.save(f, Y)
+
 def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, task_list, direction_list, track_list, env_name):
     from constants import params
     DATA = {key : [] for key in track_list}

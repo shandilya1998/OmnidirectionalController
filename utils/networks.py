@@ -201,7 +201,7 @@ class ParamNet(torch.nn.Module):
 class Controller(torch.nn.Module):
     def __init__(self):
         super(Controller, self).__init__()
-        input_size = params['motion_state_size'] * 2 + params['robot_state_size']
+        input_size = params['input_size_low_level_control']
         output_mlp_seq = []
         for i, units in enumerate(params['units_output_mlp']):
             output_mlp_seq.append(torch.nn.Linear(
@@ -213,35 +213,13 @@ class Controller(torch.nn.Module):
 
         output_mlp_seq.append(torch.nn.Linear(
             input_size,
-            params['action_dim']
+            params['cpg_param_size']
         ))
-
-        self.out_tanh = torch.nn.Tanh()
 
         self.output_mlp = torch.nn.Sequential(
             *output_mlp_seq
         )
 
     def forward(self, ob):
-        out = self.output_mlp(ob)
-        x = params['max_action'] * self.out_tanh(out)
-        return x
-
-class ControllerV2(torch.nn.Module):
-    def __init__(self):
-        super(ControllerV2, self).__init__()
-        self.linear = torch.nn.Linear(params['robot_state_size'] + 2 * params['motion_state_size'], 1000)
-        self.conv0 = torch.nn.Conv2d(1, 16, 3, stride = (2, 1), padding = (1, 1))
-        self.conv1 = torch.nn.Conv2d(16, 24, 3, stride = (4, 1), padding = (1, 1))
-        self.conv2 = torch.nn.Conv2d(24, 16, 3, stride = (2, 1), padding = (1,1))
-        self.conv3 = torch.nn.Conv2d(16, 1, 3, stride = (2, 2), padding = (1,1))
-
-    def forward(self, x):
-        x = self.linear(torch.unsqueeze(x, 1))
-        x = self.conv0(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = torch.squeeze(x)
-        return x
+        return self.output_mlp(ob)
 
