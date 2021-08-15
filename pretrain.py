@@ -205,7 +205,7 @@ class Learner:
             self._ep += 1
         print('Pretraining Done.')
 
-    def _pretrain_step(self, x, y, steps):
+    def _pretrain_step(self, x, y):
         loss = 0.0
         self._model.zero_grad()
         y_pred = self._model(x)
@@ -225,7 +225,7 @@ class Learner:
         epoch_loss = 0.0
         self._step = 0
         while self._step < steps - params['h']:
-            epoch_loss += self._pretrain_step(torch.squeeze(x[:, self._step: self._step + params['h'], :], 1), y[:, self._step: self._step + params['h'], :], steps)
+            epoch_loss += self._pretrain_step(torch.squeeze(x[:, self._step: self._step + params['h'], :], 1), y[:, self._step: self._step + params['h'], :])
         return epoch_loss
 
     def _pretrain(self, experiment):
