@@ -13,7 +13,7 @@ params = {
     'dt'                          : 0.001,
     'units_output_mlp'            : [60,100, 100, cpg_param_size],
     'input_size_low_level_control': input_size, 
-    'units_low_level_control'     : [30, 300, 500, 250, 40],
+    'units_low_level_control'     : [256, 1024, 1024, 512, 32],
     'cpg_param_size'              : cpg_param_size,
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
@@ -304,7 +304,7 @@ params_env = {
 }
 
 
-max_steps = 300 # 150 #data collection env
+max_steps = 175 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -321,7 +321,7 @@ params_rl = {
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
-    'LEARNING_RATE'               : 0.001,
+    'LEARNING_RATE'               : 0.0001,
     'gamma'                       : 0.9,
     'tau'                         : 0.02,
     'steps'                       : int(1e7),
@@ -381,13 +381,13 @@ action_dim = 8
 units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
-    'batch_size'                  : 512,
-    'n_epochs'                    : 15000,
+    'batch_size'                  : 64,
+    'n_epochs'                    : 200,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
     'n_eval_steps'                : 100,
     'n_episodes'                  : 500,
-    'min_epoch_size'              : 200,
+    'min_epoch_size'              : 1000,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 18,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
     'dt'                          : 0.001,

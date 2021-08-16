@@ -37,6 +37,7 @@ class Learner:
         )
         self._ep = 0
         self._epoch = 0
+        self._n_step = 0
 
     def learn(self, experiment):
         print('Start Training.')
@@ -52,31 +53,34 @@ class Learner:
         loss.backward()
         self._optim.step()
         self._optim.zero_grad()
-        self.logger.add_scalar('Train/Loss', loss.detach().cpu().numpy(), self._step)
+        self.logger.add_scalar(
+            'Train/Loss',
+            loss.detach().cpu().numpy(),
+            self._n_step
+        )
         return loss.detach().cpu().numpy()
 
-    def _pretrain_epoch(self, steps):
+    def _pretrain_epoch(self):
         epoch_loss = 0.0 
-        self._step = 0 
+        self._step = 0
         for x, y in self._train_dataloader:
             loss = self._pretrain_step(x, y)
             epoch_loss += loss
-            if self._step > steps:
-                break
+            self._step += 1
+            self._n_step += 1
         return epoch_loss
 
     def _pretrain(self, experiment):
         """ 
             modify according to need
         """
-        steps = params['min_epoch_size']
         ep_loss = 0.0 
         self._epoch = 0
         while self._epoch < params['n_epochs']:
-            epoch_loss = self._pretrain_epoch(steps)
+            epoch_loss = self._pretrain_epoch()
             self._epoch += 1
-            if steps > 0:
-                epoch_loss = epoch_loss / steps
+            if self._step > 0:
+                epoch_loss = epoch_loss / self._step
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._epoch)
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
                 self._save(experiment)

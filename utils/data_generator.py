@@ -15,7 +15,7 @@ track_list = [
 def create_training_data(logdir, datapath):
     info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
     y_items = ['omega_o', 'mu', 'z']
-    x_items = ['desired_goal']
+    x_items = ['achieved_goal']
     items = y_items + x_items
     X = []
     Y = []
@@ -29,11 +29,11 @@ def create_training_data(logdir, datapath):
             data[item] = np.load(f + '_' + item + '.npy')
         speed = np.sqrt(np.sum(np.square(
             np.mean(
-                data['desired_goal'][int(length * 0.25):],
+                data['achieved_goal'][int(length * 0.25):],
                 0
             )[:2]
         )))
-        yaw = np.mean(data['desired_goal'][int(length * 0.25):, -1])
+        yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
         x = np.zeros(6, dtype = np.float32)
         y = np.concatenate([np.mean(data[item], 0) for item in y_items])
         Y.append(y.copy())
@@ -50,9 +50,9 @@ def create_training_data(logdir, datapath):
                 raise ValueError('Expected one of `forward`, `backward`, \
                         `left` or `right`, got {}'.format(direction))
         elif task == 'turn':
-            x[0] = np.mean(data['desired_goal'][int(length * 0.25):, 0], 0)
-            x[1] = np.mean(data['desired_goal'][int(length * 0.25):, 1], 0)
-            x[-1] = np.mean(data['desired_goal'][int(length * 0.25):, -1], 0)
+            x[0] = np.mean(data['achieved_goal'][int(length * 0.25):, 0], 0)
+            x[1] = np.mean(data['achieved_goal'][int(length * 0.25):, 1], 0)
+            x[-1] = np.mean(data['achieved_goal'][int(length * 0.25):, -1], 0)
         elif task == 'rotate':
             if direction == 'left':
                 x[-1] = -yaw
