@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from stable_baselines3.common.results_plotter import load_results, ts2xy
 import pandas as pd
 import os
+import shutil
 
 np.seterr('raise')
 
@@ -110,6 +111,12 @@ def plot_rl_results(logdir, datadir):
     fig.savefig(os.path.join(logdir, 'reward.png'))
     plt.show()
 
+def _sort(x, y):
+    data = sorted(zip(x, y))
+    data = zip(*data)
+    x, y = [list(t) for t in data]
+    return x, y
+    
 def plot_training_data(logdir, datapath):
     X = np.load(os.path.join(datapath, 'X.npy'))
     X_indices = [0, 1, -1]
@@ -122,8 +129,112 @@ def plot_training_data(logdir, datapath):
     fig, axes = plt.subplots(3, 16, figsize = (80, 15))
     for i in range(Y.shape[-1]):
         for j in range(3):
+            y = Y[:, i].tolist()
+            x = X[:, X_indices[j]].tolist()
+            x, y = _sort(x, y)
             axes[j][i].scatter(Y[:, i], X[:, X_indices[j]])
             axes[j][i].set_ylabel(X_names[j])
             axes[j][i].set_xlabel(Y_names[i])
             axes[j][i].set_title(X_names[j] + ' vs ' + Y_names[i])
     fig.savefig(os.path.join(logdir, 'visualization.png'))
+
+
+def _read_row(row, datapath):
+    direction = row['direction']
+    length = row['length']
+    task = row['task']
+    f = os.path.join(datapath, row['id'])
+    data = {}
+    for item in items:
+        data[item] = np.load(f + '_' + item + '.npy')
+    speed = np.sqrt(np.sum(np.square(
+        np.mean(
+            data['achieved_goal'][int(length * 0.25):],
+            0
+        )[:2]
+    )))
+    yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
+    x = np.zeros(6, dtype = np.float32)
+    y = np.concatenate([np.mean(data[item], 0) for item in y_items])
+    Y.append(y.copy())
+    if task == 'straight':
+        if direction == 'forward':
+            x[1] = speed
+        elif direction == 'backward':
+            x[1] = -speed
+        elif direction == 'left':
+            x[0] = -speed
+        elif direction == 'right':
+            x[0] = speed
+        else:
+            raise ValueError('Expected one of `forward`, `backward`, \
+                    `left` or `right`, got {}'.format(direction))
+    elif task == 'turn':
+        x[0] = np.mean(data['achieved_goal'][int(length * 0.25):, 0], 0)
+        x[1] = np.mean(data['achieved_goal'][int(length * 0.25):, 1], 0)
+        x[-1] = np.mean(data['achieved_goal'][int(length * 0.25):, -1], 0)
+    elif task == 'rotate':
+        if direction == 'left':
+            x[-1] = -yaw
+        elif direction == 'right':
+            x[-1] = yaw
+        else:
+            raise ValueError('Expected one of `left` or `right`, got \
+                    {}'.format(direction))
+    else:
+        raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
+                got {}'.format(task))
+    return x, y
+
+def plot_training_data_v2(logdir, datapath):
+    info = pd.read_csv(os.path.join(logdir, 'info.csv'), index_col = 0)
+    tasks = ['straight', 'turn', 'rotate']
+    directions = ['left', 'right', 'forward', 'backward']
+    gaits = ['trot', 'ls_crawl', 'ds_crawl']
+    X_indices = [0, 1, -1]
+    X_names = ['x speed', 'y speed', 'yaw rate']
+    Y_names = ['omega_o_' + str(i) for i in range(4)] + \
+        ['mu_' + str(i) for i in range(4)]  + \
+        ['z_R_' + str(i) for i in range(4)] + \
+        ['z_I_' + str(i) for i in range(4)]
+    if os.path.exists(os.path.join(logdir, 'visualizations')):
+        shutils.rmtree(os.path.join(logdir, 'visualizations'))
+    os.mkdir(os.path.join(logdir, 'visualizations'))
+    for task in tasks:
+        for gait in gaits:
+            for direction in directions:
+                df = info[
+                    (info['task'] == task) & \
+                    (info['direction'] == direction) & \
+                    (info['gait'] == gait)
+                ]
+                X = []
+                Y = []
+                for i, row in df.iterrows():
+                    x, y = _read_row(row, datapath)
+                    X.append(x.copy())
+                    Y.append(y.copy())
+                X = np.stack(X, 0)
+                Y = np.stack(Y, 0)
+                X = np.load(os.path.join(datapath, 'X.npy'))
+                fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+                for i in range(Y.shape[-1]):
+                    for j in range(3):
+                        y = Y[:, i].tolist()
+                        x = X[:, X_indices[j]].tolist()
+                        x, y = _sort(x, y)
+                        axes[j][i].scatter(Y[:, i], X[:, X_indices[j]])
+                        axes[j][i].set_ylabel(X_names[j])
+                        axes[j][i].set_xlabel(Y_names[i])
+                        axes[j][i].set_title(X_names[j] + ' vs ' + Y_names[i])
+                fig.savefig(
+                    os.path.join(
+                        logdir,
+                        'visualizations',
+                        '{}_{}_{}.png'.format(
+                            task,
+                            gait,
+                            direction
+                        )
+                    )
+                )
