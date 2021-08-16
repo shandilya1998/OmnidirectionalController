@@ -110,4 +110,20 @@ def plot_rl_results(logdir, datadir):
     fig.savefig(os.path.join(logdir, 'reward.png'))
     plt.show()
 
-
+def plot_training_data(logdir, datapath):
+    X = np.load(os.path.join(datapath, 'X.npy'))
+    X_indices = [0, 1, -1]
+    X_names = ['x speed', 'y speed', 'yaw rate']
+    Y = np.load(os.path.join(logdir, 'Y.npy'))
+    Y_names = ['omega_o_' + str(i) for i in range(4)] + \
+        ['mu_' + str(i) for i in range(4)]  + \
+        ['z_R_' + str(i) for i in range(4)] + \
+        ['z_I_' + str(i) for i in range(4)]
+    fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+    for i in range(Y.shape[-1]):
+        for j in range(3):
+            axes[j][i].scatter(Y[:, i], X[:, X_indices[j]])
+            axes[j][i].set_ylabel(X_names[j])
+            axes[j][i].set_xlabel(Y_names[i])
+            axes[j][i].set_title(X_names[j] + ' vs ' + Y_names[i])
+    fig.savefig(os.path.join(logdir, 'visualization.png'))
