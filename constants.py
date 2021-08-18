@@ -304,7 +304,7 @@ params_env = {
 }
 
 
-max_steps = 175 #data collection env
+max_steps = 75 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,

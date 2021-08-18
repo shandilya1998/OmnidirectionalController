@@ -1,4 +1,4 @@
-from utils.data_generator import generate_multi_goal_gait_data
+from utils.data_generator import generate_multi_goal_gait_data_v2
 import argparse
 import imp
 from constants import params
@@ -34,13 +34,16 @@ if __name__ == '__main__':
     if args.render is not None:
         render = True
 
+    if not os.path.exists(args.log_dir):
+        os.mkdir(args.log_dir)
+
     env_kwargs = {
         'model_path' : 'ant.xml',
         'render' : render,
         'verbose' : 0
     }
     print('Starting.')
-    generate_multi_goal_gait_data(
+    generate_multi_goal_gait_data_v2(
         args.log_dir,
         env_class,
         env_kwargs,

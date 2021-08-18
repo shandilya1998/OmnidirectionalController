@@ -144,6 +144,9 @@ def _read_row(row, datapath):
     length = row['length']
     task = row['task']
     f = os.path.join(datapath, row['id'])
+    y_items = ['omega_o', 'mu', 'z']
+    x_items = ['achieved_goal']
+    items = y_items + x_items
     data = {}
     for item in items:
         data[item] = np.load(f + '_' + item + '.npy')
@@ -156,7 +159,6 @@ def _read_row(row, datapath):
     yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
     x = np.zeros(6, dtype = np.float32)
     y = np.concatenate([np.mean(data[item], 0) for item in y_items])
-    Y.append(y.copy())
     if task == 'straight':
         if direction == 'forward':
             x[1] = speed
@@ -198,7 +200,7 @@ def plot_training_data_v2(logdir, datapath):
         ['z_R_' + str(i) for i in range(4)] + \
         ['z_I_' + str(i) for i in range(4)]
     if os.path.exists(os.path.join(logdir, 'visualizations')):
-        shutils.rmtree(os.path.join(logdir, 'visualizations'))
+        shutil.rmtree(os.path.join(logdir, 'visualizations'))
     os.mkdir(os.path.join(logdir, 'visualizations'))
     for task in tasks:
         for gait in gaits:
@@ -223,7 +225,7 @@ def plot_training_data_v2(logdir, datapath):
                         y = Y[:, i].tolist()
                         x = X[:, X_indices[j]].tolist()
                         x, y = _sort(x, y)
-                        axes[j][i].scatter(Y[:, i], X[:, X_indices[j]])
+                        axes[j][i].scatter(y, x)
                         axes[j][i].set_ylabel(X_names[j])
                         axes[j][i].set_xlabel(Y_names[i])
                         axes[j][i].set_title(X_names[j] + ' vs ' + Y_names[i])
