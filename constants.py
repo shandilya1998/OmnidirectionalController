@@ -310,7 +310,7 @@ params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.08,
-    'BATCH_SIZE'                  : 10, #max_steps * n_envs ,#8,
+    'BATCH_SIZE'                  : 64, #max_steps * n_envs ,#8,
     'NET_ARCH'                    : [dict(pi=[256, 256], vf=[256, 256])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
@@ -382,7 +382,7 @@ units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
     'batch_size'                  : 64,
-    'n_epochs'                    : 300,
+    'n_epochs'                    : 30000,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
     'n_eval_steps'                : 100,

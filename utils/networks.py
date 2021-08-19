@@ -223,3 +223,35 @@ class Controller(torch.nn.Module):
     def forward(self, ob):
         return self.output_mlp(ob)
 
+
+class ControllerV2(torch.nn.Module):
+    def __init__(self):
+        super(ControllerV2, self).__init__()
+        input_size = params['input_size_low_level_control']
+        """
+        output_mlp_seq = []
+        for i, units in enumerate(params['units_output_mlp']):
+            output_mlp_seq.append(torch.nn.Linear(
+                input_size,
+                units
+            ))
+            output_mlp_seq.append(torch.nn.PReLU())
+            input_size = units
+
+        output_mlp_seq.append(torch.nn.Linear(
+            input_size,
+            params['cpg_param_size']
+        ))
+
+        self.output_mlp = torch.nn.Sequential(
+            *output_mlp_seq
+        )
+        """
+
+        self.encoder = torch.nn.Linear(params['cpg_param_size'], input_size)
+        self.decoder = torch.nn.Linear(input_size, params['cpg_param_size'])
+
+    def forward(self, x):
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y, z
