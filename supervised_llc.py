@@ -101,17 +101,20 @@ class Learner:
         """
         ep_loss = 0.0 
         self._epoch = 0
+        pbar = tqdm(total = params['n_epochs'])
         while self._epoch < params['n_epochs']:
             epoch_loss = self._pretrain_epoch()
             self._epoch += 1
             if self._step > 0:
                 epoch_loss = epoch_loss / self._step
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._epoch)
+            pbar.update(1)
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
                 eval_loss = self._eval_v2()
                 if eval_loss <= self._prev_eval_loss:
                     self._save(experiment)
                     self._prev_eval_loss = eval_loss
+        pbar.close()
         return True
 
     def _save(self, experiment):
@@ -158,14 +161,11 @@ if __name__ == '__main__':
     logdir = os.path.join(datapath, 'supervised_llc')
     if not os.path.exists(logdir):
         os.mkdir(logdir)
-    else:
-        shutil.rmtree(logdir)
-        os.mkdir(logdir)
     if not os.path.exists(os.path.join(logdir,
         'exp{}'.format(args.experiment))):
         os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
     else:
-        shutil(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
         os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
     logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
     learner = Learner(logdir, datapath, logger)
