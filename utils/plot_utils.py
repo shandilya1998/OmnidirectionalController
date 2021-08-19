@@ -250,7 +250,8 @@ def _read_row_v2(row, datapath, tracklist):
             np.sum(
                 np.square(
                     data['achieved_goal'][int(length * 0.25):, :2]
-                )
+                ),
+                -1
             )
         )
     )
