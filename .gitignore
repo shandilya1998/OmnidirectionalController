@@ -1,6 +1,5 @@
 ICRA2020_ARS
 *.npy
-*.pth
 *.zip
 *.icloud
 *.png
