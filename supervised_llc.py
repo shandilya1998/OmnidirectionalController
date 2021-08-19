@@ -1,5 +1,6 @@
 import torch
-from utils import Controller, SupervisedLLCDataset, ControllerV2
+from utils import Controller, SupervisedLLCDataset, \
+    ControllerV2, ControllerV3
 import os
 from constants import params
 import shutil
@@ -12,7 +13,7 @@ class Learner:
         self.logdir = logdir
         self.datapath = datapath
         self.logger = logger
-        self._model = ControllerV2()
+        self._model = ControllerV3()
         self._optim  = torch.optim.Adam(
             self._model.parameters(),
             lr = params['LEARNING_RATE']

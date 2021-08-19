@@ -201,6 +201,9 @@ class ParamNet(torch.nn.Module):
 class Controller(torch.nn.Module):
     def __init__(self):
         super(Controller, self).__init__()
+        """
+            DEPRECATED
+        """
         input_size = params['input_size_low_level_control']
         output_mlp_seq = []
         for i, units in enumerate(params['units_output_mlp']):
@@ -252,6 +255,31 @@ class ControllerV2(torch.nn.Module):
         self.decoder = torch.nn.Linear(input_size, params['cpg_param_size'])
 
     def forward(self, x):
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y, z
+
+
+class ControllerV3(torch.nn.Module):
+    def __init__(self):
+        super(ControllerV3, self).__init__()
+        input_size = params['input_size_low_level_control']
+        self.encoder = torch.nn.Sequential(
+            *[
+                torch.nn.Linear(params['cpg_param_size'], 64),
+                torch.nn.PReLU(),
+                torch.nn.Linear(64, input_size)
+            ]
+        )
+        self.decoder = torch.nn.Sequential(
+            *[
+                torch.nn.Linear(input_size, 64),
+                torch.nn.PReLU(),
+                torch.nn.Linear(64, params['cpg_param_size'])
+            ]
+        )
+
+    def forward(self, x): 
         z = self.encoder(x)
         y = self.decoder(z)
         return y, z

@@ -1,6 +1,6 @@
 import torch
 from utils import data_generator, networks, dataset
-from utils.networks import Controller, ControllerV2
+from utils.networks import Controller, ControllerV2, ControllerV3
 from utils.dataset import SupervisedLLCDataset
 import numpy as np
 import gym
