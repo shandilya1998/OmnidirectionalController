@@ -143,7 +143,7 @@ if __name__ == '__main__':
         help = 'ID of experiment being performaed'
     )
     args = parser.parse_args()
-    datapath = 'assets/out/results'
+    datapath = 'assets/out/results_v2'
     logdir = os.path.join(datapath, 'supervised_llc')
     if not os.path.exists(logdir):
         os.mkdir(logdir)

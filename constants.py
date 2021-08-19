@@ -382,7 +382,7 @@ units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
     'batch_size'                  : 64,
-    'n_epochs'                    : 30000,
+    'n_epochs'                    : 4500,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
     'n_eval_steps'                : 100,
