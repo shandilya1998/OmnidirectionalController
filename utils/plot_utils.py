@@ -126,7 +126,7 @@ def plot_training_data(logdir, datapath):
         ['mu_' + str(i) for i in range(4)]  + \
         ['z_R_' + str(i) for i in range(4)] + \
         ['z_I_' + str(i) for i in range(4)]
-    fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+    fig, axes = plt.subplots(3, 16, figsize = (112, 21))
     for i in range(Y.shape[-1]):
         for j in range(3):
             y = Y[:, i].tolist()
@@ -204,13 +204,15 @@ def plot_training_data_v2(logdir, datapath):
                 ]
                 X = []
                 Y = []
+                if len(df) == 0:
+                    continue
                 for i, row in df.iterrows():
                     x, y = _read_row(row, datapath)
                     X.append(x.copy())
                     Y.append(y.copy())
                 X = np.stack(X, 0)
                 Y = np.stack(Y, 0)
-                fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+                fig, axes = plt.subplots(3, 16, figsize = (112, 21))
                 for i in range(Y.shape[-1]):
                     for j in range(3):
                         y = Y[:, i].tolist()
@@ -243,12 +245,15 @@ def _read_row_v2(row, datapath, tracklist):
     data = {}
     for item in items:
         data[item] = np.load(f + '_' + item + '.npy')
-    speed = np.sqrt(np.sum(np.square(
-        np.mean(
-            data['achieved_goal'][int(length * 0.25):],
-            0   
-        )[:2]
-    )))
+    speed = np.mean(
+        np.sqrt(
+            np.sum(
+                np.square(
+                    data['achieved_goal'][int(length * 0.25):, :2]
+                )
+            )
+        )
+    )
     tracked = np.array(
         [
             np.mean(data[item][int(length * 0.25):], 0)[0] \
@@ -272,8 +277,10 @@ def _read_row_v2(row, datapath, tracklist):
             raise ValueError('Expected one of `forward`, `backward`, \
                     `left` or `right`, got {}'.format(direction))
     elif task == 'turn':
-        x[0] = np.mean(data['achieved_goal'][int(length * 0.25):, 0], 0)
-        x[1] = np.mean(data['achieved_goal'][int(length * 0.25):, 1], 0)
+        #x[0] = np.mean(data['achieved_goal'][int(length * 0.25):, 0], 0)
+        x[1] = speed#np.mean(data['achieved_goal'][int(length * 0.25):, 1], 0)
+        x[-1] = np.mean(data['achieved_goal'][int(length * 0.25):, -1], 0)
+    elif task == 'rotate':
         x[-1] = np.mean(data['achieved_goal'][int(length * 0.25):, -1], 0)
     else:
         raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
@@ -315,7 +322,7 @@ def plot_training_data_v3(logdir, datapath,
                     'visualizations',
                     task,
                     gait,
-                    direection
+                    direction
                 ))
 
     for task in tasks:
@@ -324,8 +331,8 @@ def plot_training_data_v3(logdir, datapath,
                 path = os.path.join(
                     logdir,
                     'visualizations',
-                    gait,
                     task,
+                    gait,
                     direction
                 )
                 df = info[
@@ -339,6 +346,8 @@ def plot_training_data_v3(logdir, datapath,
                 X_ = []
                 Y_ = []
                 S_ = []
+                if len(df) == 0:
+                    continue
                 for i, row in df.iterrows():
                     x, y, s = _read_row_v2(row, datapath, tracklist)
                     if i % 2 == 0:
@@ -355,8 +364,7 @@ def plot_training_data_v3(logdir, datapath,
                 X_ = np.stack(X_, 0)
                 Y_ = np.stack(Y_, 0)
                 S_ = np.stack(S_, 0)
-                
-                fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+                fig, axes = plt.subplots(3, 16, figsize = (112, 21))
                 for i in range(Y.shape[-1]):
                     for j in range(3):
                         y = Y[:, i].tolist()
@@ -374,7 +382,7 @@ def plot_training_data_v3(logdir, datapath,
                 )
                 plt.close()
 
-                fig, axes = plt.subplots(3, 16, figsize = (80, 15))
+                fig, axes = plt.subplots(3, 16, figsize = (112, 21))
                 for i in range(Y_.shape[-1]):
                     for j in range(3):
                         y = Y_[:, i].tolist()
@@ -392,7 +400,7 @@ def plot_training_data_v3(logdir, datapath,
                 )
                 plt.close()
 
-                fig, axes = plt.subplots(4, 16, figsize = (80, 20))
+                fig, axes = plt.subplots(4, 16, figsize = (112, 28))
                 for i in range(Y.shape[-1]):
                     for j in range(S.shape[-1]):
                         y = Y[:, i].tolist()
@@ -410,7 +418,7 @@ def plot_training_data_v3(logdir, datapath,
                 )
                 plt.close()
 
-                fig, axes = plt.subplots(4, 16, figsize = (80, 20))
+                fig, axes = plt.subplots(4, 16, figsize = (112, 28))
                 for i in range(Y_.shape[-1]):
                     for j in range(S_.shape[-1]):
                         y = Y_[:, i].tolist()
@@ -424,8 +432,8 @@ def plot_training_data_v3(logdir, datapath,
                     os.path.join(
                         path,
                         'stability_.png'
-                    )   
-                )   
+                    )
+                )
                 plt.close()
-
+                print('Find output files in: {}'.format(path))
 
