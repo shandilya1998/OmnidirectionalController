@@ -17,10 +17,13 @@ class Learner:
         self._optim  = torch.optim.Adam(
             self._model.parameters(),
             lr = params['LEARNING_RATE']
-        ) 
+        )
         dataset = SupervisedLLCDataset(datapath)
         length = len(dataset)
-        
+        self._train_dataset_length = int(length * 0.75)
+        self._val_dataset_length = length - int(length * 0.75)
+        print('Training Data Size: {}'.format(str(self._train_dataset_length)))
+        print('Validation Data Size: {}'.format(str(self._val_dataset_length)))
         train_dataset, val_dataset = torch.utils.data.random_split(
             dataset,
             [int(length * 0.75), length - int(length * 0.75)],
@@ -39,13 +42,14 @@ class Learner:
         self._ep = 0
         self._epoch = 0
         self._n_step = 0
+        self._prev_eval_loss = 1e8
 
     def learn(self, experiment):
         print('Start Training.')
         done = self._pretrain(experiment)
         if done:
             print('Training Done.')
-    
+
     def _pretrain_step(self, x, y):
         loss = 0.0 
         self._model.zero_grad()
@@ -104,8 +108,10 @@ class Learner:
                 epoch_loss = epoch_loss / self._step
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._epoch)
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
-                self._save(experiment)
-                self._eval_v2()
+                eval_loss = self._eval_v2()
+                if eval_loss <= self._prev_eval_loss:
+                    self._save(experiment)
+                    self._prev_eval_loss = eval_loss
         return True
 
     def _save(self, experiment):
@@ -120,12 +126,14 @@ class Learner:
             step += 1
         if step > 0:
             self.logger.add_scalar('Eval/Loss', loss.detach().cpu().numpy()/step, self._epoch)
+            loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
+        return loss
 
     def _eval_v2(self):
-        step = 0 
-        loss = 0.0 
+        step = 0
+        loss = 0.0
         for x, y in self._val_dataloader:
             y_pred, x_pred = self._model(y)
             loss += torch.nn.functional.mse_loss(y_pred, y) + \
@@ -133,8 +141,10 @@ class Learner:
             step += 1
         if step > 0:
             self.logger.add_scalar('Eval/Loss', loss.detach().cpu().numpy()/step, self._epoch)
+            loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
+        return loss
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
