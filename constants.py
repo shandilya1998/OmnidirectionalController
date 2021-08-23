@@ -443,3 +443,11 @@ params.update({
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']
 params['direction_list'] = ['forward', 'backward', 'left', 'right']
+
+
+params_obstacles = {
+    'num_obstacles'               : 50,
+    'max_height'                  : 0.05,
+    'max_size'                    : 0.05, 
+}
+params.update(params_obstacles)

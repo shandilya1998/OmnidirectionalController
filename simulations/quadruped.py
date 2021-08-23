@@ -34,7 +34,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                      'd1', 'd2', 'd3',
                      'stability', 'omega_o'
                  ],
-                 stairs = False,
+                 obstacles = False,
                  verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
@@ -61,25 +61,31 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         assert not (self.direction not in ['left', 'right'] and self.task == 'rotate')
         assert not (self.direction not in ['left', 'right'] and self.task == 'turn')
         self._n_steps = 0
-        """
-        tree = ET.parse(fullpath)
-        worldbody = tree.find(".//worldbody")
-        ET.SubElement(
-            worldbody,
-            "geom",
-            name=f"block",
-            pos=f"{0.0} {1.0} {1.0}",
-            size=f"{0.5} {0.5} {1.0}",
-            type="box",
-            material="",
-            contype="1",
-            conaffinity="1",
-            rgba="0.4 0.4 0.4 1",
-        )
-        _, filepath = tempfile.mkstemp(text=True, suffix=".xml")
-        tree.write(filepath)
-        self.worldtree = tree
-        """
+        self._render_obstacles = obstacles
+        if self._render_obstacles:
+            tree = ET.parse(fullpath)
+            worldbody = tree.find(".//worldbody")
+            for i in range(params['num_obstacles']):
+                x = np.random.uniform(low = -0.5, high = 0.5)
+                y = np.random.uniform(low = -0.5, high = 0.5)
+                h = np.random.uniform(low = 0.0, high = params['max_height'])
+                length = np.random.uniform(low = 0.0, high = params['max_size'])
+                width = np.random.uniform(low = 0.0, high = params['max_size'])
+                ET.SubElement(
+                    worldbody,
+                    "geom",
+                    name=f"block_{i}",
+                    pos=f"{x} {x} {h}",
+                    size=f"{length} {width} {h}",
+                    type="box",
+                    material="",
+                    contype="1",
+                    conaffinity="1",
+                    rgba="0.4 0.4 0.4 1",
+                )
+            _, fullpath = tempfile.mkstemp(text=True, suffix=".xml")
+            tree.write(fullpath)
+            self.worldtree = tree
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
         self.data = self.sim.data
@@ -107,7 +113,6 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             np.zeros(shape = params['INIT_JOINT_POS'].shape, dtype = np.float32) # joint angular velocity
         ], -1)
 
-        self._is_stairs = stairs
         self._is_render = render
         self._num_joints = self.init_qpos.shape[-1] - 7
         self._num_legs = 4
