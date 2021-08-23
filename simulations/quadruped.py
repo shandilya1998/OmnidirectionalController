@@ -13,6 +13,8 @@ from utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef
 from reward import FitnessFunctionV2
 import copy
+import xml.etree.ElementTree as ET
+import tempfile
 
 class Quadruped(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
@@ -59,6 +61,25 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         assert not (self.direction not in ['left', 'right'] and self.task == 'rotate')
         assert not (self.direction not in ['left', 'right'] and self.task == 'turn')
         self._n_steps = 0
+        """
+        tree = ET.parse(fullpath)
+        worldbody = tree.find(".//worldbody")
+        ET.SubElement(
+            worldbody,
+            "geom",
+            name=f"block",
+            pos=f"{0.0} {1.0} {1.0}",
+            size=f"{0.5} {0.5} {1.0}",
+            type="box",
+            material="",
+            contype="1",
+            conaffinity="1",
+            rgba="0.4 0.4 0.4 1",
+        )
+        _, filepath = tempfile.mkstemp(text=True, suffix=".xml")
+        tree.write(filepath)
+        self.worldtree = tree
+        """
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
         self.data = self.sim.data
