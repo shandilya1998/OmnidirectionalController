@@ -66,8 +66,8 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             tree = ET.parse(fullpath)
             worldbody = tree.find(".//worldbody")
             for i in range(params['num_obstacles']):
-                x = np.random.uniform(low = -0.5, high = 0.5)
-                y = np.random.uniform(low = -0.5, high = 0.5)
+                x = np.random.uniform(low = -2.0, high = 2.0)
+                y = np.random.uniform(low = -2.0, high = 2.0)
                 h = np.random.uniform(low = 0.0, high = params['max_height'])
                 length = np.random.uniform(low = 0.0, high = params['max_size'])
                 width = np.random.uniform(low = 0.0, high = params['max_size'])
@@ -75,7 +75,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                     worldbody,
                     "geom",
                     name=f"block_{i}",
-                    pos=f"{x} {x} {h}",
+                    pos=f"{x} {y} {h}",
                     size=f"{length} {width} {h}",
                     type="box",
                     material="",

@@ -448,6 +448,6 @@ params['direction_list'] = ['forward', 'backward', 'left', 'right']
 params_obstacles = {
     'num_obstacles'               : 50,
     'max_height'                  : 0.05,
-    'max_size'                    : 0.05, 
+    'max_size'                    : 0.2, 
 }
 params.update(params_obstacles)
