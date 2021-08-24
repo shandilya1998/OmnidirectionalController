@@ -66,9 +66,19 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
             tree = ET.parse(fullpath)
             worldbody = tree.find(".//worldbody")
             for i in range(params['num_obstacles']):
-                x = np.random.uniform(low = -2.0, high = 2.0)
-                y = np.random.uniform(low = -2.0, high = 2.0)
+                x = np.random.uniform(low = -5.0, high = 5.0)
+                y = np.random.uniform(low = -5.0, high = 5.0)
                 h = np.random.uniform(low = 0.0, high = params['max_height'])
+                if x < 0.2 and x > -0.2:
+                    if x > 0:
+                        x += 0.2
+                    else:
+                        x -= 0.2
+                if y < 0.2 and y > -0.2:
+                    if y > 0:
+                        y += 0.2 
+                    else:
+                        y -+ 0.2
                 length = np.random.uniform(low = 0.0, high = params['max_size'])
                 width = np.random.uniform(low = 0.0, high = params['max_size'])
                 ET.SubElement(
