@@ -18,6 +18,7 @@ class Learner:
             self._model.parameters(),
             lr = params['LEARNING_RATE']
         )
+        self._scheduler = torch.optim.lr_scheduler.ExponentialLR(self._optim, gamma=0.99)
         dataset = SupervisedLLCDataset(datapath)
         length = len(dataset)
         self._train_dataset_length = int(length * 0.75)
@@ -121,12 +122,14 @@ class Learner:
     def _pretrain_epoch(self):
         epoch_loss = 0.0
         self._step = 0
+        self.logger.add_scalar('Train/Learning Rate', self._scheduler.get_last_lr(), self._epoch)
         for x, y in self._train_dataloader:
             # Modify the following line accordingly
             loss = self._pretrain_step_v4(x, y)
             epoch_loss += loss
             self._step += 1
             self._n_step += 1
+        self._scheduler.step()
         return epoch_loss
 
     def _pretrain(self, experiment):
