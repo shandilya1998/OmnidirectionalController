@@ -279,7 +279,57 @@ class ControllerV3(torch.nn.Module):
             ]
         )
 
-    def forward(self, x): 
+    def forward(self, x):
         z = self.encoder(x)
         y = self.decoder(z)
         return y, z
+
+
+class ControllerV4(torch.nn.Module):
+    def __init__(self):
+        super(ControllerV4, self).__init__()
+        input_size = params['input_size_low_level_control']
+
+        self.encoder = torch.nn.Linear(params['cpg_param_size'], input_size)
+        self.decoder = torch.nn.Linear(input_size, params['cpg_param_size'])
+        self.transform = torch.nn.Linear(input_size, input_size)
+
+    def forward(self, x, x_):
+        z_ = self.transform(x_)
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y, z, z_
+
+class ControllerV5(torch.nn.Module):
+    def __init__(self):
+        super(ControllerV5, self).__init__()
+        input_size = params['input_size_low_level_control']
+        self.encoder = torch.nn.Sequential(
+            *[
+                torch.nn.Linear(params['cpg_param_size'], 64),
+                torch.nn.PReLU(),
+                torch.nn.Linear(64, input_size)
+            ]
+        )
+        self.decoder = torch.nn.Sequential(
+            *[
+                torch.nn.Linear(input_size, 64),
+                torch.nn.PReLU(),
+                torch.nn.Linear(64, params['cpg_param_size'])
+            ]
+        )
+
+        self.transform = torch.nn.Sequential(
+            *[
+                torch.nn.Linear(input_size, 64),
+                torch.nn.PReLU(),
+                torch.nn.Linear(64, input_size)
+            ]
+        )
+
+    def forward(self, x, x_):
+        z_ = self.transform(x_)
+        z = self.encoder(x)
+        y = self.decoder(z)
+        return y, z, z_
+

@@ -1,6 +1,6 @@
 import torch
 from utils import Controller, SupervisedLLCDataset, \
-    ControllerV2, ControllerV3
+    ControllerV2, ControllerV3, ControllerV4, ControllerV5
 import os
 from constants import params
 import shutil
@@ -13,7 +13,7 @@ class Learner:
         self.logdir = logdir
         self.datapath = datapath
         self.logger = logger
-        self._model = ControllerV3()
+        self._model = ControllerV5()
         self._optim  = torch.optim.Adam(
             self._model.parameters(),
             lr = params['LEARNING_RATE']
@@ -84,22 +84,41 @@ class Learner:
         )
         return loss.detach().cpu().numpy()
 
+    def _pretrain_step_v3(self, x, y):
+        """
+            This method is used to train the auto encoder architecture
+        """
+        loss = 0.0
+        self._model.zero_grad()
+        y_pred, z, z_pred  = self._model(y, x)
+        loss += torch.nn.functional.mse_loss(y_pred, y) + \
+                torch.nn.functional.mse_loss(z_pred, z)
+        loss.backward()
+        self._optim.step()
+        self._optim.zero_grad()
+        self.logger.add_scalar(
+            'Train/Loss',
+            loss.detach().cpu().numpy(),
+            self._n_step
+        )
+        return loss.detach().cpu().numpy()
+
     def _pretrain_epoch(self):
-        epoch_loss = 0.0 
+        epoch_loss = 0.0
         self._step = 0
         for x, y in self._train_dataloader:
             # Modify the following line accordingly
-            loss = self._pretrain_step_v2(x, y)
+            loss = self._pretrain_step_v3(x, y)
             epoch_loss += loss
             self._step += 1
             self._n_step += 1
         return epoch_loss
 
     def _pretrain(self, experiment):
-        """ 
+        """
             modify according to need
         """
-        ep_loss = 0.0 
+        ep_loss = 0.0
         self._epoch = 0
         pbar = tqdm(total = params['n_epochs'])
         while self._epoch < params['n_epochs']:
@@ -110,7 +129,8 @@ class Learner:
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._epoch)
             pbar.update(1)
             if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
-                eval_loss = self._eval_v2()
+                eval_loss = self._eval_v3()
+                self._eval_llc()
                 if eval_loss <= self._prev_eval_loss:
                     self._save(experiment)
                     self._prev_eval_loss = eval_loss
@@ -144,6 +164,35 @@ class Learner:
             step += 1
         if step > 0:
             self.logger.add_scalar('Eval/Loss', loss.detach().cpu().numpy()/step, self._epoch)
+            loss = loss.detach().cpu().numpy() / step
+        else:
+            raise AttributeError('Validation dataloader is empty')
+        return loss
+
+    def _eval_v3(self):
+        step = 0
+        loss = 0.0
+        for x, y in self._val_dataloader:
+            y_pred, z, z_pred  = self._model(y, x)
+            loss += torch.nn.functional.mse_loss(y_pred, y) + \
+                    torch.nn.functional.mse_loss(z_pred, z)
+            step += 1
+        if step > 0:
+            self.logger.add_scalar('Eval/Loss', loss.detach().cpu().numpy()/step, self._epoch)
+            loss = loss.detach().cpu().numpy() / step
+        else:
+            raise AttributeError('Validation dataloader is empty')
+        return loss
+
+    def _eval_llc(self):
+        step = 0
+        loss = 0.0
+        for x, y in self._val_dataloader:
+            y_pred = self._model.decoder(self._model.transform(x))
+            loss += torch.nn.functional.mse_loss(y_pred, y)
+            step += 1
+        if step > 0:
+            self.logger.add_scalar('Eval/Control Error', loss.detach().cpu().numpy()/step, self._epoch)
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
