@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import pandas as pd
 from tqdm import tqdm
+from constants import params
 
 track_list = [
     'joint_pos', 'action', 'velocity', \
@@ -74,7 +75,7 @@ def create_training_data_v2(logdir, datapath):
     items = y_items + x_items
     X = []
     Y = []
-    for index, row in info.iterrows():
+    for index, row in tqdm(info.iterrows()):
         direction = row['direction']
         length = row['length']
         task = row['task']
