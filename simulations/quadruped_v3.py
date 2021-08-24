@@ -148,14 +148,14 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._cam_pitch = 0.0
 
     def _sample_goal(self):
-        speed = np.random.uniform(-1, 1, (2,))
+        speed = np.random.uniform(-0.1, 0.1, (2,))
         speed = speed / np.linalg.norm(speed)
         turn = np.random.random()
         yaw = 0.0
         if turn > 0.5:
             yaw = np.array([0.0])
         else:
-            yaw = np.random.uniform(-1, 1, (1,))
+            yaw = np.random.uniform(-0.1, 0.1, (1,))
         return np.concatenate(
             [
                 speed,
@@ -328,11 +328,12 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         """
         ob = {
             'observation' : np.concatenate([
-                self.joint_pos,
+                self.joint_pos.copy(),
                 self.sim.data.sensordata.copy()
             ], -1),
-            'desired_goal' : self.desired_goal,
-            'achieved_goal' : self.achieved_goal
+            'desired_goal' : self.desired_goal.copy(),
+            'achieved_goal' : self.achieved_goal.copy(),
+            'z' : self.z.copy()
         }
         return ob
 
