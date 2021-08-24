@@ -137,17 +137,17 @@ class Learner:
         self._epoch = 0
         pbar = tqdm(total = params['n_epochs'])
         while self._epoch < params['n_epochs']:
+            if ((self._ep + 1) * self._epoch) % params['n_eval_steps'] == 0:
+                eval_loss = self._eval_v4()
+                if eval_loss <= self._prev_eval_loss:
+                    self._save(experiment)
+                    self._prev_eval_loss = eval_loss
             epoch_loss = self._pretrain_epoch()
             self._epoch += 1
             if self._step > 0:
                 epoch_loss = epoch_loss / self._step
             self.logger.add_scalar('Train/Epoch Loss', epoch_loss, self._epoch)
             pbar.update(1)
-            if (self._ep + 1 ) * self._epoch % params['n_eval_steps'] == 0:
-                eval_loss = self._eval_v4()
-                if eval_loss <= self._prev_eval_loss:
-                    self._save(experiment)
-                    self._prev_eval_loss = eval_loss
         pbar.close()
         return True
 
@@ -196,6 +196,7 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
+        self._eval_llc()
         return loss
 
     def _eval_v4(self):
@@ -210,7 +211,6 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
-        self._eval_llc()
         return loss
 
     def _eval_llc(self):

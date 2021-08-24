@@ -6,7 +6,7 @@ import os
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
 cpg_param_size = 16
-input_size = 6
+input_size = 132
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
@@ -310,7 +310,7 @@ params_rl = {
     'MAX_STEPS'                   : max_steps,
     'OU_MEAN'                     : 0.0,
     'OU_SIGMA'                    : 0.08,
-    'BATCH_SIZE'                  : 125, #max_steps * n_envs ,#8,
+    'BATCH_SIZE'                  : 500, #max_steps * n_envs ,#8,
     'NET_ARCH'                    : [dict(pi=[256, 256], vf=[256, 256])],
     'POLICY_TYPE'                 : "MultiInputPolicy",
     'LEARNING_STARTS'             : 5000,
@@ -382,10 +382,10 @@ units_osc = 60#action_dim#60 exp 68 units_osc = 8
 params_pretrain = {
     'action_dim'                  : action_dim,
     'batch_size'                  : 64,
-    'n_epochs'                    : 3250,
+    'n_epochs'                    : 125,
     'n_steps'                     : 3500,
     'n_update_steps'              : 20,
-    'n_eval_steps'                : 100,
+    'n_eval_steps'                : 5,
     'n_episodes'                  : 500,
     'min_epoch_size'              : 1000,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
