@@ -55,17 +55,84 @@ def create_training_data(logdir, datapath):
             x[1] = np.mean(data['achieved_goal'][int(length * 0.25):, 1], 0)
             x[-1] = np.mean(data['achieved_goal'][int(length * 0.25):, -1], 0)
         elif task == 'rotate':
-            if direction == 'left':
-                x[-1] = -yaw
-            elif direction == 'right':
-                x[-1] = yaw
-            else:
-                raise ValueError('Expected one of `left` or `right`, got \
-                        {}'.format(direction))
+            x[-1] = yaw
         else:
             raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
                     got {}'.format(task))
         X.append(x.copy())
+    Y = np.stack(Y, 0)
+    X = np.stack(X, 0)
+    with open(os.path.join(logdir, 'X.npy'), 'wb') as f:
+        np.save(f, X)
+    with open(os.path.join(logdir, 'Y.npy'), 'wb') as f:
+        np.save(f, Y)
+
+def create_training_data_v2(logdir, datapath):
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
+    y_items = ['omega_o', 'mu', 'z']
+    x_items = ['achieved_goal', 'joint_pos']
+    items = y_items + x_items
+    X = []
+    Y = []
+    for index, row in info.iterrows():
+        direction = row['direction']
+        length = row['length']
+        task = row['task']
+        f = os.path.join(datapath, row['id'])
+        data = {}
+        for item in items:
+            data[item] = np.load(f + '_' + item + '.npy')
+        speed = np.sqrt(np.sum(np.square(
+            np.mean(
+                data['achieved_goal'][int(length * 0.25):],
+                0   
+            )[:2]
+        )))
+        yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
+        for step in range(0, length, length // params['data_gen_granularity']):
+            x = np.zeros(6, dtype = np.float32)
+            y = np.concatenate([data[item][step, :] for item in y_items])
+            Y.append(y.copy())
+            pos = []
+            for i in range(params['memory_size']):
+                if step - i * params['memory_size'] > 0:
+                    pos.append(data['joint_pos'][step - i * params['memory_size']])
+                else:
+                    pos.append(data['joint_pos'][0])
+            pos = np.concatenate(pos, -1)
+            if task == 'straight':
+                if direction == 'forward':
+                    x[1] = speed
+                elif direction == 'backward':
+                    x[1] = -speed
+                elif direction == 'left':
+                    x[0] = -speed
+                elif direction == 'right':
+                    x[0] = speed
+                else:
+                    raise ValueError('Expected one of `forward`, `backward`, \
+                            `left` or `right`, got {}'.format(direction))
+            elif task == 'turn':
+                x[-1] = yaw
+                if step < params['window_size']:
+                    x[0] = np.mean(data['achieved_goal'][:params['window_size'], 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][:params['window_size'], 1], 0)
+                elif step < length - params['window_size']:
+                    x[0] = np.mean(data['achieved_goal'][step: step + params['window_size'], 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][step: step + params['window_size'], 1], 0)
+                else:
+                    x[0] = np.mean(data['achieved_goal'][step:, 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][step:, 1], 0)
+            elif task == 'rotate':
+                x[-1] = yaw
+            else:
+                raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
+                        got {}'.format(task))
+            X.append(np.concatenate([
+                x.copy(),
+                data['achieved_goal'][step],
+                pos
+            ], -1))
     Y = np.stack(Y, 0)
     X = np.stack(X, 0)
     with open(os.path.join(logdir, 'X.npy'), 'wb') as f:

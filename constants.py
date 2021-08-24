@@ -438,6 +438,9 @@ params.update({
                                         2 * np.pi
                                     ], dtype = np.float32),
     'camera_name'                 : 'esp32cam',
+    'memory_size'                 : 10,
+    'data_gen_granularity'        : 20,
+    'window_size'                 : 150
 })
 
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']

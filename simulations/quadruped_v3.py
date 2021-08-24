@@ -422,7 +422,7 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         self.action = action
-        self.omega = self.action[:4]
+        self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
         self.z = self.action[8:]
         timer_omega = np.abs(self.omega[0])
