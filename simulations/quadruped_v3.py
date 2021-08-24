@@ -13,6 +13,8 @@ from utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef
 from reward import FitnessFunctionV2
 import copy
+import xml.etree.ElementTree as ET
+import tempfile
 
 class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
     def __init__(self,
@@ -23,12 +25,12 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
                      'desired_goal', 'joint_pos', 'action',
                      'velocity', 'position', 'true_joint_pos',
                      'sensordata', 'qpos', 'qvel',
-                     'achieved_goal', 'observation', 'heading_ctrl',
+                     'achieved_goal', 'observation',
                      'omega', 'z', 'mu',
                      'd1', 'd2', 'd3',
                      'stability', 'omega_o'
                  ],
-                 stairs = False,
+                 obstacles = False,
                  verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
@@ -45,6 +47,41 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             raise IOError("File %s does not exist" % fullpath)
         self._frame_skip = frame_skip
         self._n_steps = 0
+        self._render_obstacles = obstacles
+        if self._render_obstacles:
+            tree = ET.parse(fullpath)
+            worldbody = tree.find(".//worldbody")
+            for i in range(params['num_obstacles']):
+                x = np.random.uniform(low = -5.0, high = 5.0)
+                y = np.random.uniform(low = -5.0, high = 5.0)
+                h = np.random.uniform(low = 0.0, high = params['max_height'])
+                if x < 0.2 and x > -0.2:
+                    if x > 0:
+                        x += 0.2 
+                    else:
+                        x -= 0.2 
+                if y < 0.2 and y > -0.2:
+                    if y > 0:
+                        y += 0.2 
+                    else:
+                        y -+ 0.2 
+                length = np.random.uniform(low = 0.0, high = params['max_size'])
+                width = np.random.uniform(low = 0.0, high = params['max_size'])
+                ET.SubElement(
+                    worldbody,
+                    "geom",
+                    name=f"block_{i}",
+                    pos=f"{x} {y} {h}",
+                    size=f"{length} {width} {h}",
+                    type="box",
+                    material="",
+                    contype="1",
+                    conaffinity="1",
+                    rgba="0.4 0.4 0.4 1",
+                )
+            _, fullpath = tempfile.mkstemp(text=True, suffix=".xml")
+            tree.write(fullpath)
+            self.worldtree = tree
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
         self.data = self.sim.data
@@ -72,7 +109,6 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             np.zeros(shape = params['INIT_JOINT_POS'].shape, dtype = np.float32) # joint angular velocity
         ], -1)
 
-        self._is_stairs = stairs
         self._is_render = render
         self._num_joints = self.init_qpos.shape[-1] - 7
         self._num_legs = 4
@@ -88,6 +124,14 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._set_action_space()
         action = self.action_space.sample()
         self.action = np.zeros(self._action_dim)
+        self.mu = np.zeros((4,), dtype = np.float32)
+        self.omega = np.zeros((4,), dtype = np.float32)
+        self.z = np.concatenate([
+            np.ones((4,), dtype = np.float32),
+            np.zeros((4,), dtype = np.float32)
+        ], -1)
+        self.w = np.zeros((4,), dtype = np.float32)
+        self.C = np.load('assets/out/plots/coef.npy')
         self._track_attr()
 
         action = self.action_space.sample()
@@ -112,12 +156,12 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             yaw = np.array([0.0])
         else:
             yaw = np.random.uniform(-1, 1, (1,))
-        return np.stack(
+        return np.concatenate(
             [
                 speed,
-                np.array([0.0, 0.0, 0.0])
+                np.array([0.0, 0.0, 0.0]),
                 yaw
-            ], 0)
+            ], -1)
 
     def get_feet_contacts(self):
         contact_points = []
@@ -246,6 +290,8 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         self._action_dim = params['cpg_param_size']
+        self.desired_goal = self._sample_goal()
+        self.achieved_goal = self.sim.data.qvel[:6].copy()
         low = -np.ones(self._action_dim, dtype = np.float32)
         high = np.ones(self._action_dim, dtype = np.float32)
         self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
@@ -288,8 +334,6 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             'desired_goal' : self.desired_goal,
             'achieved_goal' : self.achieved_goal
         }
-        else:
-            ob = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         return ob
 
     def step(self, action, callback=None):
@@ -337,7 +381,6 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['desired_goal'].append(ob['desired_goal'].copy())
-        self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
         self._track_item['omega_o'].append(self.omega.copy())
         self._track_item['omega'].append(self.w.copy())
         self._track_item['z'].append(self.z.copy())
@@ -358,7 +401,7 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._track_item = {key : [] for key in self._track_lst}
         return self._track_item
 
-    def _get_joint_pos_v2(self, mu, omega):
+    def _get_joint_pos(self):
         out = []
         self.z, self.w = hopf_step(self.omega, self.mu, self.z, self.C, params['degree'])
         out = []
@@ -373,7 +416,7 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             out.append(knee * direction)
             out.append((-0.35 * knee  + 1.3089) * direction)
         out = np.array(out, dtype = np.float32)
-        return out, w.max()
+        return out, self.w.max()
 
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
