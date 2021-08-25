@@ -7,6 +7,7 @@ import shutil
 import argparse
 from torch.utils import tensorboard
 from tqdm import tqdm
+from simulations import QuadrupedV3
 
 class Learner:
     def __init__(self, logdir, datapath, logger):
@@ -18,7 +19,10 @@ class Learner:
             self._model.parameters(),
             lr = params['LEARNING_RATE']
         )
-        self._scheduler = torch.optim.lr_scheduler.ExponentialLR(self._optim, gamma=0.99)
+        self._scheduler = torch.optim.lr_scheduler.ExponentialLR(
+            self._optim,
+            gamma = params['GAMMA']
+        )
         dataset = SupervisedLLCDataset(datapath)
         length = len(dataset)
         self._train_dataset_length = int(length * 0.75)
@@ -122,14 +126,15 @@ class Learner:
     def _pretrain_epoch(self):
         epoch_loss = 0.0
         self._step = 0
-        self.logger.add_scalar('Train/Learning Rate', self._scheduler.get_last_lr(), self._epoch)
+        self.logger.add_scalar('Train/Learning Rate', self._scheduler.get_last_lr()[0], self._epoch)
         for x, y in self._train_dataloader:
             # Modify the following line accordingly
             loss = self._pretrain_step_v4(x, y)
             epoch_loss += loss
             self._step += 1
             self._n_step += 1
-        self._scheduler.step()
+        if (self._epoch + 1) % params['scheduler_update_freq'] == 0:
+            self._scheduler.step()
         return epoch_loss
 
     def _pretrain(self, experiment):
@@ -230,6 +235,33 @@ class Learner:
             raise AttributeError('Validation dataloader is empty')
         return loss
 
+    def _load_model(self, path):
+        self._model = torch.load(path)
+        self._model = Controller()
+        self._optim  = torch.optim.Adam(
+            self._model.parameters(),
+            lr = params['LEARNING_RATE']
+        )
+        self._scheduler = torch.optim.lr_scheduler.ExponentialLR(
+            self._optim,
+            gamma = params['GAMMA']
+        )
+
+    def _test(self):
+        env = QuadrupedV3()
+        ob = env.reset()
+        steps = 0
+        while steps < params['MAX_STEPS']:
+            x = torch.from_numpy(np.expand_dims(np.concatenate([
+                ob['desired_goal'],
+                ob['achieved_goal'],
+                ob['observation']
+            ], -1), 0))
+            y = self._model(x).detach().cpu().numpy()[0]
+            ob = env.step(y)
+            env.render()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -237,17 +269,34 @@ if __name__ == '__main__':
         type = int,
         help = 'ID of experiment being performaed'
     )
+    parser.add_argument(
+        '--test',
+        nargs='?', type = int, const = 1,
+        help = 'choice to use script in test or training mode'
+    )
     args = parser.parse_args()
     datapath = 'assets/out/results_v2'
     logdir = os.path.join(datapath, 'supervised_llc')
-    if not os.path.exists(logdir):
-        os.mkdir(logdir)
-    if not os.path.exists(os.path.join(logdir,
-        'exp{}'.format(args.experiment))):
-        os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+    if args.test is None:
+        datapath = 'assets/out/results_v2'
+        logdir = os.path.join(datapath, 'supervised_llc')
+        if not os.path.exists(logdir):
+            os.mkdir(logdir)
+        if not os.path.exists(os.path.join(logdir,
+            'exp{}'.format(args.experiment))):
+            os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        else:
+            shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+            os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
+        learner = Learner(logdir, datapath, logger)
+        learner.learn(args.experiment)
     else:
-        shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
-        os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
-    logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
-    learner = Learner(logdir, datapath, logger)
-    learner.learn(args.experiment)
+        if not os.path.exists(logdir):
+            os.mkdir(logdir)
+        if not os.path.exists(os.path.join(logdir,
+            'exp{}'.format(args.experiment))):
+            os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        learner = Learner(logdir, datapath, logger)
+        learner._load_model(os.path.join(self.logdir, 'exp{}'.format(args.experiment),'controller.pth'))
+        learner._test()

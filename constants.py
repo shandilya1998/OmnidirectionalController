@@ -35,7 +35,7 @@ params = {
     'BATCH_SIZE'                  : 125,
     'BUFFER_SIZE'                 : 1000000,
     'WARMUP'                      : 20000,
-    'GAMMA'                       : 0.99,
+    'GAMMA'                       : 0.9,
     'TEST_AFTER_N_EPISODES'       : 25,
     'TAU'                         : 0.001,
     'decay_steps'                 : int(20),
@@ -440,7 +440,8 @@ params.update({
     'camera_name'                 : 'esp32cam',
     'memory_size'                 : 10,
     'data_gen_granularity'        : 20,
-    'window_size'                 : 150
+    'window_size'                 : 150,
+    'scheduler_update_freq'       : 5
 })
 
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']
