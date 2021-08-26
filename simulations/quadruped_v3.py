@@ -326,11 +326,14 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         """
             modify this according to observation space
         """
+        pos = []
+        for i in range(params['memory_size']):
+            if self._step - i * params['memory_size'] > 0:
+                pos.append(self._track_item['joint_pos'][self._step - i * params['memory_size']].copy())
+            else:
+                pos.append(self.sim.data.qpos[-self._num_joints:].copy())
         ob = {
-            'observation' : np.concatenate([
-                self.joint_pos.copy(),
-                self.sim.data.sensordata.copy()
-            ], -1),
+            'observation' : np.concatenate(pos, -1),
             'desired_goal' : self.desired_goal.copy(),
             'achieved_goal' : self.achieved_goal.copy(),
             'z' : self.z.copy()
@@ -456,7 +459,6 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             ], -1)
             if self._is_render:
                 self.render()
-            reward_velocity += -np.linalg.norm(self.achieved_goal - self.desired_goal + 1e-9, -1)
             reward_energy += -np.linalg.norm(
                 self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]
             ) - np.linalg.norm(
@@ -471,6 +473,10 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             phase += timer_omega * self.dt * counter
             self._track_attr()
             self._step += 1
+            if self._step < params['window_size']:
+                reward_velocity += -np.linalg.norm(np.stack(self._track_item['achieved_goal'][:self._step], 0) - self.desired_goal + 1e-9, -1)
+            else:
+                reward_velocity += -np.linalg.norm(np.stack(self._track_item['achieved_goal'][self._step - params['window_size']: self._step], 0) - self.desired_goal + 1e-9, -1)
             if self._step % params['max_step_length'] == 0:
                 break
         self._n_steps += 1

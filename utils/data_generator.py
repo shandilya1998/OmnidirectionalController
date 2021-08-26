@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import pandas as pd
 from tqdm import tqdm
+from constants import params
 
 track_list = [
     'joint_pos', 'action', 'velocity', \
@@ -74,7 +75,7 @@ def create_training_data_v2(logdir, datapath):
     items = y_items + x_items
     X = []
     Y = []
-    for index, row in info.iterrows():
+    for index, row in tqdm(info.iterrows()):
         direction = row['direction']
         length = row['length']
         task = row['task']
@@ -85,7 +86,7 @@ def create_training_data_v2(logdir, datapath):
         speed = np.sqrt(np.sum(np.square(
             np.mean(
                 data['achieved_goal'][int(length * 0.25):],
-                0   
+                0
             )[:2]
         )))
         yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
@@ -117,12 +118,9 @@ def create_training_data_v2(logdir, datapath):
                 if step < params['window_size']:
                     x[0] = np.mean(data['achieved_goal'][:params['window_size'], 0], 0)
                     x[1] = np.mean(data['achieved_goal'][:params['window_size'], 1], 0)
-                elif step < length - params['window_size']:
-                    x[0] = np.mean(data['achieved_goal'][step: step + params['window_size'], 0], 0)
-                    x[1] = np.mean(data['achieved_goal'][step: step + params['window_size'], 1], 0)
                 else:
-                    x[0] = np.mean(data['achieved_goal'][step:, 0], 0)
-                    x[1] = np.mean(data['achieved_goal'][step:, 1], 0)
+                    x[0] = np.mean(data['achieved_goal'][step - params['window_size']: step, 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][step - params['window_size']: step, 1], 0)
             elif task == 'rotate':
                 x[-1] = yaw
             else:
@@ -281,7 +279,7 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
                 if not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
                     not (direction not in ['right', 'left'] and task == 'rotate') and \
                     not (direction not in ['right', 'left'] and task == 'turn'):
-                    ep = 0 
+                    ep = 0
                     data_case = {key : [] for key in track_list}
                     env = env_class(
                         gait = gait,
@@ -289,7 +287,7 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
                         direction = direction,
                         track_lst = track_list,
                         **env_kwargs
-                    )   
+                    )
                     for ep in tqdm(range(params['n_epochs'] // 2)):
                         ac = env.action_space.sample()
                         # Constant omega 
