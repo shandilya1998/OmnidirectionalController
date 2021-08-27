@@ -438,3 +438,28 @@ def plot_training_data_v3(logdir, datapath,
                 plt.close()
                 print('Find output files in: {}'.format(path))
 
+
+def smooth(scalars, weight):  # Weight between 0 and 1
+    last = scalars[0]
+    smoothed = list()
+    for point in scalars:
+        smoothed_val = last * weight + (1 - weight) * point
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+    return smoothed
+
+def plot_train_eval(
+    logdir, filename,
+    train_loss, steps_train_loss, eval_loss, steps_eval_loss, weight
+):
+    train_loss = smooth(train_loss, weight)
+    eval_loss = smooth(eval_loss, weight)
+    fig, ax = plt.subplots(1, 1, figsize = (5,5))
+    ax.plot(steps_train_loss, train_loss, 'b--', label = 'train loss')
+    ax.plot(steps_eval_loss, eval_loss, 'r--', label = 'eval loss')
+    ax.set_xlabel('epochs')
+    ax.set_ylabel('loss')
+    ax.set_title('Training Results')
+    ax.legend()
+    fig.savefig(os.path.join(logdir, filename))
+
