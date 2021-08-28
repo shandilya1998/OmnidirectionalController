@@ -147,6 +147,9 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._cam_yaw = 0.0
         self._cam_pitch = 0.0
 
+    def _set_goal(self, goal):
+        self.desired_goal = goal
+
     def _sample_goal(self):
         speed = np.random.uniform(-0.1, 0.1, (2,))
         speed = speed / np.linalg.norm(speed)
@@ -301,7 +304,10 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         self._step = 0
         self._last_base_position = [0, 0, params['INIT_HEIGHT']]
         #self.z = np.concatenate([np.cos((self.init_gamma + params['offset']) * np.pi * 2), np.sin((self.init_gamma + params['offset']) * np.pi * 2)], -1)
-        self.z = self._get_z()
+        self.z = np.concatenate([
+            np.ones((4,), dtype = np.float32),
+            np.zeros((4,), dtype = np.float32)
+        ], -1)
         self.sim.reset()
         self.ob = self.reset_model()
         self.desired_goal = self._sample_goal()

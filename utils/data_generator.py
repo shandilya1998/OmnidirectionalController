@@ -4,6 +4,7 @@ import argparse
 import pandas as pd
 from tqdm import tqdm
 from constants import params
+import shutil
 
 track_list = [
     'joint_pos', 'action', 'velocity', \
@@ -73,9 +74,11 @@ def create_training_data_v2(logdir, datapath):
     y_items = ['omega_o', 'mu', 'z']
     x_items = ['achieved_goal', 'joint_pos']
     items = y_items + x_items
-    X = []
-    Y = []
+    num_files = 0
+    os.mkdir(os.path.join(logdir, 'temp'))
     for index, row in tqdm(info.iterrows()):
+        X = []
+        Y = []
         direction = row['direction']
         length = row['length']
         task = row['task']
@@ -90,7 +93,10 @@ def create_training_data_v2(logdir, datapath):
             )[:2]
         )))
         yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
-        for step in range(0, length, length // params['data_gen_granularity']):
+        steps = length // params['data_gen_granularity']
+        if steps < 1:
+            steps = 1
+        for step in range(0, length, steps):
             x = np.zeros(6, dtype = np.float32)
             y = np.concatenate([data[item][step, :] for item in y_items])
             Y.append(y.copy())
@@ -131,12 +137,31 @@ def create_training_data_v2(logdir, datapath):
                 data['achieved_goal'][step],
                 pos
             ], -1))
-    Y = np.stack(Y, 0)
-    X = np.stack(X, 0)
-    with open(os.path.join(logdir, 'X.npy'), 'wb') as f:
-        np.save(f, X)
-    with open(os.path.join(logdir, 'Y.npy'), 'wb') as f:
-        np.save(f, Y)
+
+        X = np.stack(X, 0)
+        Y = np.stack(Y, 0)
+        with open(os.path.join(logdir, 'temp', 'X_{}.npy'.format(num_files)), 'wb') as f:
+            np.save(f, X.copy())
+        with open(os.path.join(logdir, 'temp', 'Y_{}.npy'.format(num_files)), 'wb') as f:
+            np.save(f, Y.copy())
+        num_files += 1
+
+    count = 0
+    dataX = np.zeros((num_files, params['input_size_low_level_control']), dtype = np.float32)
+    dataY = np.zeros((num_files, params['cpg_param_size']), dtype = np.float32)
+    for i in tqdm(range(num_files)):
+        x = np.load(os.path.join(logdir, 'temp', 'X_{}.npy'.format(i)))
+        y = np.load(os.path.join(logdir, 'temp', 'Y_{}.npy'.format(i)))
+        for j in range(x.shape[0]):
+            dataX[count] = x[j, :]
+            dataY[count] = y[j, :]
+            count += 1
+    f = h5py.File(os.path.join(logdir, 'data.hdf5'))
+    d1 = f.create_dataset('X', dataX.shape, dtype = 'f', data = X)
+    d2 = f.create_dataset('Y', dataY.shape, dtype = 'f', data = Y)
+    d1.attrs['size'] = params['input_size_low_level_control']
+    d2.attrs['size'] = params['cpg_param_size']
+    shutil.rmtree(os.path.join(logdir, 'temp'))
 
 def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, task_list, direction_list, track_list, env_name):
     from constants import params

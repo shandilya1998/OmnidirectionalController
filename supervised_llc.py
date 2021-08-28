@@ -8,6 +8,7 @@ import argparse
 from torch.utils import tensorboard
 from tqdm import tqdm
 from simulations import QuadrupedV3
+import numpy as np
 
 class Learner:
     def __init__(self, logdir, datapath, logger):
@@ -174,6 +175,7 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
+        self._test()
         return loss
 
     def _eval_v2(self):
@@ -189,6 +191,7 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
+        self._test()
         return loss
 
     def _eval_v3(self):
@@ -205,6 +208,7 @@ class Learner:
         else:
             raise AttributeError('Validation dataloader is empty')
         self._eval_llc()
+        self._test()
         return loss
 
     def _eval_v4(self):
@@ -236,6 +240,7 @@ class Learner:
         return loss
 
     def _load_model(self, path):
+        print('Loading Model')
         self._model = torch.load(path)
         self._model = Controller()
         self._optim  = torch.optim.Adam(
@@ -251,16 +256,18 @@ class Learner:
         env = QuadrupedV3()
         ob = env.reset()
         steps = 0
+        X = np.load(os.path.join(self.datapath, 'X.npy'))
+        index = np.random.randint(low = 0, high = X.shape[0])
+        env._set_goal(X[index][:6])
         while steps < params['MAX_STEPS']:
             x = torch.from_numpy(np.expand_dims(np.concatenate([
                 ob['desired_goal'],
                 ob['achieved_goal'],
                 ob['observation']
-            ], -1), 0))
+            ], -1), 0).astype('float32'))
             y = self._model(x).detach().cpu().numpy()[0]
-            ob = env.step(y)
+            ob, reward, done, info = env.step(y)
             env.render()
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -277,6 +284,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     datapath = 'assets/out/results_v2'
     logdir = os.path.join(datapath, 'supervised_llc')
+    logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
     if args.test is None:
         datapath = 'assets/out/results_v2'
         logdir = os.path.join(datapath, 'supervised_llc')
@@ -288,7 +296,6 @@ if __name__ == '__main__':
         else:
             shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
-        logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
         learner = Learner(logdir, datapath, logger)
         learner.learn(args.experiment)
     else:
@@ -298,5 +305,5 @@ if __name__ == '__main__':
             'exp{}'.format(args.experiment))):
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
         learner = Learner(logdir, datapath, logger)
-        learner._load_model(os.path.join(self.logdir, 'exp{}'.format(args.experiment),'controller.pth'))
+        learner._load_model(os.path.join(logdir, 'exp{}'.format(args.experiment),'controller.pth'))
         learner._test()
