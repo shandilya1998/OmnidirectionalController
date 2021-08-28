@@ -1,5 +1,6 @@
-ICRA2020_ARS
+*.png
+*.hdf5
+*.icloud
 *.npy
 *.zip
-*.icloud
-*.hdf5
+ICRA2020_ARS/
