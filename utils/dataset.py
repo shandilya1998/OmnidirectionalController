@@ -1,15 +1,17 @@
 import torch
 import numpy as np
 import os
+import h5py
 
 class SupervisedLLCDataset(torch.utils.data.Dataset):
     def __init__(self, datapath):
-        X = torch.from_numpy(np.load(os.path.join(datapath, 'X.npy')).astype('float32'))
-        Y = torch.from_numpy(np.load(os.path.join(datapath, 'Y.npy')).astype('float32'))
-        self.data = list(zip(X, Y))
+        data = h5py.File(os.path.join(datapath, 'data.hdf5'), "r")
+        self.X = data['X']
+        self.Y = data['Y']
 
     def __len__(self):
-        return len(self.data)
+        assert len(self.X) == len(self.Y)
+        return len(self.X)
 
     def __getitem__(self, idx):
-        return self.data[idx] 
+        return self.X[idx], self.Y[idx]
