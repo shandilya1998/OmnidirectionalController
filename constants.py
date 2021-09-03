@@ -317,7 +317,7 @@ params_rl = {
     'TRAIN_FREQ'                  : [1, 'steps'],
     'CHECK_FREQ'                  : 6000,
     'sde_sample_freq'             : 4,
-    'n_epochs'                    : 15,
+    'n_epochs'                    : 100,
     'gae_lambda'                  : 0.9,
     'clip_range'                  : 0.4,
     'vf_coef'                     : 0.4,
@@ -369,7 +369,8 @@ params_rl = {
                                         'd2',
                                         'd3',
                                         'stability',
-                                        'omega_o'
+                                        'omega_o',
+                                        'reward'
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',

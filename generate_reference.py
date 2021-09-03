@@ -1,4 +1,5 @@
-from utils.data_generator import generate_multi_goal_gait_data_v2
+from utils.data_generator import generate_multi_goal_gait_data_v2, \
+    generate_multi_goal_gait_data
 import argparse
 import imp
 from constants import params
@@ -20,6 +21,11 @@ if __name__ == '__main__':
         '--render',
         nargs='?', type = int, const = 1,
         help = 'choice to render env'
+    )
+    parser.add_argument(
+        '--version',
+        type = int,
+        help = 'data generator version'
     )
     args = parser.parse_args()
 
@@ -43,14 +49,26 @@ if __name__ == '__main__':
         'verbose' : 0
     }
     print('Starting.')
-    generate_multi_goal_gait_data_v2(
-        args.log_dir,
-        env_class,
-        env_kwargs,
-        params['gait_list'],
-        params['task_list'],
-        params['direction_list'],
-        params['track_list'],
-        class_name
-    )
+    if args.version == 0:
+        generate_multi_goal_gait_data(
+            args.log_dir,
+            env_class,
+            env_kwargs,
+            params['gait_list'],
+            params['task_list'],
+            params['direction_list'],
+            params['track_list'],
+            class_name
+        )
+    elif args.version == 1:
+        generate_multi_goal_gait_data_v2(
+            args.log_dir,
+            env_class,
+            env_kwargs,
+            params['gait_list'],
+            params['task_list'],
+            params['direction_list'],
+            params['track_list'],
+            class_name
+        )
     print('Thank you.')
