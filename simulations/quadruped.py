@@ -32,12 +32,13 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                      'achieved_goal', 'observation', 'heading_ctrl',
                      'omega', 'z', 'mu',
                      'd1', 'd2', 'd3',
-                     'stability', 'omega_o'
+                     'stability', 'omega_o', 'reward'
                  ],
                  obstacles = False,
                  verbose = 0):
         gym.Env.__init__(self)
         utils.EzPickle.__init__(self)
+        self._reward = 0.0
         self.camera_name = params['camera_name']
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}
@@ -519,6 +520,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         self._track_item['d2'].append(np.array([self.d2], dtype = np.float32))
         self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
         self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
+        self._track_item['reward'].append(np.array([self._reward], dtype = np.float32))
 
     def _get_track_item(self, item):
         return self._track_item[item].copy()
@@ -725,6 +727,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
         notdone = np.isfinite(state).all() \
             and state[2] >= 0.02 and state[2] <= 0.5
         done = not notdone
+        self._reward = reward
 
         return reward, done, info
 
