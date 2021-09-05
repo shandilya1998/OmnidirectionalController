@@ -9,6 +9,11 @@ from torch.utils import tensorboard
 from tqdm import tqdm
 from simulations import QuadrupedV3
 import numpy as np
+import h5py
+
+device = torch.device('cuda') \
+    if torch.cuda.is_available() \
+    else torch.device('cpu')
 
 class Learner:
     def __init__(self, logdir, datapath, logger):
@@ -241,7 +246,7 @@ class Learner:
 
     def _load_model(self, path):
         print('Loading Model')
-        self._model = torch.load(path)
+        self._model = torch.load(path, map_location = device)
         self._model = Controller()
         self._optim  = torch.optim.Adam(
             self._model.parameters(),
@@ -256,7 +261,8 @@ class Learner:
         env = QuadrupedV3()
         ob = env.reset()
         steps = 0
-        X = np.load(os.path.join(self.datapath, 'X.npy'))
+        f = h5py.File(os.path.join(self.datapath, 'data.hdf5'), 'r')
+        X = f['X']
         index = np.random.randint(low = 0, high = X.shape[0])
         env._set_goal(X[index][:6])
         while steps < params['MAX_STEPS']:
@@ -284,7 +290,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     datapath = 'assets/out/results_v2'
     logdir = os.path.join(datapath, 'supervised_llc')
-    logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
     if args.test is None:
         datapath = 'assets/out/results_v2'
         logdir = os.path.join(datapath, 'supervised_llc')
@@ -296,6 +301,7 @@ if __name__ == '__main__':
         else:
             shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
         learner = Learner(logdir, datapath, logger)
         learner.learn(args.experiment)
     else:
@@ -304,6 +310,7 @@ if __name__ == '__main__':
         if not os.path.exists(os.path.join(logdir,
             'exp{}'.format(args.experiment))):
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
+        logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
         learner = Learner(logdir, datapath, logger)
         learner._load_model(os.path.join(logdir, 'exp{}'.format(args.experiment),'controller.pth'))
         learner._test()
