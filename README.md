@@ -44,7 +44,7 @@ _concat_results_v2(datapaths, 'assets/out_results_v3')
 The relationship between the following pairs was examined for each oscillator
 - v<sub>x</sub> vs &mu;
 - v<sub>y</sub> vs &mu;
-- <sup>R</sup>&omega;<sub>z</sub>) vs &mu;
+- <sup>R</sup>&omega;<sub>z</sub> vs &mu;
 - v<sub>x</sub> vs &omega;
 - v<sub>y</sub> vs &omega;
 - <sup>R</sup>&omega;<sub>z</sub> vs &omega;
@@ -54,3 +54,27 @@ The relationship between the following pairs was examined for each oscillator
 - v<sub>x</sub> vs z<sub>I</sub>
 - v<sub>y</sub> vs z<sub>I</sub>
 - <sup>R</sup>&omega;<sub>z</sub> vs z<sub>I</sub>
+- stability vs &mu;
+- d1 vs &mu;
+- d2 vs &mu;
+- d3 vs &mu;
+- stability vs &omega;
+- d1 vs &omega;
+- d2 vs &omega;
+- d3 vs &omega;
+- stability vs z<sub>R</sub>
+- d1 vs z<sub>R</sub>
+- d2 vs z<sub>R</sub>
+- d3 vs z<sub>R</sub>
+- stability vs z<sub>I</sub>
+- d1 vs z<sub>I</sub>
+- d2 vs z<sub>I</sub>
+- d3 vs z<sub>I</sub>
+
+The following code can be used to generate all of the aforementioned plots.
+```
+from utils.plot_utils import plot_training_data_v3
+logdir = 'assets/out/results'
+datapth = logdir
+plot_training_data_v3(logdir, datapath)
+```
