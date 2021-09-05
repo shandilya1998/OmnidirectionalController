@@ -171,6 +171,18 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
     num_files = 0
     cases = {'gait' : [], 'task' : [], 'direction' : [], 'id' : [], 'length' : []}
     print('Starting Data Generation.')
+    count = 0
+    for gait in gait_list:
+        for task in task_list:
+            for direction in direction_list:
+                ep = 0
+                while ep < params['n_epochs'] and \
+                    not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
+                    not (direction not in ['right', 'left'] and task == 'rotate') and \
+                    not (direction not in ['right', 'left'] and task == 'turn'):
+                    count += 1
+                    ep += 1
+    pbar = tqdm(total=count)
     for gait in gait_list:
         for task in task_list:
             for direction in direction_list:
@@ -188,8 +200,8 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                         not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
                         not (direction not in ['right', 'left'] and task == 'rotate') and \
                         not (direction not in ['right', 'left'] and task == 'turn'):
-                        print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
                         ep += 1
+                        pbar.update(1)
                         ac = env.action_space.sample()
                         if env.gait == 'trot':
                             if env._action_dim == 2:
@@ -270,6 +282,8 @@ def generate_multi_goal_gait_data(log_dir, env_class, env_kwargs, gait_list, tas
                     env.close()
                 except AssertionError:
                     pass
+    pbar.close()
+    print('TOTAL STEPS: {}'.format(TOTAL_STEPS))
     df = pd.DataFrame(cases)
     df.to_csv(os.path.join(log_dir, 'info.csv'))
     print('Data Generation Done.')
@@ -298,6 +312,18 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
         },
 
     }
+    count = 0
+    for gait in gait_list:
+        for task in task_list:
+            for direction in direction_list:
+                ep = 0
+                while ep < params['n_epochs'] and \
+                    not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
+                    not (direction not in ['right', 'left'] and task == 'rotate') and \
+                    not (direction not in ['right', 'left'] and task == 'turn'):
+                    count += 2
+                    ep += 1
+    pbar = tqdm(total=count)
     for gait in gait_list:
         for task in task_list:
             for direction in direction_list:
@@ -313,7 +339,8 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
                         track_lst = track_list,
                         **env_kwargs
                     )
-                    for ep in tqdm(range(params['n_epochs'] // 2)):
+                    for ep in range(params['n_epochs']):
+                        pbar.update(1)
                         ac = env.action_space.sample()
                         # Constant omega 
                         if env.gait == 'trot':
@@ -388,6 +415,7 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
 
                         ep_steps = 0 
                         done = False
+                        pbar.update(1)
                         while not done and ep_steps < params['MAX_STEPS']:
                             ob, reward, done, info = env.step(ac)
                             ep_steps += 1
@@ -421,6 +449,7 @@ def generate_multi_goal_gait_data_v2(log_dir, env_class, env_kwargs, gait_list, 
                         num_files += 1
                         env.reset()
                     env.close()
+    pbar.close()
     df = pd.DataFrame(cases)
     df.to_csv(os.path.join(log_dir, 'info.csv'))
     print('Total Steps: {}'.format(TOTAL_STEPS))
