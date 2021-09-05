@@ -287,12 +287,14 @@ if __name__ == '__main__':
         nargs='?', type = int, const = 1,
         help = 'choice to use script in test or training mode'
     )
+    parser.add_argument(
+        '--datapath',
+        type = str,
+        help = 'relative path to directory with data'
+    )
     args = parser.parse_args()
-    datapath = 'assets/out/results_v2'
-    logdir = os.path.join(datapath, 'supervised_llc')
+    logdir = os.path.join(args.datapath, 'supervised_llc')
     if args.test is None:
-        datapath = 'assets/out/results_v2'
-        logdir = os.path.join(datapath, 'supervised_llc')
         if not os.path.exists(logdir):
             os.mkdir(logdir)
         if not os.path.exists(os.path.join(logdir,
@@ -302,7 +304,7 @@ if __name__ == '__main__':
             shutil.rmtree(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
         logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
-        learner = Learner(logdir, datapath, logger)
+        learner = Learner(logdir, args.datapath, logger)
         learner.learn(args.experiment)
     else:
         if not os.path.exists(logdir):
@@ -311,6 +313,6 @@ if __name__ == '__main__':
             'exp{}'.format(args.experiment))):
             os.mkdir(os.path.join(logdir, 'exp{}'.format(str(args.experiment))))
         logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
-        learner = Learner(logdir, datapath, logger)
+        learner = Learner(logdir, args.datapath, logger)
         learner._load_model(os.path.join(logdir, 'exp{}'.format(args.experiment),'controller.pth'))
         learner._test()

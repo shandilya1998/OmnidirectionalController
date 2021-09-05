@@ -54,8 +54,8 @@ def _concat_results_v2(datapaths, outpath):
 
     pbar = tqdm(total = total)
     out_info = pd.DataFrame([], columns = infos[0].columns)
-    count = 0
     for path, info in zip(datapaths, infos):
+        last = len(out_info)
         for i in range(len(info)):
             pbar.update(1)
             name = info.iloc[i]['id']
@@ -64,7 +64,7 @@ def _concat_results_v2(datapaths, outpath):
                 '{}_{}.npy'.format(name, item)
             ) for item in params['track_list']]
             name = name.split('_')
-            name[1] = str(int(name[1]) + count)
+            name[1] = str(int(name[1]) + last)
             name = '_'.join(name)
             paths_dst = [os.path.join(
                 outpath,
@@ -73,7 +73,6 @@ def _concat_results_v2(datapaths, outpath):
             info.at[i, 'id'] = name
             for p_s, p_d in zip(paths_src, paths_dst):
                 shutil.copy2(p_s, p_d)
-            count += 1
         out_info = pd.concat([out_info, info], ignore_index = True)
     pbar.close()
     out_info.to_csv(os.path.join(outpath, 'info.csv'))

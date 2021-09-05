@@ -75,7 +75,10 @@ def create_training_data_v2(logdir, datapath):
     x_items = ['achieved_goal', 'joint_pos']
     items = y_items + x_items
     num_files = 0
+    if os.path.exists(os.path.join(logdir, 'temp')):
+        shutil.rmtree(os.path.join(logdir, 'temp'))
     os.mkdir(os.path.join(logdir, 'temp'))
+    count = 0
     for index, row in tqdm(info.iterrows()):
         X = []
         Y = []
@@ -132,6 +135,7 @@ def create_training_data_v2(logdir, datapath):
             else:
                 raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
                         got {}'.format(task))
+            count += 1
             X.append(np.concatenate([
                 x.copy(),
                 data['achieved_goal'][step],
@@ -146,9 +150,9 @@ def create_training_data_v2(logdir, datapath):
             np.save(f, Y.copy())
         num_files += 1
 
+    dataX = np.zeros((count, params['input_size_low_level_control']), dtype = np.float32)
+    dataY = np.zeros((count, params['cpg_param_size']), dtype = np.float32)
     count = 0
-    dataX = np.zeros((num_files, params['input_size_low_level_control']), dtype = np.float32)
-    dataY = np.zeros((num_files, params['cpg_param_size']), dtype = np.float32)
     for i in tqdm(range(num_files)):
         x = np.load(os.path.join(logdir, 'temp', 'X_{}.npy'.format(i)))
         y = np.load(os.path.join(logdir, 'temp', 'Y_{}.npy'.format(i)))

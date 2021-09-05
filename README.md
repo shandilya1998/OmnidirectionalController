@@ -40,6 +40,24 @@ _concat_results_v2(datapaths, 'assets/out_results_v3')
 ```
 ---
 
+[genref](generate_reference.py) generates the locomotion episodes for the following set of gaits, directions and task.
+- **Gait** Trot, LS crawl and DS crawl
+- **Tasks** Straight, Turn, Rotate
+- **Directions** Left, Right, Forward, Backward
+**_NOTE:_**  No `Rotate` episodes were generated for `Trot` gait
+
+Data to be used for training needs to be preprocessed into one to one mapping of robot state and oscillator parameters.
+The robot state is a concatenation of the following.
+- Desired Goal
+- Achieved Goal
+- Observation
+The Goal `G` is a six dimensional vector containing the linear velocity and angular velocity of the robot
+Observation may be modified appropriately to fit need. 
+The following modifications in code are currently required to modify observation.
+- `create_training_data_v2(**kwargs)` in [trainingutils](utils/data_generator.py)
+- `Quadruped._get_obs(**kwargs)` in [quadsim](simulations/quadruped.py) to be modified to modify observations
+- `QuadrupedV3._get_obs(**kwargs)` in [quadsim](simulations/quadruped_v3.py) to be modified to modify observations
+
 ## Data Visualization
 The relationship between the following pairs was examined for each oscillator
 - v<sub>x</sub> vs &mu;
@@ -77,4 +95,17 @@ from utils.plot_utils import plot_training_data_v3
 logdir = 'assets/out/results'
 datapth = logdir
 plot_training_data_v3(logdir, datapath)
+```
+
+## Supervised Learning
+- Train
+```
+#!/bin/sh
+
+EXPERIMENT=1
+DATAPATH="assets/out/results_v3"
+
+python3 supervised_llc.py --experiment $EXPERIMENT --datapath $DATAPATH
+rm "$LOGDIR.zip"
+zip -r "$LOGDIR.zip" "$LOGDIR/"
 ```
