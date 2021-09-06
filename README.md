@@ -40,7 +40,7 @@ _concat_results_v2(datapaths, 'assets/out_results_v3')
 ```
 ---
 
-[genref](generate_reference.py) generates the locomotion episodes for the following set of gaits, directions and task.
+[generate_reference](generate_reference.py) generates the locomotion episodes for the following set of gaits, directions and task.
 - **Gait** Trot, LS crawl and DS crawl
 - **Tasks** Straight, Turn, Rotate
 - **Directions** Left, Right, Forward, Backward
@@ -54,9 +54,9 @@ The robot state is a concatenation of the following.
 The Goal `G` is a six dimensional vector containing the linear velocity and angular velocity of the robot
 Observation may be modified appropriately to fit need. 
 The following modifications in code are currently required to modify observation.
-- `create_training_data_v2(**kwargs)` in [trainingutils](utils/data_generator.py) (create next version instead)
-- `Quadruped._get_obs(**kwargs)` in [quadsim](simulations/quadruped.py) to be modified to modify observations
-- `QuadrupedV3._get_obs(**kwargs)` in [quadsim](simulations/quadruped_v3.py) to be modified to modify observations
+- `create_training_data_v2(**kwargs)` in [data_generator](utils/data_generator.py) (create next version instead)
+- `Quadruped._get_obs(**kwargs)` in [quadruped](simulations/quadruped.py) to be modified to modify observations
+- `QuadrupedV3._get_obs(**kwargs)` in [quadruped_v3](simulations/quadruped_v3.py) to be modified to modify observations
 
 `create_training_data_v2(**kwargs)` takes the following parameters:
 - `memory_size`: 10 
