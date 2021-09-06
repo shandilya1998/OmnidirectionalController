@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from constants import params
 import shutil
+import h5py
 
 track_list = [
     'joint_pos', 'action', 'velocity', \
@@ -75,6 +76,8 @@ def create_training_data_v2(logdir, datapath):
     x_items = ['achieved_goal', 'joint_pos']
     items = y_items + x_items
     num_files = 0
+    if not os.path.exists(logdir):
+        os.mkdir(logdir)
     if os.path.exists(os.path.join(logdir, 'temp')):
         shutil.rmtree(os.path.join(logdir, 'temp'))
     os.mkdir(os.path.join(logdir, 'temp'))
@@ -160,9 +163,117 @@ def create_training_data_v2(logdir, datapath):
             dataX[count] = x[j, :]
             dataY[count] = y[j, :]
             count += 1
-    f = h5py.File(os.path.join(logdir, 'data.hdf5'))
-    d1 = f.create_dataset('X', dataX.shape, dtype = 'f', data = X)
-    d2 = f.create_dataset('Y', dataY.shape, dtype = 'f', data = Y)
+    f = h5py.File(os.path.join(logdir, 'data.hdf5'), 'w')
+    d1 = f.create_dataset('X', dataX.shape, dtype = 'f', data = dataX)
+    d2 = f.create_dataset('Y', dataY.shape, dtype = 'f', data = dataY)
+    d1.attrs['size'] = params['input_size_low_level_control']
+    d2.attrs['size'] = params['cpg_param_size']
+    shutil.rmtree(os.path.join(logdir, 'temp'))
+
+def create_training_data_v3(logdir, datapath):
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
+    y_items = ['omega_o', 'mu', 'z']
+    x_items = ['achieved_goal', 'joint_pos', 'z']
+    items = y_items + x_items
+    num_files = 0
+    if not os.path.exists(logdir):
+        os.mkdir(logdir)
+    if os.path.exists(os.path.join(logdir, 'temp')):
+        shutil.rmtree(os.path.join(logdir, 'temp'))
+    os.mkdir(os.path.join(logdir, 'temp'))
+    count = 0
+    for index, row in tqdm(info.iterrows()):
+        X = []
+        Y = []
+        direction = row['direction']
+        length = row['length']
+        task = row['task']
+        f = os.path.join(datapath, row['id'])
+        data = {}
+        for item in items:
+            data[item] = np.load(f + '_' + item + '.npy')
+        speed = np.sqrt(np.sum(np.square(
+            np.mean(
+                data['achieved_goal'][int(length * 0.25):],
+                0
+            )[:2]
+        )))
+        yaw = np.mean(data['achieved_goal'][int(length * 0.25):, -1])
+        steps = length // params['data_gen_granularity']
+        if steps < 1:
+            steps = 1
+        for step in range(0, length, steps):
+            x = np.zeros(6, dtype = np.float32)
+            y = np.concatenate([data[item][step, :] for item in y_items])
+            Y.append(y.copy())
+            pos = []
+            z = []
+            for i in range(params['memory_size']):
+                if step - i * params['memory_size'] > 0:
+                    pos.append(data['joint_pos'][step - i * params['memory_size']])
+                else:
+                    pos.append(data['joint_pos'][0])
+                
+                if step - i * params['memory_size'] > 1:
+                    z.append(data['z'][step - i * params['memory_size'] - 1])
+                else:
+                    z.append(data['z'][0])
+            pos = np.concatenate(pos, -1)
+            z = np.concatenate(z, -1)
+            if task == 'straight':
+                if direction == 'forward':
+                    x[1] = speed
+                elif direction == 'backward':
+                    x[1] = -speed
+                elif direction == 'left':
+                    x[0] = -speed
+                elif direction == 'right':
+                    x[0] = speed
+                else:
+                    raise ValueError('Expected one of `forward`, `backward`, \
+                            `left` or `right`, got {}'.format(direction))
+            elif task == 'turn':
+                x[-1] = yaw
+                if step < params['window_size']:
+                    x[0] = np.mean(data['achieved_goal'][:params['window_size'], 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][:params['window_size'], 1], 0)
+                else:
+                    x[0] = np.mean(data['achieved_goal'][step - params['window_size']: step, 0], 0)
+                    x[1] = np.mean(data['achieved_goal'][step - params['window_size']: step, 1], 0)
+            elif task == 'rotate':
+                x[-1] = yaw
+            else:
+                raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
+                        got {}'.format(task))
+            count += 1
+            X.append(np.concatenate([
+                x.copy(),
+                data['achieved_goal'][step],
+                pos,
+                z
+            ], -1))
+
+        X = np.stack(X, 0)
+        Y = np.stack(Y, 0)
+        with open(os.path.join(logdir, 'temp', 'X_{}.npy'.format(num_files)), 'wb') as f:
+            np.save(f, X.copy())
+        with open(os.path.join(logdir, 'temp', 'Y_{}.npy'.format(num_files)), 'wb') as f:
+            np.save(f, Y.copy())
+        num_files += 1
+
+    dataX = np.zeros((count, params['input_size_low_level_control']), dtype = np.float32)
+    dataY = np.zeros((count, params['cpg_param_size']), dtype = np.float32)
+    count = 0
+    for i in tqdm(range(num_files)):
+        x = np.load(os.path.join(logdir, 'temp', 'X_{}.npy'.format(i)))
+        y = np.load(os.path.join(logdir, 'temp', 'Y_{}.npy'.format(i)))
+        for j in range(x.shape[0]):
+            dataX[count] = x[j, :]
+            dataY[count] = y[j, :]
+            count += 1
+    f = h5py.File(os.path.join(logdir, 'data.hdf5'), 'w')
+    d1 = f.create_dataset('X', dataX.shape, dtype = 'f', data = dataX)
+    d2 = f.create_dataset('Y', dataY.shape, dtype = 'f', data = dataY)
     d1.attrs['size'] = params['input_size_low_level_control']
     d2.attrs['size'] = params['cpg_param_size']
     shutil.rmtree(os.path.join(logdir, 'temp'))

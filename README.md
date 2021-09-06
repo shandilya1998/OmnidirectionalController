@@ -54,9 +54,31 @@ The robot state is a concatenation of the following.
 The Goal `G` is a six dimensional vector containing the linear velocity and angular velocity of the robot
 Observation may be modified appropriately to fit need. 
 The following modifications in code are currently required to modify observation.
-- `create_training_data_v2(**kwargs)` in [trainingutils](utils/data_generator.py)
+- `create_training_data_v2(**kwargs)` in [trainingutils](utils/data_generator.py) (create next version instead)
 - `Quadruped._get_obs(**kwargs)` in [quadsim](simulations/quadruped.py) to be modified to modify observations
 - `QuadrupedV3._get_obs(**kwargs)` in [quadsim](simulations/quadruped_v3.py) to be modified to modify observations
+
+`create_training_data_v2(**kwargs)` takes the following parameters:
+- `memory_size`: 10 
+- `data_gen_granularity`: 1000
+- `window_size`: 150
+- `input_size_low_level_controller`: 132
+- `cpg_param_size`: 16
+
+`create_training_data_v3(**kwargs)` take the following parameters:
+- `memory_size`: 10
+- `data_gen_granularity`: 1000
+- `window_size`: 150
+- `input_size_low_level_controller`: 252
+- `cpg_param_size`: 16
+
+The following code can be used to create training data.
+```
+from utils.data_generator import create_training_data_v3
+logidr = 'assets/out/results_v4'
+datapath = 'assets/out/results_v3'
+create_training_data_v3(logdir, datapath)
+```
 
 ## Data Visualization
 The relationship between the following pairs was examined for each oscillator

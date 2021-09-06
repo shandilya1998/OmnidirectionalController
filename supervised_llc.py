@@ -60,6 +60,7 @@ class Learner:
         done = self._pretrain(experiment)
         if done:
             print('Training Done.')
+        self._test()
 
     def _pretrain_step(self, x, y):
         loss = 0.0
@@ -180,7 +181,6 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
-        self._test()
         return loss
 
     def _eval_v2(self):
@@ -196,7 +196,6 @@ class Learner:
             loss = loss.detach().cpu().numpy() / step
         else:
             raise AttributeError('Validation dataloader is empty')
-        self._test()
         return loss
 
     def _eval_v3(self):
@@ -213,7 +212,6 @@ class Learner:
         else:
             raise AttributeError('Validation dataloader is empty')
         self._eval_llc()
-        self._test()
         return loss
 
     def _eval_v4(self):
@@ -265,6 +263,7 @@ class Learner:
         X = f['X']
         index = np.random.randint(low = 0, high = X.shape[0])
         env._set_goal(X[index][:6])
+        print(X[index][:6])
         while steps < params['MAX_STEPS']:
             x = torch.from_numpy(np.expand_dims(np.concatenate([
                 ob['desired_goal'],
