@@ -131,3 +131,23 @@ python3 supervised_llc.py --experiment $EXPERIMENT --datapath $DATAPATH
 rm "$LOGDIR.zip"
 zip -r "$LOGDIR.zip" "$LOGDIR/"
 ```
+### Results V3
+#### Experiment 1
+- Feedforward fully connected network with the following number of units in each layer was used- `256, 1024, 1024, 512, 32, 16`.
+- Parameterized ReLU used as the activation function.
+- Batch Size: 500
+- Maximum Epoch Size: 100
+- Exponentially decreasing Learning Rate starting at 0.0001 decreasing by a factor of `gamma` = 0.9 every `scheduler_update_freq` = 5 epochs
+#### Experiment 2
+- Feedforward fully connected network with the following number of units in each layer was used- `256, 1024, 1024, 512, 32, 16`.
+- Parameterized ReLU used as the activation function.
+- Batch Size: 1000
+- Maximum Epoch Size: 100
+- Exponentially decreasing Learning Rate starting at 0.0001 decreasing by a factor of `gamma` = 0.9 every `scheduler_update_freq` = 5 epochs
+#### Experiment 3
+- Feedforward fully connected network with the following number of units in each layer was used- `256, 1024, 1024, 512, 32, 16`.
+- Parameterized ReLU used as the activation function.
+- Batch Size: 500
+- Maximum Epoch Size: 200
+- Exponentially decreasing Learning Rate starting at 0.0001 decreasing by a factor of `gamma` = 0.9 every `scheduler_update_freq` = 5 epochs
+
