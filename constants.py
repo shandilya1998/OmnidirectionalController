@@ -6,7 +6,7 @@ import os
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
 cpg_param_size = 16
-input_size = 212 # 132 # 132 is size for results v 3
+input_size = 212 # 212 # 132 # 132 is size for results v 3
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,

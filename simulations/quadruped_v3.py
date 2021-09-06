@@ -334,10 +334,10 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         """
         pos = []
         for i in range(params['memory_size']):
-            if self._step - i * params['memory_size'] > 0:
-                pos.append(self._track_item['joint_pos'][self._step - i * params['memory_size']].copy())
+            if self._step - i * params['memory_size'] > 1:
+                pos.append(self._track_item['joint_pos'][self._step - i * params['memory_size'] - 1].copy())
             else:
-                pos.append(self.sim.data.qpos[-self._num_joints:].copy())
+                pos.append(self._track_item['joint_pos'][0].copy())
         ob = {
             'observation' : np.concatenate(pos, -1),
             'desired_goal' : self.desired_goal.copy(),

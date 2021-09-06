@@ -40,7 +40,7 @@ _concat_results_v2(datapaths, 'assets/out_results_v3')
 ```
 ---
 
-[generate_reference,py](generate_reference.py) generates the locomotion episodes for the following set of gaits, directions and task.
+[generate_reference.py](generate_reference.py) generates the locomotion episodes for the following set of gaits, directions and task.
 - **Gait** Trot, LS crawl and DS crawl
 - **Tasks** Straight, Turn, Rotate
 - **Directions** Left, Right, Forward, Backward

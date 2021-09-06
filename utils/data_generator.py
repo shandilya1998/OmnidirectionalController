@@ -109,7 +109,7 @@ def create_training_data_v2(logdir, datapath):
             pos = []
             for i in range(params['memory_size']):
                 if step - i * params['memory_size'] > 0:
-                    pos.append(data['joint_pos'][step - i * params['memory_size']])
+                    pos.append(data['joint_pos'][step - i * params['memory_size'] - 1])
                 else:
                     pos.append(data['joint_pos'][0])
             pos = np.concatenate(pos, -1)
@@ -209,15 +209,13 @@ def create_training_data_v3(logdir, datapath):
             pos = []
             z = []
             for i in range(params['memory_size']):
-                if step - i * params['memory_size'] > 0:
-                    pos.append(data['joint_pos'][step - i * params['memory_size']])
-                else:
-                    pos.append(data['joint_pos'][0])
-                
                 if step - i * params['memory_size'] > 1:
+                    pos.append(data['joint_pos'][step - i * params['memory_size'] - 1])
                     z.append(data['z'][step - i * params['memory_size'] - 1])
                 else:
+                    pos.append(data['joint_pos'][0])
                     z.append(data['z'][0])
+                
             pos = np.concatenate(pos, -1)
             z = np.concatenate(z, -1)
             if task == 'straight':

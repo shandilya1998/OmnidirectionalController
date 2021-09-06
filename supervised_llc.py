@@ -245,15 +245,7 @@ class Learner:
     def _load_model(self, path):
         print('Loading Model')
         self._model = torch.load(path, map_location = device)
-        self._model = Controller()
-        self._optim  = torch.optim.Adam(
-            self._model.parameters(),
-            lr = params['LEARNING_RATE']
-        )
-        self._scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            self._optim,
-            gamma = params['GAMMA']
-        )
+        print('model loaded')
 
     def _test(self):
         env = QuadrupedV3()
@@ -273,6 +265,7 @@ class Learner:
             y = self._model(x).detach().cpu().numpy()[0]
             ob, reward, done, info = env.step(y)
             env.render()
+            steps += 1
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
