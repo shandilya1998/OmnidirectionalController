@@ -304,7 +304,7 @@ params_env = {
 }
 
 
-max_steps = 100 #data collection env
+max_steps = 1000 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -440,8 +440,8 @@ params.update({
                                     ], dtype = np.float32),
     'camera_name'                 : 'esp32cam',
     'memory_size'                 : 10,
-    'data_gen_granularity'        : 1000,
-    'window_size'                 : 150,
+    'data_gen_granularity'        : 350,
+    'window_size'                 : 250,
     'scheduler_update_freq'       : 5
 })
 

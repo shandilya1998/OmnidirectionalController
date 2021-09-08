@@ -333,13 +333,19 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             modify this according to observation space
         """
         pos = []
+        z = []
         for i in range(params['memory_size']):
             if self._step - i * params['memory_size'] > 1:
                 pos.append(self._track_item['joint_pos'][self._step - i * params['memory_size'] - 1].copy())
+                z.append(self._track_item['z'][self._step - i * params['memory_size'] - 1].copy())
             else:
                 pos.append(self._track_item['joint_pos'][0].copy())
+                if len(self._track_item['z']) < 1:
+                    z.append(self.z.copy())
+                else:
+                    z.append(self._track_item['z'][0].copy())
         ob = {
-            'observation' : np.concatenate(pos, -1),
+            'observation' : np.concatenate(pos + z, -1),
             'desired_goal' : self.desired_goal.copy(),
             'achieved_goal' : self.achieved_goal.copy(),
             'z' : self.z.copy()
