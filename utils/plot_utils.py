@@ -291,7 +291,7 @@ def _read_row_v2(row, datapath, tracklist):
 def plot_training_data_v3(logdir, datapath,
         tracklist = ['d1', 'd2', 'd3', 'stability']
     ):
-    info = pd.read_csv(os.path.join(logdir, 'info.csv'), index_col = 0)
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
     tasks = ['straight', 'turn', 'rotate']
     directions = ['left', 'right', 'forward', 'backward']
     gaits = ['trot', 'ls_crawl', 'ds_crawl']

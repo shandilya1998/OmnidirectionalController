@@ -76,3 +76,49 @@ def _concat_results_v2(datapaths, outpath):
         out_info = pd.concat([out_info, info], ignore_index = True)
     pbar.close()
     out_info.to_csv(os.path.join(outpath, 'info.csv'))
+
+
+def _condition(gait, task, direction):
+    if task == 'straight' and direction in ['left', 'right']:
+        return False
+    else:
+        return True
+
+def _filter_results(condition, logdir, datapath):
+    """
+        condition: method with the following arguments:
+            - gait: str
+            - task: str
+            - direction: str
+    """
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
+    df = pd.DataFrame([], columns = info.columns)
+    count = 0
+    pbar = tqdm(total=len(info))
+    if os.path.exists(logdir):
+        shutil.rmtree(logdir)
+    os.mkdir(logdir)
+    for index, row in info.iterrows():
+        pbar.update(1)
+        if not condition(row['gait'], row['task'], row['direction']):
+            continue
+        else:
+            name = row['id']
+            paths_src = [os.path.join(
+                datapath,
+                '{}_{}.npy'.format(name, item)
+            ) for item in params['track_list']]
+            name = name.split('_')
+            name[1] = str(count)
+            name = '_'.join(name)
+            paths_dst = [os.path.join(
+                logdir,
+                '{}_{}.npy'.format(name, item)
+            ) for item in params['track_list']]
+            count += 1
+            row['id'] = name
+            df = df.append(row, ignore_index = True)
+            for p_s, p_d in zip(paths_src, paths_dst):
+                shutil.copy2(p_s, p_d)
+    pbar.close()
+    df.to_csv(os.path.join(logdir, 'info.csv'))
