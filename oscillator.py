@@ -158,6 +158,58 @@ def hopf_step(omega, mu, z, C, degree, dt = 0.001):
     z = np.concatenate([x, y], -1)
     return z, w
 
+def _coupling(z, weights, units_osc):
+    x1 = []
+    for i in range(units_osc):
+        indices = list(range(units_osc))
+        d = indices.pop(i)
+        x1.append(z[indices])
+    x1 = np.stack(x1, axis = 0)
+    out = np.multiply(x1, weights)
+    out = np.sum(out, axis = -1)
+    return out
+
+
+def _coupled_hopf_step(omega, mu, z, weights, dt = 0.001):
+    units_osc = z.shape[-1]
+    x, y = np.split(z, 2, -1) 
+    r = np.sqrt(np.square(x) + np.square(y))
+    phi = np.arctan2(y,x)
+    w = 2 * np.abs(omega)
+    #print(w)
+    """ 
+        [-pi, 0] - stance phase
+        [0, pi] - swing phase
+    """
+    phi = phi + dt * w 
+    r = r + dt * (mu - r ** 2) * r + _coupling(z, weights, units_osc)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.concatenate([x, y], -1) 
+    return z, w
+
+
+def _coupled_mod_hopf_step(omega, mu, z, C, degree, weights, dt = 0.001):
+    units_osc = z.shape[-1]
+    x, y = np.split(z, 2, -1) 
+    r = np.sqrt(np.square(x) + np.square(y))
+    phi = np.arctan2(y,x)
+    beta = _get_beta(omega, C, degree)
+    mean = np.abs(1 / (2 * beta * (1 - beta)))
+    amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
+    w = 2 * np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
+    #print(w)
+    """ 
+        [-pi, 0] - stance phase
+        [0, pi] - swing phase
+    """
+    phi = phi + dt * w 
+    r = r + dt * (mu - r ** 2) * r + _coupling(z, weights, units_osc)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.concatenate([x, y], -1) 
+    return z, w
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(

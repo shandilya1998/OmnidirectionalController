@@ -1,6 +1,7 @@
 import torch
 from constants import params
 from collections import OrderedDict
+import math
 
 USE_CUDA = torch.cuda.is_available()
 FLOAT = torch.cuda.FloatTensor if USE_CUDA else torch.FloatTensor
@@ -333,4 +334,61 @@ class ControllerV5(torch.nn.Module):
         y = self.decoder(z)
         return y, z, z_
 
+def _complex_multiply(x, y, units):
+    return torch.cat([
+        torch.mul(
+            x[:, :units], y[:, :units]
+        ) - torch.mul(
+            x[:, units:], y[:, units:]
+        ),
+        torch.mul(
+            x[:, :units], y[:, units:]
+        ) + torch.mul(
+            x[:, units:], y[:, :units]
+        )
+    ], -1)
 
+def _iota_multiplu(x, units):
+    return torch.cat([
+        x[:, units:],
+        -x[:, :units]
+    ], -1)
+
+class CoupledHopfStep(torch.nn.Module):
+    def __init__(self, num_osc, dt = 0.001):
+        super(CoupledHopfStep, self).__init__()
+        self.num_osc = num_osc
+        self.dr = 0.001
+        self.weights = torch.nn.Parameter(
+            torch.Tensor(num_osc, 2 * num_osc - 2)
+        )
+
+        # initialize weights and biases
+        torch.nn.init.kaiming_uniform_(self.weights) # weight init
+
+    def forward(self, omega, mu, z):
+        out = []
+        batch_size = z.shape[0]
+        for i in range(self.num_osc):
+            out.append(_complex_multiply(
+                torch.cat(
+                    [
+                        z[:, :i],
+                        z[:, i + 1: i + self.num_osc],
+                        z[:, i + 1 + self.num_osc:]
+                    ], -1
+                ),
+                self.weights[i,:].repeat(batch_size, 1)
+            ))
+        out = torch.sum(torch.stack(out, dim = 1), dim = -1)
+        r = mu - torch.square(
+            z[:, :self.num_osc]
+        ) - torch.square(
+            z[:, self.num_osc:]
+        )
+        r = torch.cat([r, r], -1)
+        omega = torch.cat([omega, omega], -1)
+        z = z + self.dt * torch.mul(r, z) + \
+            _iota_multiply(torch.mul(omega, z), num_osc) + out
+        return z
+        return z
