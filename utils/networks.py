@@ -386,8 +386,8 @@ class CoupledHopfStep(torch.nn.Module):
         ) - torch.square(
             z[:, self.num_osc:]
         )
-        r = torch.cat([r, r], -1)
-        omega = torch.cat([omega, omega], -1)
+        r = r.repeat(1, 2)
+        omega = omega.repeat(1, 2)
         z = z + self.dt * torch.mul(r, z) + \
             _iota_multiply(torch.mul(omega, z), num_osc) + out
         return z

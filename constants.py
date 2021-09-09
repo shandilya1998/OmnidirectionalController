@@ -5,7 +5,7 @@ import os
 
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
-cpg_param_size = 16
+cpg_param_size = 12 #16 v1 to v5 
 input_size = 212 # 212 # 132 # 132 is size for results v 3
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
@@ -342,12 +342,15 @@ params_rl = {
                                         'straight',
                                         'rotate',
                                         'turn',
+                                        'roll',
+                                        'pitch',
+                                        'squat'
                                     ],
     'direction_list'              : [
                                         'forward',
                                         'backward',
                                         'left',
-                                        'right'
+                                        'right',
                                     ],
     'track_list'                  : [
                                         'joint_pos',
