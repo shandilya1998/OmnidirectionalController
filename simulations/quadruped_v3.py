@@ -10,7 +10,7 @@ import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils import convert_observation_to_space
-from oscillator import hopf_step, _get_polynomial_coef
+from oscillator import hopf_step, _get_polynomial_coef, _coupled_hopf_step
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
@@ -434,12 +434,31 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
         out = np.array(out, dtype = np.float32)
         return out, self.w.max()
 
+    def _parse_weights(self, weight_vector):
+        out = np.zeros(
+            (self._num_legs, self._num_legs),
+            dtype = np.float32
+        )
+        out[0][1] = weight_vector[0]
+        out[1][0] = -weight_vector[0]
+        out[0][2] = weight_vector[1]
+        out[2][0] = -weight_vector[1]
+        out[0][3] = weight_vector[2]
+        out[3][0] = -weight_vector[2]
+        out[1][2] = weight_vector[3]
+        out[2][1] = -weight_vector[3]
+        out[1][3] = weight_vector[4]
+        out[3][2] = -weight_vector[4]
+        out[2][3] = weight_vector[5]
+        out[3][2] = -weight_vector[5]
+        return out
+    
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         self.action = action
         self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
-        self.z = self.action[8:]
+        self.weights = self._parse_weights(self.action[8:])
         timer_omega = np.abs(self.omega[0])
         counter = 0
         """
@@ -584,3 +603,128 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
         return [seed]
+
+
+
+
+class QuadrupedV4(QuadrupedV3):
+    def __init__(self,
+        model_path = 'ant.xml',
+        frame_skip = 5,
+        render = False,
+        track_lst = [ 
+            'desired_goal', 'joint_pos', 'action',
+            'velocity', 'position', 'true_joint_pos',
+            'sensordata', 'qpos', 'qvel',
+            'achieved_goal', 'observation',
+            'omega', 'z', 'mu',
+            'd1', 'd2', 'd3',
+            'stability', 'omega_o'
+        ],  
+        obstacles = False,
+        verbose = 0
+    ):
+        super(QuadrupedV4, self).__init__(
+            model_path = model_path,
+            frame_skip = frame_skip,
+            render = render,
+            track_lst = track_lst,
+            obstacles = obstacles,
+            verbose = verbose
+        )
+
+     def _get_joint_pos(self):
+        out = []
+        self.z, self.w = _coupled_hopf_step(
+            self.omega, self.mu, self.z,
+            self.C, self.weights, params['degree']
+        )
+        out = []
+        for i in range(self._num_legs):
+            direction = 1.0 
+            if i in [0, 3]: 
+                direction = 1.0 
+            if i in [1,2]:
+                direction = -1.0
+            out.append(self.z[i] * np.tanh(1e3 * self.omega[i]))
+            knee = -np.maximum(-self.z[self._num_legs + i], 0)
+            out.append(knee * direction)
+            out.append((-0.35 * knee  + 1.3089) * direction)
+        out = np.array(out, dtype = np.float32)
+        return out, self.w.max()
+
+    def do_simulation(self, action, n_frames, callback=None):
+        #print(self._n_steps)
+        self.action = action
+        self.omega = self.action[:4] * np.pi * 2
+        self.mu = self.action[4:8]
+        self.z = self.action[8:]
+        timer_omega = np.abs(self.omega[0])
+        counter = 0
+        """
+            modify this according to needs
+        """
+        reward_velocity = 0.0
+        reward_energy = 0.0
+        penalty = 0.0
+        done = False
+        phase = 0.0
+        if self.verbose > 0:
+            print(self._n_steps)
+        while(np.abs(phase) <= np.pi * self._update_action_every):
+            self.joint_pos, timer_omega = self._get_joint_pos()
+            posbefore = self.get_body_com("torso").copy()
+            penalty = 0.0
+            if np.isnan(self.joint_pos).any():
+                self.joint_pos = np.nan_to_num(self.joint_pos)
+                penalty += -1.0
+            self.sim.data.ctrl[:] = self.joint_pos
+            for _ in range(n_frames):
+                self.sim.step()
+            posafter = self.get_body_com("torso").copy()
+            velocity = (posafter - posbefore) / self.dt
+            ang_vel = self.sim.data.qvel[3:6]
+            self.achieved_goal = np.concatenate([
+                velocity,
+                ang_vel
+            ], -1)
+            if self._is_render:
+                self.render()
+            reward_energy += -np.linalg.norm(
+                self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]
+            ) - np.linalg.norm(
+                np.clip(
+                    self.sim.data.cfrc_ext, -1, 1
+                ).flat
+            )
+            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
+            if not upright:
+                done = True
+            counter += 1
+            phase += timer_omega * self.dt * counter
+            self._track_attr()
+            self._step += 1
+            if self._step < params['window_size']:
+                reward_velocity += -np.linalg.norm(np.stack(self._track_item['achieved_goal'][:self._step], 0) - self.desired_goal + 1e-9, -1)
+            else:
+                reward_velocity += -np.linalg.norm(np.stack(self._track_item['achieved_goal'][self._step - params['window_size']: self._step], 0) - self.desired_goal + 1e-9, -1)
+            if self._step % params['max_step_length'] == 0:
+                break
+        self._n_steps += 1
+        reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
+        reward_velocity = np.exp(params['reward_velocity_coef'] * reward_velocity)
+        reward_energy = np.exp(params['reward_energy_coef'] * reward_energy)
+        reward = reward_distance + reward_velocity + reward_energy + penalty
+        info = {
+            'reward_velocity' : reward_velocity,
+            'reward_distance' : reward_distance,
+            'reward_energy' : reward_energy,
+            'reward' : reward,
+            'penalty' : penalty
+        }
+
+        state = self.state_vector()
+        notdone = np.isfinite(state).all() \
+            and state[2] >= 0.02 and state[2] <= 0.5
+        done = not notdone
+        return reward, done, info

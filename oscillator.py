@@ -165,7 +165,7 @@ def _coupling(z, weights, units_osc):
         d = indices.pop(i)
         x1.append(z[indices])
     x1 = np.stack(x1, axis = 0)
-    out = np.multiply(x1, weights)
+    out = np.multiply(np.repeat(z, units_osc, 0), weights)
     out = np.sum(out, axis = -1)
     return out
 

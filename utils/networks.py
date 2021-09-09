@@ -360,7 +360,7 @@ class CoupledHopfStep(torch.nn.Module):
         self.num_osc = num_osc
         self.dr = 0.001
         self.weights = torch.nn.Parameter(
-            torch.Tensor(num_osc, 2 * num_osc - 2)
+            torch.Tensor(num_osc, 2 * num_osc)
         )
 
         # initialize weights and biases
@@ -371,13 +371,7 @@ class CoupledHopfStep(torch.nn.Module):
         batch_size = z.shape[0]
         for i in range(self.num_osc):
             out.append(_complex_multiply(
-                torch.cat(
-                    [
-                        z[:, :i],
-                        z[:, i + 1: i + self.num_osc],
-                        z[:, i + 1 + self.num_osc:]
-                    ], -1
-                ),
+                z
                 self.weights[i,:].repeat(batch_size, 1)
             ))
         out = torch.sum(torch.stack(out, dim = 1), dim = -1)
