@@ -254,6 +254,7 @@ class Learner:
         f = h5py.File(os.path.join(self.datapath, 'data.hdf5'), 'r')
         X = f['X']
         index = np.random.randint(low = 0, high = X.shape[0])
+        index = 0
         env._set_goal(X[index][:6])
         print(X[index][:6])
         while steps < params['MAX_STEPS']:

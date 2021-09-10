@@ -4,6 +4,15 @@ from tqdm import tqdm
 from constants import params
 import shutil
 
+def remove(path):
+    """ param <path> could either be relative or absolute. """
+    if os.path.isfile(path) or os.path.islink(path):
+        os.remove(path)  # remove the file
+    elif os.path.isdir(path):
+        shutil.rmtree(path)  # remove dir and all contains
+    else:
+        raise ValueError("file {} is not a file or dir.".format(path))
+
 def _concat_results(datapath1, datapath2):
     info1 = pd.read_csv(os.path.join(
         datapath1,

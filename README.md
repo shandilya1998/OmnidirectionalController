@@ -131,6 +131,16 @@ python3 supervised_llc.py --experiment $EXPERIMENT --datapath $DATAPATH
 rm "$LOGDIR.zip"
 zip -r "$LOGDIR.zip" "$LOGDIR/"
 ```
+
+---
+**NOTE**
+Use the following command to record screen to capture outputs. Ensure x11grab
+is enabled
+```
+ffmpeg -video_size 1920x1080 -framerate 25 -f x11grab -i :1.0 output.mp4
+```
+---
+
 ### Results V3
 #### Experiment 1
 - Feedforward fully connected network with the following number of units in each layer was used- `256, 1024, 1024, 512, 32, 16`.
@@ -150,4 +160,6 @@ zip -r "$LOGDIR.zip" "$LOGDIR/"
 - Batch Size: 500
 - Maximum Epoch Size: 200
 - Exponentially decreasing Learning Rate starting at 0.0001 decreasing by a factor of `gamma` = 0.9 every `scheduler_update_freq` = 5 epochs
+
+
 

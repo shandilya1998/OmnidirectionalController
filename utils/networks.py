@@ -371,7 +371,7 @@ class CoupledHopfStep(torch.nn.Module):
         batch_size = z.shape[0]
         for i in range(self.num_osc):
             out.append(_complex_multiply(
-                z
+                z,
                 self.weights[i,:].repeat(batch_size, 1)
             ))
         out = torch.sum(torch.stack(out, dim = 1), dim = -1)

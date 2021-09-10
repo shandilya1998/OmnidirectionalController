@@ -9,7 +9,7 @@ import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils import convert_observation_to_space
+from utils.torch_utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef, _coupled_hopf_step
 from reward import FitnessFunctionV2
 import copy
@@ -344,8 +344,11 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
                     z.append(self.z.copy())
                 else:
                     z.append(self._track_item['z'][0].copy())
+        out = pos
+        if params['observation_version'] == 1:
+            out += z
         ob = {
-            'observation' : np.concatenate(pos + z, -1),
+            'observation' : np.concatenate(out, -1),
             'desired_goal' : self.desired_goal.copy(),
             'achieved_goal' : self.achieved_goal.copy(),
             'z' : self.z.copy()
@@ -433,32 +436,12 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
             out.append((-0.35 * knee  + 1.3089) * direction)
         out = np.array(out, dtype = np.float32)
         return out, self.w.max()
-
-    def _parse_weights(self, weight_vector):
-        out = np.zeros(
-            (self._num_legs, self._num_legs),
-            dtype = np.float32
-        )
-        out[0][1] = weight_vector[0]
-        out[1][0] = -weight_vector[0]
-        out[0][2] = weight_vector[1]
-        out[2][0] = -weight_vector[1]
-        out[0][3] = weight_vector[2]
-        out[3][0] = -weight_vector[2]
-        out[1][2] = weight_vector[3]
-        out[2][1] = -weight_vector[3]
-        out[1][3] = weight_vector[4]
-        out[3][2] = -weight_vector[4]
-        out[2][3] = weight_vector[5]
-        out[3][2] = -weight_vector[5]
-        return out
-    
+ 
     def do_simulation(self, action, n_frames, callback=None):
-        #print(self._n_steps)
         self.action = action
         self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
-        self.weights = self._parse_weights(self.action[8:])
+        self.z = self.action[8:]
         timer_omega = np.abs(self.omega[0])
         counter = 0
         """
@@ -633,7 +616,7 @@ class QuadrupedV4(QuadrupedV3):
             verbose = verbose
         )
 
-     def _get_joint_pos(self):
+    def _get_joint_pos(self):
         out = []
         self.z, self.w = _coupled_hopf_step(
             self.omega, self.mu, self.z,
@@ -653,12 +636,31 @@ class QuadrupedV4(QuadrupedV3):
         out = np.array(out, dtype = np.float32)
         return out, self.w.max()
 
+    def _parse_weights(self, weight_vector):
+        out = np.zeros(
+            (self._num_legs, self._num_legs),
+            dtype = np.float32
+        )
+        out[0][1] = weight_vector[0]
+        out[1][0] = -weight_vector[0]
+        out[0][2] = weight_vector[1]
+        out[2][0] = -weight_vector[1]
+        out[0][3] = weight_vector[2]
+        out[3][0] = -weight_vector[2]
+        out[1][2] = weight_vector[3]
+        out[2][1] = -weight_vector[3]
+        out[1][3] = weight_vector[4]
+        out[3][2] = -weight_vector[4]
+        out[2][3] = weight_vector[5]
+        out[3][2] = -weight_vector[5]
+        return out
+
     def do_simulation(self, action, n_frames, callback=None):
         #print(self._n_steps)
         self.action = action
         self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
-        self.z = self.action[8:]
+        self.weights = self._parse_weights(self.action[8:])
         timer_omega = np.abs(self.omega[0])
         counter = 0
         """

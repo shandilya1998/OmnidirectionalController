@@ -4,19 +4,19 @@ import numpy as np
 from constants import params
 from gym.envs.mujoco import mujoco_env
 import random
-from gym import utils, error
+from gym import error
 import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils import convert_observation_to_space
+from utils.torch_utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
 import tempfile
 
-class Quadruped(gym.GoalEnv, utils.EzPickle):
+class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(self,
                  model_path = 'ant.xml',
                  frame_skip = 5,
@@ -37,7 +37,7 @@ class Quadruped(gym.GoalEnv, utils.EzPickle):
                  obstacles = False,
                  verbose = 0):
         gym.Env.__init__(self)
-        utils.EzPickle.__init__(self)
+        gym.utils.EzPickle.__init__(self)
         self._reward = 0.0
         self.camera_name = params['camera_name']
         self._track_lst = track_lst

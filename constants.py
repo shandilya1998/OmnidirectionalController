@@ -5,7 +5,7 @@ import os
 
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
-cpg_param_size = 12 #16 v1 to v5 
+cpg_param_size = 16 #16 v1 to v5 
 input_size = 212 # 212 # 132 # 132 is size for results v 3
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
@@ -445,7 +445,8 @@ params.update({
     'memory_size'                 : 10,
     'data_gen_granularity'        : 350,
     'window_size'                 : 250,
-    'scheduler_update_freq'       : 5
+    'scheduler_update_freq'       : 5,
+    'observation_version'         : 1,
 })
 
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']

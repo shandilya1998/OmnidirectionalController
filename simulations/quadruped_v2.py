@@ -9,7 +9,8 @@ import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils import convert_observation_to_space, data_generator
+from utils.torch_utils import convert_observation_to_space
+from utils import data_generator
 from simulations.quadruped import Quadruped
 import pandas as pd
 
