@@ -292,7 +292,7 @@ def _get_weights(init_gamma):
     dim2 = [1, 2, 3, 2, 3, 3]
     out = []
     for i in range(6):
-        out.append(2 * np.pi * (init_gamma[dim1] - init_gamma[dim2]))
+        out.append(2 * np.pi * (init_gamma[dim1[i]] - init_gamma[dim2[i]]))
     return np.array(out, dtype = np.float32)
 
 def create_training_data_v4(logdir, datapath):
@@ -311,9 +311,9 @@ def create_training_data_v4(logdir, datapath):
     init_gamma = {}
     heading_ctrl = {}
     count = 0
-    for gait in gait_list:
-        for task in task_list:
-            for direction in direction_list:
+    for gait in params['gait_list']:
+        for task in params['task_list']:
+            for direction in params['direction_list']:
                 if not (gait not in ['ds_crawl', 'ls_crawl'] and task == 'rotate') and \
                     not (direction not in ['right', 'left'] and task == 'rotate') and \
                     not (direction not in ['right', 'left'] and task == 'turn'):
@@ -322,7 +322,7 @@ def create_training_data_v4(logdir, datapath):
                         gait = gait,
                         task = task,
                         direction = direction,
-                        track_list = params['track_list']
+                        track_lst = params['track_list']
                     )
                     ig, hc = env._get_init_gamma(
                         gait = gait,
@@ -399,12 +399,19 @@ def create_training_data_v4(logdir, datapath):
                 raise ValueError('Expected one of `straight`, `turn` or `rotate`, \
                         got {}'.format(task))
             count += 1
-            X.append(np.concatenate([
-                x.copy(),
-                data['achieved_goal'][step],
-                pos,
-                z
-            ], -1))
+            if params['observation_version'] == 1:
+                X.append(np.concatenate([
+                    x.copy(),
+                    data['achieved_goal'][step],
+                    pos,
+                    z
+                ], -1))
+            elif params['observation_version'] == 0:
+                X.append(np.concatenate([
+                    x.copy(),
+                    data['achieved_goal'][step],
+                    pos,
+                ], -1))
 
         X = np.stack(X, 0)
         Y = np.stack(Y, 0)
