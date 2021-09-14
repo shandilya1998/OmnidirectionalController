@@ -165,13 +165,12 @@ def _coupling(z, weights, units_osc):
         d = indices.pop(i)
         x1.append(z[indices])
     x1 = np.stack(x1, axis = 0)
-    out = np.multiply(np.repeat(z, units_osc, 0), weights)
+    out = np.multiply(np.repeat(np.expand_dims(z, 0), units_osc, 0), weights)
     out = np.sum(out, axis = -1)
     return out
 
-
 def _coupled_hopf_step(omega, mu, z, weights, dt = 0.001):
-    units_osc = z.shape[-1]
+    units_osc = z.shape[-1] // 2
     x, y = np.split(z, 2, -1) 
     r = np.sqrt(np.square(x) + np.square(y))
     phi = np.arctan2(y,x)
@@ -190,7 +189,7 @@ def _coupled_hopf_step(omega, mu, z, weights, dt = 0.001):
 
 
 def _coupled_mod_hopf_step(omega, mu, z, C, degree, weights, dt = 0.001):
-    units_osc = z.shape[-1]
+    units_osc = z.shape[-1] // 2
     x, y = np.split(z, 2, -1) 
     r = np.sqrt(np.square(x) + np.square(y))
     phi = np.arctan2(y,x)
@@ -209,6 +208,9 @@ def _coupled_mod_hopf_step(omega, mu, z, C, degree, weights, dt = 0.001):
     y = r * np.sin(phi)
     z = np.concatenate([x, y], -1) 
     return z, w
+
+def test_coupled_mod_hopf(units_osc, omega, mu, z, C, degree, weights, dt = 0.001): 
+    return True
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

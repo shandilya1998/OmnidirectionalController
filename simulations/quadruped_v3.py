@@ -10,7 +10,7 @@ import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils.torch_utils import convert_observation_to_space
-from oscillator import hopf_step, _get_polynomial_coef, _coupled_hopf_step
+from oscillator import hopf_step, _get_polynomial_coef, _coupled_mod_hopf_step
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
@@ -618,9 +618,9 @@ class QuadrupedV4(QuadrupedV3):
 
     def _get_joint_pos(self):
         out = []
-        self.z, self.w = _coupled_hopf_step(
+        self.z, self.w = _coupled_mod_hopf_step(
             self.omega, self.mu, self.z,
-            self.C, self.weights, params['degree']
+            self.C, params['degree'], self.weights
         )
         out = []
         for i in range(self._num_legs):
@@ -639,20 +639,22 @@ class QuadrupedV4(QuadrupedV3):
     def _parse_weights(self, weight_vector):
         out = np.zeros(
             (self._num_legs, self._num_legs),
-            dtype = np.float32
+            dtype = np.complex64
         )
-        out[0][1] = weight_vector[0]
-        out[1][0] = -weight_vector[0]
-        out[0][2] = weight_vector[1]
-        out[2][0] = -weight_vector[1]
-        out[0][3] = weight_vector[2]
-        out[3][0] = -weight_vector[2]
-        out[1][2] = weight_vector[3]
-        out[2][1] = -weight_vector[3]
-        out[1][3] = weight_vector[4]
-        out[3][2] = -weight_vector[4]
-        out[2][3] = weight_vector[5]
-        out[3][2] = -weight_vector[5]
+        out[0][1] = np.exp(1j*weight_vector[0])
+        out[1][0] = np.exp(-1j*weight_vector[0])
+        out[0][2] = np.exp(1j*weight_vector[1])
+        out[2][0] = np.exp(-1j*weight_vector[1])
+        out[0][3] = np.exp(1j*weight_vector[2])
+        out[3][0] = np.exp(-1j*weight_vector[2])
+        out[1][2] = np.exp(1j*weight_vector[3])
+        out[2][1] = np.exp(-1j*weight_vector[3])
+        out[1][3] = np.exp(1j*weight_vector[4])
+        out[3][2] = np.exp(-1j*weight_vector[4])
+        out[2][3] = np.exp(1j*weight_vector[5])
+        out[3][2] = np.exp(-1j*weight_vector[5])
+        out = out * params['coupling_strength']
+        out = np.concatenate([np.real(out), np.imag(out)], -1)
         return out
 
     def do_simulation(self, action, n_frames, callback=None):

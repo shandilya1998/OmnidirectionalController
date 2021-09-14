@@ -359,20 +359,14 @@ class CoupledHopfStep(torch.nn.Module):
         super(CoupledHopfStep, self).__init__()
         self.num_osc = num_osc
         self.dr = 0.001
-        self.weights = torch.nn.Parameter(
-            torch.Tensor(num_osc, 2 * num_osc)
-        )
 
-        # initialize weights and biases
-        torch.nn.init.kaiming_uniform_(self.weights) # weight init
-
-    def forward(self, omega, mu, z):
+    def forward(self, omega, mu, z, weights):
         out = []
         batch_size = z.shape[0]
         for i in range(self.num_osc):
             out.append(_complex_multiply(
                 z,
-                self.weights[i,:].repeat(batch_size, 1)
+                weights[i,:].repeat(batch_size, 1)
             ))
         out = torch.sum(torch.stack(out, dim = 1), dim = -1)
         r = mu - torch.square(
@@ -385,4 +379,32 @@ class CoupledHopfStep(torch.nn.Module):
         z = z + self.dt * torch.mul(r, z) + \
             _iota_multiply(torch.mul(omega, z), num_osc) + out
         return z
-        return z
+
+
+class HopfEnsemble(torch.nn.Module):
+    def __init__(self, units_osc, N):
+        self.num_osc = num_osc
+        self.N = N
+        self.step = CoupledHopfStep(self.num_osc)
+        lst = []
+        input_size = self.num_osc * (self.num_osc - 1) // 2
+        for units in params['weights_net_units']:
+            lst.append(torch.nn.Linear(input_size, units))
+            input_size = units
+            lst.append(torch.nn.PReLU())
+        lst.append(torch.nn.Linear(
+            input_size,
+            self.num_osc * self.num_osc * 2
+        ))
+        lst.append(torch.nn.Unflatten(1, torch.Size([self.num_osc, 2 * self.num_osc])))
+        self.weight_net = torch.nn.Sequential(
+            **lst
+        )
+
+    def forward(self, omega, mu, z, phase):
+        out = []
+        weights = self.weight_net(phase)
+        for i in range(self.N):
+            out.append(self.step(omega, mu, z, weights))
+        out = torch.stack(out, 0)
+        return out

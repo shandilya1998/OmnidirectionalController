@@ -446,9 +446,31 @@ params.update({
     'data_gen_granularity'        : 350,
     'window_size'                 : 100,
     'scheduler_update_freq'       : 5,
-    'observation_version'         : 1,
+    'observation_version'         : 0,
     'max_epoch_size'              : 100,
+    'env_version'                 : 1,
+    'coupling_strength'           : 0.001,
+    'weight_net_units'            : [256, 512, 1024, 512, 256]
 })
+
+if params['observation_version'] == 0:
+    params['input_size_low_level_control'] = 132
+elif params['observation_version'] == 1:
+    params['input_size_low_level_control'] = 212
+else:
+    raise ValueError(
+        'Expected one of `0` or `1`, got {}'.format(params['obervation_version'])
+    )
+
+if params['env_version'] == 0:
+    params['cpg_param_size'] = 16
+elif params['env_version'] == 1:
+    params['cpg_param_size'] = 14
+else:
+    raise ValueError(
+        'Expected one of `0` or `1`, got {}'.format(params['env_version'])
+    )
+
 
 params['gait_list'] = ['trot', 'ds_crawl', 'ls_crawl']
 params['task_list'] = ['straight', 'rotate', 'turn']

@@ -7,7 +7,7 @@ import shutil
 import argparse
 from torch.utils import tensorboard
 from tqdm import tqdm
-from simulations import QuadrupedV3
+from simulations import QuadrupedV3, QuadrupedV4
 import numpy as np
 import h5py
 
@@ -250,7 +250,15 @@ class Learner:
         print('model loaded')
 
     def _test(self, seed = 42):
-        env = QuadrupedV3()
+        env = None 
+        if params['env_version'] == 0:
+            env = QuadrupedV3()
+        if params['env_version'] == 1:
+            env = QuadrupedV4()
+        else:
+            raise ValueError(
+                'Expected one of `0` or `1`, got {}'.format(params['env_version'])
+            )
         ob = env.reset()
         steps = 0
         f = h5py.File(os.path.join(self.datapath, 'data.hdf5'), 'r')
