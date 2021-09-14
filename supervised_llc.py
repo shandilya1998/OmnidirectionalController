@@ -140,6 +140,8 @@ class Learner:
             epoch_loss += loss
             self._step += 1
             self._n_step += 1
+            if self._step > params['max_epoch_size']:
+                break
         if (self._epoch + 1) % params['scheduler_update_freq'] == 0:
             self._scheduler.step()
         return epoch_loss
@@ -247,14 +249,14 @@ class Learner:
         self._model = torch.load(path, map_location = device)
         print('model loaded')
 
-    def _test(self):
+    def _test(self, seed = 42):
         env = QuadrupedV3()
         ob = env.reset()
         steps = 0
         f = h5py.File(os.path.join(self.datapath, 'data.hdf5'), 'r')
         X = f['X']
-        index = np.random.randint(low = 0, high = X.shape[0])
-        index = 0
+        prng = np.random.RandomState(seed)
+        index = prng.randint(low = 0, high = X.shape[0])
         env._set_goal(X[index][:6])
         print(X[index][:6])
         while steps < params['MAX_STEPS']:
@@ -279,6 +281,11 @@ if __name__ == '__main__':
         '--test',
         nargs='?', type = int, const = 1,
         help = 'choice to use script in test or training mode'
+    )
+    parser.add_argument(
+        '--seed',
+        nargs='?', type = int, const = 1, default = 42,
+        help = 'value of seed to use in test mode'
     )
     parser.add_argument(
         '--datapath',
@@ -308,4 +315,4 @@ if __name__ == '__main__':
         logger = tensorboard.SummaryWriter(os.path.join(logdir, 'exp{}'.format(str(args.experiment)), 'tensorboard'))
         learner = Learner(logdir, args.datapath, logger)
         learner._load_model(os.path.join(logdir, 'exp{}'.format(args.experiment),'controller.pth'))
-        learner._test()
+        learner._test(args.seed)
