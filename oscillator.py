@@ -190,8 +190,8 @@ def test_driven_mod_hopf(plot_path, N, phase, omega, mu, z, dt = 0.001):
     W = []
     z_ = z.copy()
     F = np.concatenate([
-        np.expand_dims(np.cos(4 * omega * T + phase), -1),
-        np.expand_dims(np.sin(4 * omega * T + phase), -1)
+        np.expand_dims(np.sin(4 * omega * T + phase), -1),
+        np.zeros((N, 1))
     ], -1)
     for i in tqdm(range(N)):
         z_, w = hopf_step(omega, mu, z_, C, degree, dt)
@@ -257,15 +257,15 @@ def test_driven_mod_hopf(plot_path, N, phase, omega, mu, z, dt = 0.001):
     axes[1][0].set_title('Phase Space',fontsize=15)
     axes[1][0].legend()
     axes[1][1].plot(
-        T[:num_steps],
-        np.arctan2(Z[:num_steps, 0], Z[:num_steps, 1]),
+        T[-num_steps:],
+        np.arctan2(Z[-num_steps:, 0], Z[:num_steps, 1]),
         linestyle = ':',
         color = 'r',
         label = 'v2'
     )
     axes[1][1].plot(
-        T[:num_steps],
-        np.arctan2(F[:num_steps, 0], F[:num_steps, 1]),
+        T[-num_steps:],
+        np.arctan2(F[-num_steps:, 0], F[:num_steps, 1]),
         linestyle = ':',
         color = 'b',
         label = 'v1'
@@ -274,7 +274,7 @@ def test_driven_mod_hopf(plot_path, N, phase, omega, mu, z, dt = 0.001):
     axes[1][1].set_ylabel('phase (radians)',fontsize=15)
     axes[1][1].set_title('Trend in Phase',fontsize=15)
     axes[1][1].legend()
-    fig.savefig(os.path.join(plot_path, 'mod_oscillator_v1_forced_complex.png'))
+    fig.savefig(os.path.join(plot_path, 'mod_oscillator_v1_forced_real.png'))
     plt.show()
     plt.close('all')
 
