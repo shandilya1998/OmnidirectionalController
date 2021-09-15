@@ -380,7 +380,6 @@ class CoupledHopfStep(torch.nn.Module):
             _iota_multiply(torch.mul(omega, z), num_osc) + out
         return z
 
-
 class HopfEnsemble(torch.nn.Module):
     def __init__(self, units_osc, N):
         self.num_osc = num_osc

@@ -158,6 +158,228 @@ def hopf_step(omega, mu, z, C, degree, dt = 0.001):
     z = np.concatenate([x, y], -1)
     return z, w
 
+def _get_omega_choice_v2(phi):
+    return np.sin(phi / 2)
+
+def hopf_step_v2(omega, mu, z, C, degree, dt = 0.001):
+    units_osc = z.shape[-1]
+    x, y = np.split(z, 2, -1) 
+    r = np.sqrt(np.square(x) + np.square(y))
+    phi = np.arctan2(y,x)
+    beta = _get_beta(omega, C, degree)
+    mean = np.abs(1 / (2 * beta * (1 - beta)))
+    amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
+    w = 2 * np.abs(omega) * (mean + amplitude * _get_omega_choice_v2(phi))
+    #print(w)
+    """ 
+        [-pi, 0] - stance phase
+        [0, pi] - swing phase
+    """
+    phi = phi + dt * w 
+    r = r + dt * (mu - r ** 2) * r 
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.concatenate([x, y], -1) 
+    return z, w
+
+def test_driven_mod_hopf(plot_path, N, phase, omega, mu, z, dt = 0.001):
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
+    degree = params['degree']
+    T = np.arange(N, dtype = np.float32) * dt
+    Z = []
+    W = []
+    z_ = z.copy()
+    F = np.concatenate([
+        np.expand_dims(np.cos(4 * omega * T + phase), -1),
+        np.expand_dims(np.sin(4 * omega * T + phase), -1)
+    ], -1)
+    for i in tqdm(range(N)):
+        z_, w = hopf_step(omega, mu, z_, C, degree, dt)
+        z_ += dt * F[i, :]
+        Z.append(z_.copy())
+        W.append(w.copy())
+    Z = np.stack(Z, 0)
+    W = np.stack(W, 0)
+    num_steps = int(2 * np.pi / (1.6 * dt))
+    fig, axes = plt.subplots(2,2, figsize = (12,12))
+    axes[0][0].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 0], 
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )   
+    axes[0][0].plot(
+        T[-num_steps:],
+        F[-num_steps:, 0], 
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )   
+    axes[0][0].set_xlabel('time (s)',fontsize=15)
+    axes[0][0].set_ylabel('real part',fontsize=15)
+    axes[0][0].set_title('Trend in Real Part',fontsize=15)
+    axes[0][0].legend()
+    axes[0][1].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 1], 
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )   
+    axes[0][1].plot(
+        T[-num_steps:],
+        F[-num_steps:, 1], 
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )   
+    axes[0][1].set_xlabel('time (s)',fontsize=15)
+    axes[0][1].set_ylabel('imaginary part',fontsize=15)
+    axes[0][1].set_title('Trend in Imaginary Part',fontsize=15)
+    axes[0][1].legend()
+    axes[1][0].plot(
+        Z[:, 0], 
+        Z[:, 1], 
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )   
+    axes[1][0].plot(
+        F[:, 0], 
+        F[:, 1], 
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )   
+    axes[1][0].set_xlabel('real part',fontsize=15)
+    axes[1][0].set_ylabel('imaginary part',fontsize=15)
+    axes[1][0].set_title('Phase Space',fontsize=15)
+    axes[1][0].legend()
+    axes[1][1].plot(
+        T[:num_steps],
+        np.arctan2(Z[:num_steps, 0], Z[:num_steps, 1]),
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[1][1].plot(
+        T[:num_steps],
+        np.arctan2(F[:num_steps, 0], F[:num_steps, 1]),
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[1][1].set_xlabel('time (s)',fontsize=15)
+    axes[1][1].set_ylabel('phase (radians)',fontsize=15)
+    axes[1][1].set_title('Trend in Phase',fontsize=15)
+    axes[1][1].legend()
+    fig.savefig(os.path.join(plot_path, 'mod_oscillator_v1_forced_complex.png'))
+    plt.show()
+    plt.close('all')
+
+def test_mod_hopf_v2(plot_path, N, omega, mu, z, dt = 0.001):
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
+    degree = params['degree']
+    Z = []
+    W = []
+    z_ = z.copy()
+    for i in tqdm(range(N)):
+        z_, w = hopf_step_v2(omega, mu, z_, C, degree, dt)
+        Z.append(z_.copy())
+        W.append(w.copy())
+    Z = np.stack(Z, 0)
+    W = np.stack(W, 0)
+
+    Z_ = []
+    W_ = []
+    z_ = z.copy()
+    for i in tqdm(range(N)):
+        z_, w_ = hopf_step(omega, mu, z_, C, degree, dt)
+        Z_.append(z_.copy())
+        W_.append(w_.copy())
+    Z_ = np.stack(Z_, 0)
+    W_ = np.stack(W_, 0)
+    T = np.arange(N, dtype = np.float32) * dt
+    num_steps = int(2 * np.pi / (1.6 * dt))
+    fig, axes = plt.subplots(2,2, figsize = (12,12))
+    axes[0][0].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 0],
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[0][0].plot(
+        T[-num_steps:],
+        Z_[-num_steps:, 0],
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[0][0].set_xlabel('time (s)',fontsize=15)
+    axes[0][0].set_ylabel('real part',fontsize=15)
+    axes[0][0].set_title('Trend in Real Part',fontsize=15)
+    axes[0][0].legend()
+    axes[0][1].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 1],
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[0][1].plot(
+        T[-num_steps:],
+        Z_[-num_steps:, 1],
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[0][1].set_xlabel('time (s)',fontsize=15)
+    axes[0][1].set_ylabel('imaginary part',fontsize=15)
+    axes[0][1].set_title('Trend in Imaginary Part',fontsize=15)
+    axes[0][1].legend()
+    axes[1][0].plot(
+        Z[:, 0],
+        Z[:, 1],
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[1][0].plot(
+        Z_[:, 0],
+        Z_[:, 1],
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[1][0].set_xlabel('real part',fontsize=15)
+    axes[1][0].set_ylabel('imaginary part',fontsize=15)
+    axes[1][0].set_title('Phase Space',fontsize=15)
+    axes[1][0].legend()
+    axes[1][1].plot(
+        T[:num_steps],
+        np.arctan2(Z[:num_steps, 0], Z[:num_steps, 1]),
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[1][1].plot(
+        T[:num_steps],
+        np.arctan2(Z_[:num_steps, 0], Z_[:num_steps, 1]),
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[1][1].set_xlabel('time (s)',fontsize=15)
+    axes[1][1].set_ylabel('phase (radians)',fontsize=15)
+    axes[1][1].set_title('Trend in Phase',fontsize=15)
+    axes[1][1].legend()
+    fig.savefig(os.path.join(plot_path, 'mod_oscillator_v2.png'))
+    plt.show()
+    plt.close('all')
+
+
 def _coupling(z, weights, units_osc):
     x1 = []
     for i in range(units_osc):
@@ -209,8 +431,123 @@ def _coupled_mod_hopf_step(omega, mu, z, C, degree, weights, dt = 0.001):
     z = np.concatenate([x, y], -1) 
     return z, w
 
-def test_coupled_mod_hopf(units_osc, omega, mu, z, C, degree, weights, dt = 0.001): 
-    return True
+def _parse_weights(phase_vector, units_osc):
+    out = np.zeros(
+        (units_osc, units_osc),
+        dtype = np.complex64
+    )   
+    out[0][1] = np.exp(1j*phase_vector[0])
+    out[1][0] = np.exp(-1j*phase_vector[0])
+    out[0][2] = np.exp(1j*phase_vector[1])
+    out[2][0] = np.exp(-1j*phase_vector[1])
+    out[0][3] = np.exp(1j*phase_vector[2])
+    out[3][0] = np.exp(-1j*phase_vector[2])
+    out[1][2] = np.exp(1j*phase_vector[3])
+    out[2][1] = np.exp(-1j*phase_vector[3])
+    out[1][3] = np.exp(1j*phase_vector[4])
+    out[3][2] = np.exp(-1j*phase_vector[4])
+    out[2][3] = np.exp(1j*phase_vector[5])
+    out[3][2] = np.exp(-1j*phase_vector[5])
+    out = out * params['coupling_strength']
+    out = np.concatenate([np.real(out), np.imag(out)], -1) 
+    return out 
+
+def _coupled_mod_hopf(units_osc, N, omega, mu, z, C, degree, phase, dt = 0.001): 
+    Z = []
+    W = []
+    weights = _parse_weights(phase, units_osc)
+    for i in tqdm(range(N)):
+        z, w = _coupled_mod_hopf_step(omega, mu, z, C, degree, weights, dt)
+        Z.append(z)
+        W.append(z)
+    Z = np.stack(Z, 0)
+    W = np.stack(W, 0)
+    return Z, W
+
+def _plot_coupled_hopf_mod(plot_path, units_osc, N, phase, omega, mu, dt = 0.001):
+    T = np.arange(N, dtype = np.float32) * dt
+    z = np.concatenate([np.ones(units_osc), np.zeros(units_osc)], -1)
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50)
+    Z_mod, W = _coupled_mod_hopf(units_osc, N, omega, mu, z, C, params['degree'], phase, dt)
+    num_steps = int(2 * np.pi / (1.6 * dt))
+    color = plt.cm.rainbow(np.linspace(0, 1, units_osc))
+    fig, axes = plt.subplots(units_osc,4, figsize = (24,24))
+    for i, c in tqdm(zip(range(units_osc), color)):
+        axes[i][0].plot(
+            T[-num_steps:],
+            Z_mod[-num_steps:, i],
+            color = c,
+            linestyle = '--'
+        )
+        axes[i][0].set_xlabel('time (s)')
+        axes[i][0].set_ylabel('real part')
+        axes[i][0].set_title('Trend in Real Part')
+        axes[i][0].grid()
+        axes[i][1].plot(
+            T[-num_steps:],
+            -np.maximum(-Z_mod[-num_steps:, i + units_osc], 0),
+            color = c,
+            linestyle = '--'
+        )
+        axes[i][1].set_xlabel('time (s)')
+        axes[i][1].set_ylabel('imaginary part')
+        axes[i][1].set_title('Trend in Imaginary Part')
+        axes[i][1].grid()
+        axes[i][2].plot(
+            Z_mod[:, i],
+            Z_mod[:, i + units_osc],
+            color = c,
+            linestyle = '--'
+        )
+        axes[i][2].set_xlabel('real part')
+        axes[i][2].set_ylabel('imaginary part')
+        axes[i][2].set_title('Phase Space')
+        axes[i][2].grid()
+        axes[i][3].plot(
+            T[-num_steps:],
+            np.arctan2(Z_mod[-num_steps:, i], Z_mod[-num_steps:, i + units_osc]),
+            color = c,
+            linestyle = '--'
+        )
+        axes[i][3].set_xlabel('time (s)')
+        axes[i][3].set_ylabel('phase (radian)')
+        axes[i][3].set_title('Trend in Phase')
+        axes[i][3].grid()
+    fig.savefig(os.path.join(plot_path, 'phase_comparison.png'))
+    plt.show()
+    print('Done.')
+    print('Thank You.')
+
+def _test_coupled_mod_hopf():
+    plot_path = 'assets/out'
+    units_osc = 4
+    N = 10000
+    phase = np.array([0.25,0.5,0.75,0.25,0.5,0.25], dtype = np.float32)
+    omega = np.array([1.6, 1.6, 1.6, 1.6], dtype = np.float32)
+    mu = np.array([1, 1, 1, 1], dtype = np.float32)
+    dt = 0.001
+    _plot_coupled_hopf_mod(plot_path, units_osc, N, phase, omega, mu, dt)
+
+def _forced_mod_hopf_step(omega, mu, z, C, degree, weights, dt = 0.001):
+    units_osc = z.shape[-1] // 2
+    x, y = np.split(z, 2, -1) 
+    r = np.sqrt(np.square(x) + np.square(y))
+    phi = np.arctan2(y,x)
+    beta = _get_beta(omega, C, degree)
+    mean = np.abs(1 / (2 * beta * (1 - beta)))
+    amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
+    w = 2 * np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
+    #print(w)
+    """ 
+        [-pi, 0] - stance phase
+        [0, pi] - swing phase
+    """
+    phi = phi + dt * w 
+    r = r + dt * (mu - r ** 2) * r + _coupling(z, weights, units_osc)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.concatenate([x, y], -1) 
+    return z, w
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
