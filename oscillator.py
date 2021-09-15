@@ -139,7 +139,13 @@ def hopf_mod(omega, mu, z, C, degree, N = 10000, dt = 0.001):
 
 def coupled_hopf_step(omega, mu, z, weights, dt = 0.001):
     units_osc = z.shape[-1]
-    coupling = np.multiply(np.repeat(np.expand_dims(z, 0), units_osc, 0), weights)
+    coupling = []
+    for i in range(units_osc):
+        coupling.append(complex_multiply(
+            z,
+            weights[i, :]
+        ))
+    coupling = np.stack(coupling, 0)
     coupling = np.concatenate([
         np.sum(coupling[:, :units_osc], 0),
         np.sum(coupling[:, units_osc:], 0)

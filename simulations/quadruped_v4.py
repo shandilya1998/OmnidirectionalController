@@ -471,6 +471,9 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
         return out, self.w.max()
 
     def _parse_weights(self, weight_vector):
+        """
+            Need to modify this method
+        """
         out = np.zeros(
             (self._num_legs, self._num_legs),
             dtype = np.complex64
