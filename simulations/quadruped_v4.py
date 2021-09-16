@@ -10,7 +10,9 @@ import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils.torch_utils import convert_observation_to_space
-from oscillator import hopf_step, _get_polynomial_coef, _coupled_mod_hopf_step, coupled_hopf_step
+from oscillator import hopf_step, _get_polynomial_coef, \
+    _coupled_mod_hopf_step, simple_hopf_step, \
+    complex_multiply 
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
@@ -436,11 +438,10 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
         return self._track_item
 
     def cpg(self):
-        z1 = coupled_hopf_step(
+        z1 = simple_hopf_step(
             self.omega,
             self.mu,
             self.z1,
-            self.weights,
             self.dt
         )
         z2, w = hopf_step(
@@ -450,7 +451,14 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
             self.C, paramsp'degree'],
             self.dt
         )
-        z2 += z1
+        phase = np.concatenate([
+            np.cos(self.phase),
+            np.sin(self.phase)
+        ], -1)
+        z2 += params['coupling_strength'] * complex_multiply(
+            phase,
+            z1
+        ) * self.dt
         return z2, z1, w
 
     def _get_joint_pos(self):
@@ -470,35 +478,11 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
         out = np.array(out, dtype = np.float32)
         return out, self.w.max()
 
-    def _parse_weights(self, weight_vector):
-        """
-            Need to modify this method
-        """
-        out = np.zeros(
-            (self._num_legs, self._num_legs),
-            dtype = np.complex64
-        )   
-        out[0][1] = np.exp(1j*weight_vector[0])
-        out[1][0] = np.exp(-1j*weight_vector[0])
-        out[0][2] = np.exp(1j*weight_vector[1])
-        out[2][0] = np.exp(-1j*weight_vector[1])
-        out[0][3] = np.exp(1j*weight_vector[2])
-        out[3][0] = np.exp(-1j*weight_vector[2])
-        out[1][2] = np.exp(1j*weight_vector[3])
-        out[2][1] = np.exp(-1j*weight_vector[3])
-        out[1][3] = np.exp(1j*weight_vector[4])
-        out[3][2] = np.exp(-1j*weight_vector[4])
-        out[2][3] = np.exp(1j*weight_vector[5])
-        out[3][2] = np.exp(-1j*weight_vector[5])
-        out = out * params['coupling_strength']
-        out = np.concatenate([np.real(out), np.imag(out)], -1) 
-        return out
-
     def do_simulation(self, action, n_frames, callback=None):
         self.action = action
         self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
-        self.weights = self._parse_weights(self.action[8:])
+        self.phase = self.action[8:12])
         timer_omega = np.abs(self.omega[0])
         counter = 0
         """

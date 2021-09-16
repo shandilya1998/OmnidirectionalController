@@ -160,6 +160,17 @@ def coupled_hopf_step(omega, mu, z, weights, dt = 0.001):
     z_ = np.concatenate([x, y], -1) + coupling
     return z_
 
+def simple_hopf_step(omega, mu, z, dt = 0.001):
+    x, y = np.split(z, 2, -1)
+    r = np.sqrt(np.square(x) + np.square(y))
+    phi = np.arctan2(y,x)
+    phi = phi + dt * np.abs(omega)
+    r = r + dt * (mu - r ** 2) * r
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z_ = np.concatenate([x, y], -1)
+    return z_
+
 def hopf_step(omega, mu, z, C, degree, dt = 0.001):
     units_osc = z.shape[-1]
     x, y = np.split(z, 2, -1)
