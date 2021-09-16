@@ -278,23 +278,6 @@ def create_training_data_v3(logdir, datapath):
     shutil.rmtree(os.path.join(logdir, 'temp'))
 
 
-
-def _get_weights(init_gamma):
-    """
-        0 - 0 to 1
-        1 - 0 to 2
-        2 - 0 to 3
-        3 - 1 to 2
-        4 - 1 to 3
-        5 - 2 to 3
-    """
-    dim1 = [0, 0, 0, 1, 1, 2]
-    dim2 = [1, 2, 3, 2, 3, 3]
-    out = []
-    for i in range(6):
-        out.append(2 * np.pi * (init_gamma[dim1[i]] - init_gamma[dim2[i]]))
-    return np.array(out, dtype = np.float32)
-
 def create_training_data_v4(logdir, datapath):
     info = pd.read_csv(os.path.join(datapath, 'info.csv'), index_col = 0)
     y_items = ['omega_o', 'mu']
@@ -354,11 +337,9 @@ def create_training_data_v4(logdir, datapath):
             steps = 1
         for step in range(0, length, steps):
             x = np.zeros(6, dtype = np.float32)
-            weights = _get_weights(
-                init_gamma[(gait, task, direction)],
-            )
+            phase = 2 * np.pi * init_gamma[(gait, task, direction)]
             y = np.concatenate(
-                [data[item][step, :] for item in y_items] + [weights], -1
+                [data[item][step, :] for item in y_items] + [phase], -1
             )
             Y.append(y.copy())
             pos = []
@@ -391,8 +372,14 @@ def create_training_data_v4(logdir, datapath):
                     x[0] = np.mean(data['achieved_goal'][:params['window_size'], 0], 0)
                     x[1] = np.mean(data['achieved_goal'][:params['window_size'], 1], 0)
                 else:
-                    x[0] = np.mean(data['achieved_goal'][step - params['window_size']: step, 0], 0)
-                    x[1] = np.mean(data['achieved_goal'][step - params['window_size']: step, 1], 0)
+                    x[0] = np.mean(
+                        data['achieved_goal'][step - params['window_size'] + 1: step + 1, 0],
+                        0
+                    )
+                    x[1] = np.mean(
+                        data['achieved_goal'][step - params['window_size'] + 1: step + 1, 1],
+                        0
+                    )
             elif task == 'rotate':
                 x[-1] = yaw
             else:

@@ -446,7 +446,7 @@ params.update({
     'data_gen_granularity'        : 350,
     'window_size'                 : 100,
     'scheduler_update_freq'       : 5,
-    'observation_version'         : 2,
+    'observation_version'         : 0,
     'max_epoch_size'              : 100,
     'env_version'                 : 1,
     'coupling_strength'           : 1e-2,
@@ -467,7 +467,7 @@ else:
 if params['env_version'] == 0:
     params['cpg_param_size'] = 16
 elif params['env_version'] == 1:
-    params['cpg_param_size'] = 14
+    params['cpg_param_size'] = 12
 else:
     raise ValueError(
         'Expected one of `0` or `1`, got {}'.format(params['env_version'])

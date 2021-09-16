@@ -448,7 +448,7 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
             self.omega,
             self.mu,
             self.z2,
-            self.C, paramsp'degree'],
+            self.C, params['degree'],
             self.dt
         )
         phase = np.concatenate([
@@ -482,7 +482,7 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
         self.action = action
         self.omega = self.action[:4] * np.pi * 2
         self.mu = self.action[4:8]
-        self.phase = self.action[8:12])
+        self.phase = self.action[8:12]
         timer_omega = np.abs(self.omega[0])
         counter = 0
         """
