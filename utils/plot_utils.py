@@ -463,3 +463,6 @@ def plot_train_eval(
     ax.legend()
     fig.savefig(os.path.join(logdir, filename))
 
+
+def plot_ep_goal(logdir, datapath, filename):
+    pass

@@ -444,7 +444,7 @@ params.update({
     'camera_name'                 : 'esp32cam',
     'memory_size'                 : 10,
     'data_gen_granularity'        : 350,
-    'window_size'                 : 100,
+    'window_size'                 : 250,
     'scheduler_update_freq'       : 5,
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
