@@ -4,6 +4,7 @@ from stable_baselines3.common.results_plotter import load_results, ts2xy
 import pandas as pd
 import os
 import shutil
+from constants import params
 
 np.seterr('raise')
 
@@ -464,5 +465,135 @@ def plot_train_eval(
     fig.savefig(os.path.join(logdir, filename))
 
 
-def plot_ep_goal(logdir, datapath, filename):
-    pass
+def plot_ep_goal(logdir, datapath, filename = 'goal_comparison.png'):
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'))
+    index = np.random.randint(0, len(info))
+    print(info.iloc[index])
+    goal = np.load(os.path.join(
+        datapath,
+        'Quadruped_{}_achieved_goal.npy'.format(index)
+    ))
+    data = []
+    T = np.arange(goal.shape[0]) * params['dt']
+    for i in range(goal.shape[0]):
+        if i + 1 < params['window_size'] // 2:
+            data.append(
+                np.mean(
+                    goal[
+                        :params['window_size'] // 2 + i + 1
+                    ], 0
+                )
+            )
+        elif i + 1 < goal.shape[0] - params['window_size'] // 2:
+            data.append(
+                np.mean(goal[
+                    i + 1 - params['window_size'] // 2: i + 1 + params['window_size'] // 2
+                ], 0)
+            )
+        else:
+            data.append(
+                np.mean(goal[
+                    i + 1 - params['window_size']:
+                ], 0)
+            ) 
+    data = np.stack(data, 0)
+    fig, axes = plt.subplots(2, 3, figsize = (18, 12))
+    axes[0][0].plot(T, goal[:, 0], '--b', label = 'achieved goal')
+    axes[0][0].plot(T, data[:, 0], '--r', label = 'desired goal')
+    axes[0][0].set_xlabel('time')
+    axes[0][0].set_ylabel('x speed')
+    axes[0][0].legend()
+    axes[0][1].plot(T, goal[:, 1], '--b', label = 'achieved goal')
+    axes[0][1].plot(T, data[:, 1], '--r', label = 'desired goal')
+    axes[0][1].set_xlabel('time')
+    axes[0][1].set_ylabel('y speed')
+    axes[0][1].legend()
+    axes[0][2].plot(T, goal[:, 2], '--b', label = 'achieved goal')
+    axes[0][2].plot(T, data[:, 2], '--r', label = 'desired goal')
+    axes[0][2].set_xlabel('time')
+    axes[0][2].set_ylabel('z speed')
+    axes[0][2].legend()
+    axes[1][0].plot(T, goal[:, 3], '--b', label = 'achieved goal')
+    axes[1][0].plot(T, data[:, 3], '--r', label = 'desired goal')
+    axes[1][0].set_xlabel('time')
+    axes[1][0].set_ylabel('roll rate')
+    axes[1][0].legend()
+    axes[1][1].plot(T, goal[:, 4], '--b', label = 'achieved goal')
+    axes[1][1].plot(T, data[:, 4], '--r', label = 'desired goal')
+    axes[1][1].set_xlabel('time')
+    axes[1][1].set_ylabel('pitch rate')
+    axes[1][1].legend()
+    axes[1][2].plot(T, goal[:, 5], '--b', label = 'achieved goal')
+    axes[1][2].plot(T, data[:, 5], '--r', label = 'desired goal')
+    axes[1][2].set_xlabel('time')
+    axes[1][2].set_ylabel('yaw rate')
+    axes[1][2].legend()
+    fig.savefig(os.path.join(logdir, filename))
+    plt.show()
+
+def plot_ep_goal_v2(logdir, datapath, filename = 'goal_comparison.png'):
+    info = pd.read_csv(os.path.join(datapath, 'info.csv'))
+    index = np.random.randint(0, len(info))
+    print(info.iloc[index])
+    goal = np.load(os.path.join(
+        datapath,
+        'Quadruped_{}_achieved_goal.npy'.format(index)
+    ))  
+    data = []
+    T = np.arange(goal.shape[0]) * params['dt']
+    params['window_size'] = int(goal.shape[0] * (11 / 24))
+    for i in range(goal.shape[0]):
+        if i + 1 < params['window_size'] // 2:
+            data.append(
+                np.mean(
+                    goal[
+                        :params['window_size'] // 2 + i + 1 
+                    ], 0
+                )   
+            )   
+        elif i + 1 < goal.shape[0] - params['window_size'] // 2:
+            data.append(
+                np.mean(goal[
+                    i + 1 - params['window_size'] // 2: i + 1 + params['window_size'] // 2
+                ], 0)
+            )   
+        else:
+            data.append(
+                np.mean(goal[
+                    i + 1 - params['window_size']:
+                ], 0)
+            )
+    data = np.stack(data, 0)
+    fig, axes = plt.subplots(2, 3, figsize = (18, 12))
+    axes[0][0].plot(T, goal[:, 0], '--b', label = 'achieved goal')
+    axes[0][0].plot(T, data[:, 0], '--r', label = 'desired goal')
+    axes[0][0].set_xlabel('time')
+    axes[0][0].set_ylabel('x speed')
+    axes[0][0].legend()
+    axes[0][1].plot(T, goal[:, 1], '--b', label = 'achieved goal')
+    axes[0][1].plot(T, data[:, 1], '--r', label = 'desired goal')
+    axes[0][1].set_xlabel('time')
+    axes[0][1].set_ylabel('y speed')
+    axes[0][1].legend()
+    axes[0][2].plot(T, goal[:, 2], '--b', label = 'achieved goal')
+    axes[0][2].plot(T, data[:, 2], '--r', label = 'desired goal')
+    axes[0][2].set_xlabel('time')
+    axes[0][2].set_ylabel('z speed')
+    axes[0][2].legend()
+    axes[1][0].plot(T, goal[:, 3], '--b', label = 'achieved goal')
+    axes[1][0].plot(T, data[:, 3], '--r', label = 'desired goal')
+    axes[1][0].set_xlabel('time')
+    axes[1][0].set_ylabel('roll rate')
+    axes[1][0].legend()
+    axes[1][1].plot(T, goal[:, 4], '--b', label = 'achieved goal')
+    axes[1][1].plot(T, data[:, 4], '--r', label = 'desired goal')
+    axes[1][1].set_xlabel('time')
+    axes[1][1].set_ylabel('pitch rate')
+    axes[1][1].legend()
+    axes[1][2].plot(T, goal[:, 5], '--b', label = 'achieved goal')
+    axes[1][2].plot(T, data[:, 5], '--r', label = 'desired goal')
+    axes[1][2].set_xlabel('time')
+    axes[1][2].set_ylabel('yaw rate')
+    axes[1][2].legend()
+    fig.savefig(os.path.join(logdir, filename))
+    plt.show()

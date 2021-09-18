@@ -1,8 +1,8 @@
 #!/bin/sh
 
-LOGDIR="assets/out/results_v2"
+LOGDIR="assets/out/results_v9"
 CLASS="simulations:Quadruped"
-VERSION=1
+VERSION=2
 
 python3 generate_reference.py --log_dir $LOGDIR --env_class $CLASS --version $VERSION
 rm "$LOGDIR.zip"

@@ -1,5 +1,5 @@
 from utils.data_generator import generate_multi_goal_gait_data_v2, \
-    generate_multi_goal_gait_data
+    generate_multi_goal_gait_data, generate_multi_goal_gait_data_v3
 import argparse
 import imp
 from constants import params
@@ -62,6 +62,17 @@ if __name__ == '__main__':
         )
     elif args.version == 1:
         generate_multi_goal_gait_data_v2(
+            args.log_dir,
+            env_class,
+            env_kwargs,
+            params['gait_list'],
+            params['task_list'],
+            params['direction_list'],
+            params['track_list'],
+            class_name
+        )
+    elif args.version == 2:
+        generate_multi_goal_gait_data_v3(
             args.log_dir,
             env_class,
             env_kwargs,

@@ -36,7 +36,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
                  ],
                  obstacles = False,
                  verbose = 0):
-        gym.Env.__init__(self)
+        gym.GoalEnv.__init__(self)
         gym.utils.EzPickle.__init__(self)
         self._reward = 0.0
         self.camera_name = params['camera_name']
@@ -553,7 +553,6 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         ob =  self._get_obs()
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
-        self._track_item['desired_goal'].append(ob['desired_goal'].copy())
         self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
         self._track_item['omega_o'].append(self.omega.copy())
         self._track_item['omega'].append(self.w.copy())

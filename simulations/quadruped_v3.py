@@ -32,7 +32,7 @@ class QuadrupedV3(gym.GoalEnv, utils.EzPickle):
                  ],
                  obstacles = False,
                  verbose = 0):
-        gym.Env.__init__(self)
+        gym.GoalEnv.__init__(self)
         utils.EzPickle.__init__(self)
         self.camera_name = params['camera_name']
         self._track_lst = track_lst

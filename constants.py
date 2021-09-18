@@ -304,7 +304,7 @@ params_env = {
 }
 
 
-max_steps = 1000 #data collection env
+max_steps = 300 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -363,7 +363,6 @@ params_rl = {
                                         'qvel',
                                         'achieved_goal',
                                         'observation',
-                                        'desired_goal',
                                         'heading_ctrl',
                                         'omega',
                                         'z',
@@ -444,7 +443,7 @@ params.update({
     'camera_name'                 : 'esp32cam',
     'memory_size'                 : 10,
     'data_gen_granularity'        : 350,
-    'window_size'                 : 250,
+    'window_size'                 : 600,
     'scheduler_update_freq'       : 5,
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
