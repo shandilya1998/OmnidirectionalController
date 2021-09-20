@@ -277,7 +277,7 @@ def test_cpg(
         Z1.append(z1.copy())
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
-    plt.rcParams["font.size"] = "12"
+    plt.rcParams["font.size"] = "18"
     for j in range(4):
         fig, axes = plt.subplots(4,3,figsize=(30, 40))
         steps = N // 8
