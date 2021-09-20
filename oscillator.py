@@ -164,8 +164,8 @@ def simple_hopf_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
     r = np.sqrt(np.square(x) + np.square(y))
     phi = np.arctan2(y,x)
-    phi = phi + dt * np.abs(omega) * 2
-    r = r + dt * (mu - r ** 2) * r
+    phi += dt * np.abs(omega) * 2
+    r += r + dt * (mu - r ** 2) * r
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     z_ = np.concatenate([x, y], -1)
@@ -185,8 +185,8 @@ def hopf_step(omega, mu, z, C, degree, dt = 0.001):
         [-pi, 0] - stance phase
         [0, pi] - swing phase
     """
-    phi = phi + dt * w
-    r = r + dt * (mu - r ** 2) * r
+    phi += dt * w
+    r += dt * (mu - r ** 2) * r
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     z_ = np.concatenate([x, y], -1)
@@ -217,7 +217,7 @@ def hopf_step_v2(omega, mu, z, C, degree, dt = 0.001):
     return z, w
 
 def test_driven_mod_hopf_complex():
-    N = 10000
+    N = 100000
     phase = np.array([2 * np.pi * 0.3])
     plot_path = 'assets/out'
     dt = 0.001
@@ -248,16 +248,145 @@ def test_driven_mod_hopf_real():
     ], -1) 
     _test_driven_mod_hopf(F, filename, plot_path, N, phase, omega, mu, z, dt) 
 
+def test_driven_simple_hopf_complex():
+    N = 100000 
+    phase = np.array([2 * np.pi * 0.3])
+    plot_path = 'assets/out'
+    dt = 0.001
+    omega = np.array([1.6], dtype = np.float32)
+    mu = np.array([1], dtype = np.float32)
+    z = np.array([1, 0], dtype = np.float32)
+    filename = 'mod_oscillator_v1_forced_complex.png'
+    T = np.arange(N, dtype = np.float32) * dt
+    F = np.concatenate([
+        np.expand_dims(np.cos(2 * omega * T + phase), 1),
+        np.expand_dims(np.sin(2 * omega * T + phase), 1)
+    ], -1)
+    _test_driven_simple_hopf(F, filename, plot_path, N, phase, omega, mu, z, dt)
+
+def test_driven_simple_hopf_real():
+    N = 10000
+    phase = np.array([2 * np.pi * 0.3])
+    plot_path = 'assets/out'
+    dt = 0.001
+    omega = np.array([1.6], dtype = np.float32)
+    mu = np.array([1], dtype = np.float32)
+    z = np.array([1, 0], dtype = np.float32)
+    filename = 'mod_oscillator_v1_forced_real.png'
+    T = np.arange(N, dtype = np.float32) * dt
+    F = np.concatenate([
+        np.expand_dims(np.cos(2 * omega * T), 1),
+        np.zeros((N, 1))
+    ], -1)
+    _test_driven_simple_hopf(F, filename, plot_path, N, phase, omega, mu, z, dt)
+
+def _test_driven_simple_hopf(F, filename, plot_path, N, phase, omega, mu, z, dt = 0.001):
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
+    degree = params['degree']
+    phase_vec = np.concatenate([
+        np.cos(phase),
+        np.sin(phase)
+    ], -1) 
+    T = np.arange(N, dtype = np.float32) * dt
+    Z = []
+    z_ = z.copy()
+    for i in tqdm(range(N)):
+        z_ = simple_hopf_step(omega, mu, z_, dt) 
+        z_ += params['coupling_strength'] * dt * F[i, :]
+        Z.append(z_.copy())
+    Z = np.stack(Z, 0)
+    num_steps = int(2 * np.pi / (1.6 * dt)) // 2
+    fig, axes = plt.subplots(2,2, figsize = (12,12))
+    axes[0][0].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 0], 
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )   
+    axes[0][0].plot(
+        T[-num_steps:],
+        F[-num_steps:, 0], 
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[0][0].set_xlabel('time (s)',fontsize=15)
+    axes[0][0].set_ylabel('real part',fontsize=15)
+    axes[0][0].set_title('Trend in Real Part',fontsize=15)
+    axes[0][0].legend()
+    axes[0][1].plot(
+        T[-num_steps:],
+        Z[-num_steps:, 1],
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[0][1].plot(
+        T[-num_steps:],
+        F[-num_steps:, 1],
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[0][1].set_xlabel('time (s)',fontsize=15)
+    axes[0][1].set_ylabel('imaginary part',fontsize=15)
+    axes[0][1].set_title('Trend in Imaginary Part',fontsize=15)
+    axes[0][1].legend()
+    axes[1][0].plot(
+        Z[:, 0],
+        Z[:, 1],
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[1][0].plot(
+        F[:, 0],
+        F[:, 1],
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[1][0].set_xlabel('real part',fontsize=15)
+    axes[1][0].set_ylabel('imaginary part',fontsize=15)
+    axes[1][0].set_title('Phase Space',fontsize=15)
+    axes[1][0].legend()
+    axes[1][1].plot(
+        T[-num_steps:],
+        np.arctan2(Z[-num_steps:, 0], Z[-num_steps:, 1]),
+        linestyle = ':',
+        color = 'r',
+        label = 'v2'
+    )
+    axes[1][1].plot(
+        T[-num_steps:],
+        np.arctan2(F[-num_steps:, 0], F[-num_steps:, 1]),
+        linestyle = ':',
+        color = 'b',
+        label = 'v1'
+    )
+    axes[1][1].set_xlabel('time (s)',fontsize=15)
+    axes[1][1].set_ylabel('phase (radians)',fontsize=15)
+    axes[1][1].set_title('Trend in Phase',fontsize=15)
+    axes[1][1].legend()
+    fig.savefig(os.path.join(plot_path, filename))
+    plt.show()
+    plt.close('all')
+
 def _test_driven_mod_hopf(F, filename, plot_path, N, phase, omega, mu, z, dt = 0.001):
     C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
     degree = params['degree']
+    phase_vec = np.concatenate([
+        np.cos(phase),
+        np.sin(phase)
+    ], -1)
     T = np.arange(N, dtype = np.float32) * dt
     Z = []
     W = []
     z_ = z.copy()
     for i in tqdm(range(N)):
         z_, w = hopf_step(omega, mu, z_, C, degree, dt)
-        z_ += dt * F[i, :]
+        z_ += params['coupling_strength'] * dt * F[i, :]
         Z.append(z_.copy())
         W.append(w.copy())
     Z = np.stack(Z, 0)

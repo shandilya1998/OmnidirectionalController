@@ -13,6 +13,7 @@ from utils.torch_utils import convert_observation_to_space
 from oscillator import hopf_step, _get_polynomial_coef, \
     _coupled_mod_hopf_step, simple_hopf_step, \
     complex_multiply 
+from oscillator_v2 import cpg_step
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
@@ -438,27 +439,16 @@ class QuadrupedV4(gym.GoalEnv, utils.EzPickle):
         return self._track_item
 
     def cpg(self):
-        z1 = simple_hopf_step(
+        z2, w, z1 = cpg_step(
             self.omega,
             self.mu,
             self.z1,
-            self.dt
-        )
-        z2, w = hopf_step(
-            self.omega,
-            self.mu,
             self.z2,
-            self.C, params['degree'],
+            self.phase,
+            self.C,
+            params['degree'],
             self.dt
         )
-        phase = np.concatenate([
-            np.cos(self.phase),
-            np.sin(self.phase)
-        ], -1)
-        z2 += params['coupling_strength'] * complex_multiply(
-            phase,
-            z1
-        ) * self.dt
         return z2, z1, w
 
     def _get_joint_pos(self):
