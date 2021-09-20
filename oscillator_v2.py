@@ -239,6 +239,7 @@ def cpg_step_v4(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     return z2, w, z1
 
 def test_cpg(
+        show = False,
         version = 0,
         logdir = 'assets/out/plots',
         filename = 'test_cpg',
@@ -276,117 +277,49 @@ def test_cpg(
         Z1.append(z1.copy())
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
-    fig, axes = plt.subplots(8,6,figsize=(36, 40))
-    steps = N // 8
-    for i in range(4):
-        axes[i][0].plot(T[-steps:], Z1[-steps:, i], '--b', label = 'reference') 
-        axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4], '--b', label = 'reference') 
-        axes[i][2].plot(
-            T[-steps:], 
-            (1.0 + np.arctan2(Z1[-steps:, i], Z1[-steps:, i + 4 * 4]) / np.pi) / 2,
-            '--b',
-            label = 'reference'
+    plt.rcParams["font.size"] = "12"
+    for j in range(4):
+        fig, axes = plt.subplots(4,3,figsize=(30, 40))
+        steps = N // 8
+        for i in range(4):
+            axes[i][0].plot(T[-steps:], Z1[-steps:, i + j * 4], '--b', label = 'reference') 
+            axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
+            axes[i][2].plot(
+                T[-steps:], 
+                (1.0 + np.arctan2(Z1[-steps:, i], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                '--b',
+                label = 'reference'
+            )
+            axes[i][0].plot(T[-steps:], Z2[-steps:, i + j * 4], '--r', label = 'generator')
+            axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + j * 4], '--r', label = 'generator')
+            axes[i][2].plot(
+                T[-steps:],
+                (1.0 + np.arctan2(Z2[-steps:, i], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                '--r',
+                label = 'generator'
+            )
+            axes[i][0].set_xlabel('time')
+            axes[i][0].set_ylabel('real part')
+            axes[i][1].set_xlabel('time')
+            axes[i][1].set_ylabel('imaginary part')
+            axes[i][2].set_xlabel('time')
+            axes[i][2].set_ylabel('phase')
+            #axes[i][0].legend(loc = 'upper left')
+            #axes[i][1].legend(loc = 'upper left')
+            #axes[i][2].legend(loc = 'upper left')
+        name = '{}_{}_{}.{}'.format(
+            filename,
+            str(version),
+            str(j),
+            extension
         )
-        axes[i][0].plot(T[-steps:], Z2[-steps:, i], '--r', label = 'generator')
-        axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4], '--r', label = 'generator')
-        axes[i][2].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z2[-steps:, i], Z2[-steps:, i + 4 * 4]) / np.pi) / 2,
-            '--r',
-            label = 'generator'
-        )
-        axes[i][0].set_xlabel('time')
-        axes[i][0].set_ylabel('real part')
-        axes[i][1].set_xlabel('time')
-        axes[i][1].set_ylabel('imaginary part')
-        axes[i][2].set_xlabel('time')
-        axes[i][2].set_ylabel('phase')
-        axes[i][0].legend()
-        axes[i][1].legend()
-        axes[i][2].legend()
-        axes[i + 4][0].plot(T[-steps:], Z1[-steps:, i + 4], '--b', label = 'reference')
-        axes[i + 4][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + 4], '--b', label = 'reference')
-        axes[i + 4][2].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z1[-steps:, i + 4], Z1[-steps:, i + 4 * 4 + 4]) / np.pi) / 2,
-            '--b',
-            label = 'reference'
-        )
-        axes[i + 4][0].plot(T[-steps:], Z2[-steps:, i + 4], '--r', label = 'generator')
-        axes[i + 4][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + 4], '--r', label = 'generator')
-        axes[i + 4][2].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z2[-steps:, i + 4], Z2[-steps:, i + 4 * 4 + 4]) / np.pi) / 2,
-            '--r',
-            label = 'generator'
-        )
-        axes[i + 4][0].set_xlabel('time')
-        axes[i + 4][0].set_ylabel('real part')
-        axes[i + 4][1].set_xlabel('time')
-        axes[i + 4][1].set_ylabel('imaginary part')
-        axes[i + 4][2].set_xlabel('time')
-        axes[i + 4][2].set_ylabel('phase')
-        axes[i + 4][0].legend()
-        axes[i + 4][1].legend()
-        axes[i + 4][2].legend()
-        axes[i][3].plot(T[-steps:], Z1[-steps:, i + 8], '--b', label = 'reference')
-        axes[i][4].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + 8], '--b', label = 'reference')
-        axes[i][5].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z1[-steps:, i + 8], Z1[-steps:, i + 4 * 4 + 8]) / np.pi) / 2,
-            '--b',
-            label = 'reference'
-        )
-        axes[i][3].plot(T[-steps:], Z2[-steps:, i + 8], '--r', label = 'generator')
-        axes[i][4].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + 8], '--r', label = 'generator')
-        axes[i][5].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z2[-steps:, i + 8], Z2[-steps:, i + 4 * 4 + 8]) / np.pi) / 2,
-            '--r',
-            label = 'generator'
-        )
-        axes[i][3].set_xlabel('time')
-        axes[i][3].set_ylabel('real part')
-        axes[i][4].set_xlabel('time')
-        axes[i][4].set_ylabel('imaginary part')
-        axes[i][5].set_xlabel('time')
-        axes[i][5].set_ylabel('phase')
-        axes[i][3].legend()
-        axes[i][4].legend()
-        axes[i][5].legend()
-        axes[i + 4][3].plot(T[-steps:], Z1[-steps:, i + 12], '--b', label = 'reference')
-        axes[i + 4][4].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + 12], '--b', label = 'reference')
-        axes[i + 4][5].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z1[-steps:, i + 12], Z1[-steps:, i + 4 * 4 + 12]) / np.pi) / 2,
-            '--b',
-            label = 'reference'
-        )
-        axes[i + 4][3].plot(T[-steps:], Z2[-steps:, i + 12], '--r', label = 'generator')
-        axes[i + 4][4].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + 12], '--r', label = 'generator')
-        axes[i + 4][5].plot(
-            T[-steps:],
-            (1.0 + np.arctan2(Z2[-steps:, i + 12], Z2[-steps:, i + 4 * 4 + 12]) / np.pi) / 2,
-            '--r',
-            label = 'generator'
-        )
-        axes[i + 4][3].set_xlabel('time')
-        axes[i + 4][4].set_ylabel('real part')
-        axes[i + 4][5].set_xlabel('time')
-        axes[i + 4][3].set_ylabel('imaginary part')
-        axes[i + 4][4].set_xlabel('time')
-        axes[i + 4][5].set_ylabel('phase')
-        axes[i + 4][3].legend()
-        axes[i + 4][4].legend()
-        axes[i + 4][5].legend()
-    filename = '{}_{}.{}'.format(
-        filename,
-        str(version),
-        extension
-    )
-    fig.savefig(os.path.join(logdir, filename))
-    plt.show()
-    plt.close('all')
+        lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+        lines, labels = [sum(lol, []) for lol in zip(*lines_labels[:1])]
+        fig.legend(lines, labels)
+        fig.savefig(os.path.join(logdir, name))
+        if show:
+            plt.show()
+        plt.close()
 
 def test_driven_cpg(
         version = 0,
