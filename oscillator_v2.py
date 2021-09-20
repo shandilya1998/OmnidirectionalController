@@ -277,7 +277,7 @@ def test_cpg(
         Z1.append(z1.copy())
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
-    plt.rcParams["font.size"] = "18"
+    plt.rcParams["font.size"] = "12"
     for j in range(4):
         fig, axes = plt.subplots(4,3,figsize=(30, 40))
         steps = N // 8
@@ -286,7 +286,7 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
                 T[-steps:], 
-                (1.0 + np.arctan2(Z1[-steps:, i], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--b',
                 label = 'reference'
             )
@@ -294,7 +294,7 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + j * 4], '--r', label = 'generator')
             axes[i][2].plot(
                 T[-steps:],
-                (1.0 + np.arctan2(Z2[-steps:, i], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--r',
                 label = 'generator'
             )
