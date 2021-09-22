@@ -547,7 +547,7 @@ def test_cpg_v2(
     for i in range(num_osc):
         ax[0].plot(
             T,
-            PHI[:, i],
+            np.abs(PHI[:, i]),
             color = color[i],
             linestyle = '-',
             label = '\u03B2 =' + str(beta[i])
