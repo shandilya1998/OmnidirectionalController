@@ -506,7 +506,7 @@ def test_cpg_v2(
         axes[i][2].set_ylabel('phase')
         axes[i][3].plot(
             T,  
-            (np.arctan2(Z1[:, i + num_osc], Z1[:, i]) - \
+            np.abs(np.arctan2(Z1[:, i + num_osc], Z1[:, i]) - \
                 np.arctan2(Z2[:, i + num_osc], Z2[:, i])) / (2 * np.pi),
             '--b',
             label = 'generator'
