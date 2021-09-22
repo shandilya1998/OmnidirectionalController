@@ -484,7 +484,7 @@ def test_cpg_v2(
         )
         axes[i][3].plot(
             T,
-            np.repeat(np.expand_dims(phase, 0), N, 0)[:, i],
+            np.repeat(np.expand_dims(phase, 0), N, 0)[:, i] / (2 * np.pi),
             '--b',
             label = 'reference'
         )
