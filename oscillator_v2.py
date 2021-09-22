@@ -281,7 +281,7 @@ def test_cpg(
     for j in range(4):
         fig, axes = plt.subplots(4,4,figsize=(40, 40))
         for i in range(4):
-            steps = int(np.pi / (omega[i + j * 4] * dt))
+            steps = int(np.pi / (2 * (omega[i + j * 4] * dt)))
             axes[i][0].plot(T[-steps:], Z1[-steps:, i + j * 4], '--b', label = 'reference') 
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
@@ -307,7 +307,7 @@ def test_cpg(
             ) / np.pi) / 2
             axes[i][2].plot(
                 T[-steps:],
-                np.abs(diff[-steps:].copy()),
+                diff[-steps:].copy(),
                 '--g',
                 label = 'phase difference'
             )
@@ -331,15 +331,23 @@ def test_cpg(
             minlen_2 = minindices_2.shape[0]
             minlen_1 = minindices_1.shape[0]
             length = np.min(np.array([maxlen_2, maxlen_1, minlen_2, minlen_1]))
-            out = maxindices_2[:length] - maxindices_1[:length] + \
-                minindices_2[:length] - minindices_1[:length]
-            out = out * dt / (2  * steps)
-            time = dt * (np.arange(out.shape[0]) / out.shape[0]) * N
+            out1 = maxindices_2[-length:] - maxindices_1[-length:]
+            out1 = out1 * dt / steps
+            time1 = dt * (np.arange(out1.shape[0]) / out1.shape[0]) * N
+            out2 = minindices_2[-length:] - minindices_1[-length:]
+            out2 = out2 * dt / steps
+            time2 = dt * (np.arange(out2.shape[0]) / out2.shape[0]) * N
             axes[i][3].plot(
-                time,
-                np.abs(out.copy()),
+                time1,
+                out1.copy(),
                 '--g',
-                label = 'phase difference'
+                label = 'phase difference 1'
+            )
+            axes[i][3].plot(
+                time2,
+                out2.copy(),
+                '--b',
+                label = 'phase difference 2'
             )
             axes[i][0].set_xlabel('time')
             axes[i][0].set_ylabel('real part')
