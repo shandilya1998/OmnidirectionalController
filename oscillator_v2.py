@@ -244,6 +244,7 @@ def test_cpg(
         logdir = 'assets/out/plots',
         filename = 'test_cpg',
         extension = 'png',
+        size = 15,
     ):
     func = cpg_step
     if version == 0:
@@ -279,14 +280,17 @@ def test_cpg(
     Z2 = np.stack(Z2, 0)
     plt.rcParams["font.size"] = "12"
     for j in range(4):
-        fig, axes = plt.subplots(4,3,figsize=(30, 40))
+        fig, axes = plt.subplots(4,3,figsize=(3 * size, 4 * size))
         steps = N // 8
         for i in range(4):
+            phase_1 = (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
+            phase_2 = (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
+            diff = phase_2 - phase_1
             axes[i][0].plot(T[-steps:], Z1[-steps:, i + j * 4], '--b', label = 'reference') 
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
-                T[-steps:], 
-                (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                T[-steps:],
+                phase_1,
                 '--b',
                 label = 'reference'
             )
@@ -294,9 +298,15 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + j * 4], '--r', label = 'generator')
             axes[i][2].plot(
                 T[-steps:],
-                (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
+                phase_2,
                 '--r',
                 label = 'generator'
+            )
+            axes[i][2].plot(
+                T[-steps:],
+                diff,
+                '--g',
+                label = 'phase difference'
             )
             axes[i][0].set_xlabel('time')
             axes[i][0].set_ylabel('real part')
@@ -304,9 +314,9 @@ def test_cpg(
             axes[i][1].set_ylabel('imaginary part')
             axes[i][2].set_xlabel('time')
             axes[i][2].set_ylabel('phase')
-            #axes[i][0].legend(loc = 'upper left')
-            #axes[i][1].legend(loc = 'upper left')
-            #axes[i][2].legend(loc = 'upper left')
+            axes[i][0].legend(loc = 'upper left')
+            axes[i][1].legend(loc = 'upper left')
+            axes[i][2].legend(loc = 'upper left')
         name = '{}_{}_{}.{}'.format(
             filename,
             str(version),
@@ -350,24 +360,33 @@ def test_driven_cpg(
         Z1.append(z1.copy())
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
-    fig, axes = plt.subplots(4,3,figsize=(18, 20))
+    fig, axes = plt.subplots(4,3,figsize=(3 * 15, 4 * 15))
     steps = N // 8
     for i in range(4):
         axes[i][0].plot(T[-steps:], Z1[-steps:, i], '--b', label = 'reference')
         axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4], '--b', label = 'reference')
+        phase_1 = (1.0 + np.arctan2(Z1[:, i], Z1[:, i + 4]) / np.pi) / 2
         axes[i][2].plot(
             T[-steps:],
-            (1.0 + np.arctan2(Z1[-steps:, i], Z1[-steps:, i + 4]) / np.pi) / 2,
+            phase_1[-steps:],
             '--b',
             label = 'reference'
         )
         axes[i][0].plot(T[-steps:], Z2[-steps:, i], '--r', label = 'generator')
         axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4], '--r', label = 'generator')
+        phase_2 = (1.0 + np.arctan2(Z2[:, i], Z2[:, i + 4]) / np.pi) / 2
         axes[i][2].plot(
             T[-steps:],
-            (1.0 + np.arctan2(Z2[-steps:, i], Z2[-steps:, i + 4]) / np.pi) / 2,
+            phase_2[-steps:],
             '--r',
             label = 'generator'
+        )
+        diff = phase_2 - phase_1
+        axes[i][2].plot(
+            T[-steps:],
+            diff[-steps:],
+            '--g',
+            label = 'phase difference'
         )
         axes[i][0].set_xlabel('time')
         axes[i][0].set_ylabel('real part')
