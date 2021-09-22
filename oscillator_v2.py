@@ -279,18 +279,21 @@ def test_cpg(
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
     plt.rcParams["font.size"] = "12"
+    steps = N // 8
+    phase_1 = (1.0 + np.arctan2(Z1[-steps:, :16].copy(), Z1[-steps:, 16:].copy()) / np.pi) / 2
+    phase_2 = (1.0 + np.arctan2(Z1[-steps:, :16].copy(), Z1[-steps:, 16:].copy()) / np.pi) / 2
+    diff = phase_2.copy() - phase_1.copy()
     for j in range(4):
         fig, axes = plt.subplots(4,3,figsize=(3 * size, 4 * size))
-        steps = N // 8
         for i in range(4):
-            phase_1 = (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
-            phase_2 = (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
-            diff = phase_2 - phase_1
+            #phase_1 = (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
+            #phase_2 = (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
+            #diff = phase_2 - phase_1
             axes[i][0].plot(T[-steps:], Z1[-steps:, i + j * 4], '--b', label = 'reference') 
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
                 T[-steps:],
-                phase_1,
+                phase_1[-steps:, i + j * 4],
                 '--b',
                 label = 'reference'
             )
@@ -298,13 +301,13 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + j * 4], '--r', label = 'generator')
             axes[i][2].plot(
                 T[-steps:],
-                phase_2,
+                phase_2[-steps:, i + j * 4],
                 '--r',
                 label = 'generator'
             )
             axes[i][2].plot(
                 T[-steps:],
-                diff,
+                diff[-steps:, i + j * 4],
                 '--g',
                 label = 'phase difference'
             )
