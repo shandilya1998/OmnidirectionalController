@@ -387,19 +387,199 @@ def test_driven_cpg(
     plt.show()
     plt.close('all')
 
-
-def hopf_mod_step_v2(omega, mu, z, phase, C, degree, dt = 0.001):
+def hopf_mod_step_v2(omega, mu, z, B, C, degree, dt = 0.001):
     units_osc = z.shape[-1] // 2
-    x, y = np.split(z, 2, -1) 
+    x, y = np.split(z, 2, -1)
     r = np.sqrt(np.square(x) + np.square(y))
     beta = _get_beta(omega, C, degree)
-    phi = (np.arctan2(y, x) + np.pi - phase) % (2 * np.pi) - np.pi
+    phi = np.arctan2(y, x)
     mean = np.abs(1 / (2 * beta * (1 - beta)))
     amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
     w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi)) * 2 
     phi += dt * w 
-    r += dt * (mu - r ** 2) * r 
-    x = r * np.cos((phi + np.pi + phase) % (2 * np.pi) - np.pi)
-    y = r * np.sin((phi + np.pi + phase) % (2 * np.pi) - np.pi)
-    z_ = np.concatenate([x, y], -1) 
-    return z_, w 
+    r += dt * (mu - B * (r ** 2)) * r 
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.concatenate([x, y], -1) 
+    return z, w 
+
+def cpg_step_v5(omega, mu, beta, z1, z2, phase, C, degree, dt = 0.001):
+    units_osc = z1.shape[-1] // 2
+    z1 = hopf_simple_step(omega, mu, z1, dt) 
+    z2, w = hopf_mod_step_v2(
+        omega, mu, z2, beta, C, params['degree'], dt
+    )
+    x1, y1 = np.split(z1, 2, -1)
+    xs = np.cos(phase)
+    ys = np.sin(phase)
+    coupling = np.concatenate([
+        xs * x1 - ys * y1, 
+        xs * y1 + x1 * ys
+    ], -1) 
+    z2 += dt * params['coupling_strength'] * coupling
+    return z2, w, z1
+
+def test_cpg_v2(
+        show = False,
+        version = 5,
+        logdir = 'assets/out/plots',
+        filename = 'test_cpg_v2',
+        extension = 'png',
+        _phase = 0.75,
+        num_osc = 10
+    ):
+    func = cpg_step_v5
+    if version == 5:
+        pass
+    phase = np.array([_phase] * num_osc) * 2 * np.pi
+    omega = np.array([0.2] * num_osc) * 2 * np.pi
+    mu = np.ones((num_osc,)) * 0.81
+    beta = 5 * np.arange(1, num_osc + 1) / num_osc
+    dt = 0.001
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50)
+    N = 10000
+    T = np.arange(N) * dt
+    z2 = np.concatenate([
+        np.ones((num_osc,)),
+        np.zeros((num_osc,))
+    ])
+    z2 = np.random.random((2 * num_osc,))
+    z1 = np.concatenate([
+        np.array([np.random.random()] * num_osc),
+        np.array([np.random.random()] * num_osc)
+    ], -1)
+    Z2 = []
+    Z1 = []
+    PHI = []
+    for i in range(N):
+        z2, w, z1 = func(omega, mu, beta, z1, z2, phase, C, params['degree'], dt)
+        Z2.append(z2.copy())
+        Z1.append(z1.copy())
+        x1, y1 = np.split(z1, 2, -1)
+        x2, y2 = np.split(z2, 2, -1)
+        phi = (np.arctan2(
+                y2,
+                x2
+            ) - np.arctan2(
+                y1, 
+                x1
+            )) / (2 * np.pi)
+        PHI.append(phi.copy())
+    Z1 = np.stack(Z1, 0)
+    Z2 = np.stack(Z2, 0)
+    PHI = np.stack(PHI, 0)
+    plt.rcParams["font.size"] = "12"
+    fig, axes = plt.subplots(num_osc, 4,figsize=(40, num_osc * 10)) 
+    steps = N // 8
+    for i in range(num_osc):
+        axes[i][0].plot(T[-steps:], Z1[-steps:, i], '--b', label = 'reference')
+        axes[i][1].plot(T[-steps:], Z1[-steps:, i + num_osc], '--b', label = 'reference')
+        axes[i][2].plot(
+            T[-steps:],
+            (1.0 + np.arctan2(
+                Z1[-steps:, i], Z1[-steps:, i + num_osc]
+            ) / np.pi) / 2,
+            '--b',
+            label = 'reference'
+        )
+        axes[i][3].plot(
+            T,
+            np.repeat(np.expand_dims(phase, 0), N, 0)[:, i],
+            '--b',
+            label = 'reference'
+        )
+        axes[i][0].plot(T[-steps:], Z2[-steps:, i], '--r', label = 'generator')
+        axes[i][1].plot(T[-steps:], Z2[-steps:, i + num_osc], '--r', label = 'generator')
+        axes[i][2].plot(
+            T[-steps:],
+            (1.0 + np.arctan2(
+                Z2[-steps:, i], Z2[-steps:, i + num_osc]
+            ) / np.pi) / 2,
+            '--r',
+            label = 'generator'
+        )
+        axes[i][0].set_xlabel('time')
+        axes[i][0].set_ylabel('real part')
+        axes[i][1].set_xlabel('time')
+        axes[i][1].set_ylabel('imaginary part')
+        axes[i][2].set_xlabel('time')
+        axes[i][2].set_ylabel('phase')
+        axes[i][3].plot(
+            T,  
+            (np.arctan2(Z1[:, i + num_osc], Z1[:, i]) - \
+                np.arctan2(Z2[:, i + num_osc], Z2[:, i])) / (2 * np.pi),
+            '--b',
+            label = 'generator'
+        )
+        axes[i][3].set_xlabel('time')
+        axes[i][3].set_ylabel('phase difference')
+        #axes[i][0].legend(loc = 'upper left')
+        #axes[i][1].legend(loc = 'upper left')
+        #axes[i][2].legend(loc = 'upper left')
+    name = '{}_{}_{}.{}'.format(
+        filename,
+        str(version),
+        str(i),
+        extension
+    )
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels[:1])]
+    fig.legend(lines, labels)
+    fig.savefig(os.path.join(logdir, name))
+    if show:
+        plt.show()
+    plt.close()
+    fig, ax = plt.subplots(1, 3, figsize = (21, 7))
+    color = [np.random.random((3,)) for i in range(num_osc)]
+    ax[0].plot(
+        T,
+        np.repeat(
+            np.expand_dims(
+                np.array(
+                    [_phase] * num_osc
+                ), 0),
+            N,
+            0
+        ),
+        color = 'r',
+        linestyle = '--',
+    )
+    for i in range(num_osc):
+        ax[0].plot(
+            T,
+            PHI[:, i],
+            color = color[i],
+            linestyle = '-',
+            label = '\u03B2 =' + str(beta[i])
+        )
+        ax[1].plot(
+            T,
+            np.sqrt(np.square(Z1[:, i]) + np.square(Z1[:, i + num_osc])),
+            color = color[i],
+            linestyle = '-',
+            label = '\u03B2 =' + str(beta[i])
+        )
+        ax[2].plot(
+            T,
+            np.sqrt(np.square(Z2[:, i]) + np.square(Z2[:, i + num_osc])),
+            color = color[i],
+            linestyle = '-',
+            label = '\u03B2 =' + str(beta[i])
+        )
+    ax[0].set_xlabel('time')
+    ax[0].set_ylabel('phase difference')
+    ax[1].set_xlabel('time')
+    ax[1].set_ylabel('amplitude')
+    ax[2].set_xlabel('time')
+    ax[2].set_ylabel('amplitude')
+    name = 'test_cpg_phase_convergence_{}_{}.png'.format(
+        version,
+        str(int(_phase * 100))
+    )
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels[:1])]
+    fig.legend(lines, labels)
+    fig.savefig(os.path.join(logdir, name))
+    if show:
+        plt.show()
+    plt.close()

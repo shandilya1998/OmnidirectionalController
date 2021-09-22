@@ -448,7 +448,7 @@ params.update({
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
     'env_version'                 : 1,
-    'coupling_strength'           : 1,
+    'coupling_strength'           : 0.01,
     'weight_net_units'            : [256, 512, 1024, 512, 256]
 })
 
