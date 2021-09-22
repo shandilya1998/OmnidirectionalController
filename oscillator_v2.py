@@ -293,7 +293,7 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
                 T[-steps:],
-                phase_1[-steps:, i + j * 4],
+                (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--b',
                 label = 'reference'
             )
@@ -301,13 +301,16 @@ def test_cpg(
             axes[i][1].plot(T[-steps:], Z2[-steps:, i + 4 * 4 + j * 4], '--r', label = 'generator')
             axes[i][2].plot(
                 T[-steps:],
-                phase_2[-steps:, i + j * 4],
+                (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--r',
                 label = 'generator'
             )
             axes[i][2].plot(
                 T[-steps:],
-                diff[-steps:, i + j * 4],
+                (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, \
+                    i + 4 * 4 + j * 4]) / np.pi) / 2 - \
+                    (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, \
+                    i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--g',
                 label = 'phase difference'
             )
