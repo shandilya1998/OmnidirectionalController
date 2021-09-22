@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from constants import params
+from utils.plot_utils import findLocalMaximaMinima
 
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
@@ -244,12 +245,9 @@ def test_cpg(
         logdir = 'assets/out/plots',
         filename = 'test_cpg',
         extension = 'png',
-        size = 15,
     ):
     func = cpg_step
-    if version == 0:
-        pass
-    elif version == 1:
+    if version == 1:
         func = cpg_step_v1
     elif version == 2:
         func = cpg_step_v2
@@ -261,17 +259,17 @@ def test_cpg(
     omega = np.array([0.2, 0.2, 0.2, 0.2]) * 2 * np.pi
     omega = np.concatenate([omega, 2 * omega, 3 * omega, 4 * omega], -1)
     mu = np.ones((4 * 4,))
-    dt = 0.01
+    dt = 0.001
     C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
-    N = 1000
+    N = 100000
     T = np.arange(N) * dt
     z2 = np.concatenate([
         np.ones((4 * 4,)),
         np.zeros((4 * 4,))
     ])
     z1 = z2.copy()
-    Z2 = [z2.copy()]
-    Z1 = [z1.copy()]
+    Z2 = []
+    Z1 = []
     for i in range(N):
         z2, _, z1 = func(omega, mu, z1, z2, phase, C, params['degree'], dt)
         Z2.append(z2.copy())
@@ -279,20 +277,15 @@ def test_cpg(
     Z1 = np.stack(Z1, 0)
     Z2 = np.stack(Z2, 0)
     plt.rcParams["font.size"] = "12"
-    steps = N // 8
-    phase_1 = (1.0 + np.arctan2(Z1[-steps:, :16].copy(), Z1[-steps:, 16:].copy()) / np.pi) / 2
-    phase_2 = (1.0 + np.arctan2(Z1[-steps:, :16].copy(), Z1[-steps:, 16:].copy()) / np.pi) / 2
-    diff = phase_2.copy() - phase_1.copy()
+    steps = N // 80
     for j in range(4):
-        fig, axes = plt.subplots(4,3,figsize=(3 * size, 4 * size))
+        fig, axes = plt.subplots(4,4,figsize=(40, 40))
         for i in range(4):
-            #phase_1 = (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
-            #phase_2 = (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2
-            #diff = phase_2 - phase_1
+            steps = int(np.pi / (omega[i + j * 4] * dt))
             axes[i][0].plot(T[-steps:], Z1[-steps:, i + j * 4], '--b', label = 'reference') 
             axes[i][1].plot(T[-steps:], Z1[-steps:, i + 4 * 4 + j * 4], '--b', label = 'reference') 
             axes[i][2].plot(
-                T[-steps:],
+                T[-steps:], 
                 (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, i + 4 * 4 + j * 4]) / np.pi) / 2,
                 '--b',
                 label = 'reference'
@@ -305,12 +298,46 @@ def test_cpg(
                 '--r',
                 label = 'generator'
             )
+            diff = (1.0 + np.arctan2(
+                Z1[:, i + j * 4],
+                Z1[:, i + 4 * 4 + j * 4]
+            ) / np.pi) / 2 - (1.0 + np.arctan2(
+                Z2[:, i + j * 4],
+                Z2[:, i + 4 * 4 + j * 4]
+            ) / np.pi) / 2
             axes[i][2].plot(
                 T[-steps:],
-                (1.0 + np.arctan2(Z2[-steps:, i + j * 4], Z2[-steps:, \
-                    i + 4 * 4 + j * 4]) / np.pi) / 2 - \
-                    (1.0 + np.arctan2(Z1[-steps:, i + j * 4], Z1[-steps:, \
-                    i + 4 * 4 + j * 4]) / np.pi) / 2,
+                np.abs(diff[-steps:].copy()),
+                '--g',
+                label = 'phase difference'
+            )
+            maxindices_2, minindices_2 = findLocalMaximaMinima(
+                N,
+                (1.0 + np.arctan2(
+                    Z2[:, i + j * 4],
+                    Z2[:, i + 4 * 4 + j * 4]
+                ) / np.pi) / 2
+            )
+            maxindices_1, minindices_1 = findLocalMaximaMinima(
+                N,  
+                (1.0 + np.arctan2(
+                    Z1[:, i + j * 4], 
+                    Z1[:, i + 4 * 4 + j * 4]
+                ) / np.pi) / 2 
+            )
+            
+            maxlen_2 = maxindices_2.shape[0]
+            maxlen_1 = maxindices_1.shape[0]
+            minlen_2 = minindices_2.shape[0]
+            minlen_1 = minindices_1.shape[0]
+            length = np.min(np.array([maxlen_2, maxlen_1, minlen_2, minlen_1]))
+            out = maxindices_2[:length] - maxindices_1[:length] + \
+                minindices_2[:length] - minindices_1[:length]
+            out = out * dt / (2  * steps)
+            time = dt * (np.arange(out.shape[0]) / out.shape[0]) * N
+            axes[i][3].plot(
+                time,
+                np.abs(out.copy()),
                 '--g',
                 label = 'phase difference'
             )
@@ -320,6 +347,8 @@ def test_cpg(
             axes[i][1].set_ylabel('imaginary part')
             axes[i][2].set_xlabel('time')
             axes[i][2].set_ylabel('phase')
+            axes[i][3].set_xlabel('time')
+            axes[i][3].set_ylabel('')
             axes[i][0].legend(loc = 'upper left')
             axes[i][1].legend(loc = 'upper left')
             axes[i][2].legend(loc = 'upper left')
@@ -331,7 +360,7 @@ def test_cpg(
         )
         lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
         lines, labels = [sum(lol, []) for lol in zip(*lines_labels[:1])]
-        fig.legend(lines, labels)
+        #fig.legend(lines, labels)
         fig.savefig(os.path.join(logdir, name))
         if show:
             plt.show()
@@ -388,12 +417,14 @@ def test_driven_cpg(
             label = 'generator'
         )
         diff = phase_2 - phase_1
+        """
         axes[i][2].plot(
             T[-steps:],
             diff[-steps:],
             '--g',
             label = 'phase difference'
         )
+        """
         axes[i][0].set_xlabel('time')
         axes[i][0].set_ylabel('real part')
         axes[i][1].set_xlabel('time')
