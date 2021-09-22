@@ -469,7 +469,7 @@ def test_cpg_v2(
     Z2 = np.stack(Z2, 0)
     PHI = np.stack(PHI, 0)
     plt.rcParams["font.size"] = "12"
-    fig, axes = plt.subplots(num_osc, 4,figsize=(40, num_osc * 10)) 
+    fig, axes = plt.subplots(num_osc, 4,figsize=(4 * 15, num_osc * 10)) 
     steps = N // 8
     for i in range(num_osc):
         axes[i][0].plot(T[-steps:], Z1[-steps:, i], '--b', label = 'reference')
@@ -498,6 +498,15 @@ def test_cpg_v2(
             '--r',
             label = 'generator'
         )
+        axes[i][2].plot(
+            T[-steps:],
+            (
+                np.arctan2(Z1[-steps:, i + num_osc], Z1[-steps:, i]) - \
+                    np.arctan2(Z2[-steps:, i + num_osc], Z2[-steps:, i])
+            ) / (2 * np.pi),
+            '--g',
+            label = 'phase difference'
+        )
         axes[i][0].set_xlabel('time')
         axes[i][0].set_ylabel('real part')
         axes[i][1].set_xlabel('time')
@@ -506,16 +515,17 @@ def test_cpg_v2(
         axes[i][2].set_ylabel('phase')
         axes[i][3].plot(
             T,  
-            np.abs(np.arctan2(Z1[:, i + num_osc], Z1[:, i]) - \
+            (np.arctan2(Z1[:, i + num_osc], Z1[:, i]) - \
                 np.arctan2(Z2[:, i + num_osc], Z2[:, i])) / (2 * np.pi),
             '--b',
             label = 'generator'
         )
         axes[i][3].set_xlabel('time')
         axes[i][3].set_ylabel('phase difference')
-        #axes[i][0].legend(loc = 'upper left')
-        #axes[i][1].legend(loc = 'upper left')
-        #axes[i][2].legend(loc = 'upper left')
+        axes[i][0].legend(loc = 'upper left')
+        axes[i][1].legend(loc = 'upper left')
+        axes[i][2].legend(loc = 'upper left')
+        axes[i][3].legend(loc = 'upper left')
     name = '{}_{}_{}.{}'.format(
         filename,
         str(version),
@@ -524,7 +534,7 @@ def test_cpg_v2(
     )
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels[:1])]
-    fig.legend(lines, labels)
+    #fig.legend(lines, labels)
     fig.savefig(os.path.join(logdir, name))
     if show:
         plt.show()
@@ -547,7 +557,7 @@ def test_cpg_v2(
     for i in range(num_osc):
         ax[0].plot(
             T,
-            np.abs(PHI[:, i]),
+            PHI[:, i],
             color = color[i],
             linestyle = '-',
             label = '\u03B2 =' + str(beta[i])
