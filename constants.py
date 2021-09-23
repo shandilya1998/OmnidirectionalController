@@ -10,7 +10,7 @@ input_size = 212 # 212 # 132 # 132 is size for results v 3
 params = {
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.001,
+    'dt'                          : 0.005,
     'units_output_mlp'            : [60,100, 100, cpg_param_size],
     'input_size_low_level_control': input_size, 
     'units_low_level_control'     : [256, 1024, 1024, 512, 32],
@@ -297,7 +297,7 @@ params.update(params_per)
 params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.05,
-    'dt'                          : 0.001,
+    'dt'                          : 0.005,
     'reward_energy_coef'          : 1e-2,
     'reward_velocity_coef'        : 1e2,
     'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
@@ -327,7 +327,7 @@ params_rl = {
     'steps'                       : int(1e7),
     'n_steps'                     : 8,
     'n_envs'                      : n_envs,
-    'dt'                          : 0.001,
+    'dt'                          : 0.005,
     'max_step_length'             : 600,
     'gait_list'                   : [
                                         'ds_crawl',
@@ -393,7 +393,7 @@ params_pretrain = {
     'min_epoch_size'              : 1000,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 18,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.001,
+    'dt'                          : 0.005,
     'units_output_mlp'            : [256,512,100,action_dim],
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],

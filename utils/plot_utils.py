@@ -634,3 +634,154 @@ def findLocalMaximaMinima(n, arr):
         # Print all the local maxima and 
         # local minima indexes stored 
     return np.array(mx), np.array(mn)
+
+def plot_z(steps = 1500, filename1 = 'assets/out/plots/temp.png',
+        filename2 = 'assets/out/plots/temp2.png'):
+    total = 6599
+    index = np.random.randint(low = 0, high = 6599)
+    logdir = 'assets/out/results_v9'
+    f = 'Quadruped_{}_z.npy'.format(index)
+    f2 = 'Quadruped_{}_omega_o.npy'.format(index)
+    Z = np.load(os.path.join(logdir, f))
+    omega = np.load(os.path.join(logdir, f2))
+    omega = np.abs(omega[-1]) * 4
+    T = np.repeat(np.expand_dims(np.arange(Z.shape[0]), -1), Z.shape[-1]//2, -1)* 0.001
+    F = np.concatenate([
+        np.cos(omega * T),
+        np.sin(omega * T)
+    ], -1)
+    num_osc = Z.shape[-1] // 2
+    fig, ax = plt.subplots(num_osc, 4, figsize = (40, num_osc * 10))
+    colors = [np.random.random((3,)) for j in range(num_osc)]
+    phase = np.arctan2(Z[:, :num_osc], Z[:, num_osc:])
+    phase_ref = np.arctan2(F[:, :num_osc], F[:, num_osc:])
+    diff = np.concatenate([
+        np.expand_dims((phase[:, i] - phase_ref[:, i]) / (2 * np.pi), -1) for i in range(num_osc)
+    ], -1)
+    out = []
+    heading_ctrl = [0, 1, 1, 1]
+    for i in range(num_osc):
+        arr = []
+        for j in range(Z.shape[0]):
+            if diff[j][i] < 0:
+                arr.append(diff[j][i] + 1 * heading_ctrl[i])
+            else:
+                arr.append(diff[j][i])
+        out.append(np.expand_dims(np.array(arr), -1))
+    ref_phase_diff = np.concatenate(out, -1)
+    ref_phase_diff = diff.copy()
+    for i in range(num_osc):
+        ax[i][0].plot(
+            Z[-steps:, i],
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(str(i))
+        )
+        ax[i][0].plot(
+            F[-steps:, i],
+            color = 'r',
+            linestyle = ':',
+            label = 'ref'
+        )
+        ax[i][1].plot(
+            Z[-steps:, i + num_osc],
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(str(i))
+        )
+        ax[i][1].plot(
+            F[-steps:, i + num_osc],
+            color = 'r',
+            linestyle = ':',
+            label = 'ref'
+        )
+        ax[i][2].plot(
+            np.arctan2(Z[-steps:, i + num_osc], Z[-steps:, i]),
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(str(i))
+        )
+        ax[i][2].plot(
+            np.arctan2(F[-steps:, i + num_osc], F[-steps:, i]),
+            color = 'r',
+            linestyle = ':',
+            label = 'ref'
+        )
+        ax[i][3].plot(
+            ref_phase_diff[-steps:, i],
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(str(i))
+        )
+        ax[i][0].legend(loc = 'upper left')
+        ax[i][1].legend(loc = 'upper left')
+        ax[i][2].legend(loc = 'upper left')
+        ax[i][3].legend(loc = 'upper left')
+    fig.savefig(filename1)
+    
+    fig2, ax2 = plt.subplots(1, 2, figsize = (20, 10))
+    diff = np.concatenate([
+        np.expand_dims((phase[:, i] - phase[:, 0]) / (2 * np.pi), -1) for i in range(num_osc)
+    ], -1)
+    out = []
+    heading_ctrl = [1, 1, 1, 1]
+    for i in range(num_osc):
+        arr = []
+        for j in range(Z.shape[0]):
+            if diff[j][i] < 0:
+                arr.append(1 + diff[j][i] * 1 * heading_ctrl[i])
+            else:
+                arr.append(diff[j][i])
+        out.append(np.expand_dims(np.array(arr), -1))
+    out = np.concatenate(out, -1)
+    for i in range(num_osc):
+        ax2[0].plot(
+            out[:, i],
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(i)
+        )
+        ax2[1].plot(
+            ref_phase_diff[:, i],
+            color = colors[i],
+            linestyle = '--',
+            label = 'dim {}'.format(i)
+        )
+    ax2[0].legend(loc = 'upper left')
+    ax2[1].legend(loc = 'upper left')
+    fig2.savefig(filename2)
+    plt.show()
+
+def complex_multiply(z1, z2):
+    x1, y1 = np.split(z1, 2, -1)
+    x2, y2 = np.split(z2, 2, -1)
+    return np.concatenate([
+        x2 * x1 - y2 * y1,
+        x2 * y1 + x1 * y2
+    ], -1)
+
+def test_shifting():
+    logdir = 'assets/out/results_v9'
+    index = np.random.randint(low = 0, high = 6599)
+    f = 'Quadruped_{}_z.npy'.format(index)
+    Z = np.load(os.path.join(logdir, f))
+    phase = np.array([0.0, 0.25, 0.5, 0.75])
+    phase = np.concatenate([
+        np.cos(phase * 2 * np.pi),
+        np.sin(phase * 2 * np.pi)
+    ])
+    temp = np.concatenate([
+        np.repeat(np.expand_dims(Z[:, 0], -1), Z.shape[-1] // 2, -1),
+        np.repeat(np.expand_dims(Z[:, Z.shape[-1] // 2], -1), Z.shape[-1] // 2, -1)
+    ], -1)
+    out = []
+    for i in range(Z.shape[0]):
+        z = complex_multiply(Z[i, :], phase)
+        out.append(z.copy())
+    out = np.stack(out, 0)
+    h = 1
+    w = Z.shape[-1]//2
+    fig, ax = plt.subplots(h,w,figsize = (w * 10, h * 10))
+    for i in range(Z.shape[-1]//2):
+        ax[i].plot(out[:, i])
+    plt.show()

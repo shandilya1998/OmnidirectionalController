@@ -259,9 +259,9 @@ def test_cpg(
     omega = np.array([0.2, 0.2, 0.2, 0.2]) * 2 * np.pi
     omega = np.concatenate([omega, 2 * omega, 3 * omega, 4 * omega], -1)
     mu = np.ones((4 * 4,))
-    dt = 0.001
+    dt = 0.005
     C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
-    N = 100000
+    N = 500000
     T = np.arange(N) * dt
     z2 = np.concatenate([
         np.ones((4 * 4,)),
@@ -270,8 +270,9 @@ def test_cpg(
     z1 = z2.copy()
     Z2 = []
     Z1 = []
+    W = []
     for i in range(N):
-        z2, _, z1 = func(omega, mu, z1, z2, phase, C, params['degree'], dt)
+        z2, w, z1 = func(omega, mu, z1, z2, phase, C, params['degree'], dt)
         Z2.append(z2.copy())
         Z1.append(z1.copy())
     Z1 = np.stack(Z1, 0)
@@ -299,55 +300,17 @@ def test_cpg(
                 label = 'generator'
             )
             diff = (1.0 + np.arctan2(
-                Z1[:, i + j * 4],
-                Z1[:, i + 4 * 4 + j * 4]
+                Z1[-steps:, i + j * 4],
+                Z1[-steps:, i + 4 * 4 + j * 4]
             ) / np.pi) / 2 - (1.0 + np.arctan2(
-                Z2[:, i + j * 4],
-                Z2[:, i + 4 * 4 + j * 4]
+                Z2[-steps:, i + j * 4],
+                Z2[-steps:, i + 4 * 4 + j * 4]
             ) / np.pi) / 2
-            axes[i][2].plot(
-                T[-steps:],
-                diff[-steps:].copy(),
-                '--g',
-                label = 'phase difference'
-            )
-            maxindices_2, minindices_2 = findLocalMaximaMinima(
-                N,
-                (1.0 + np.arctan2(
-                    Z2[:, i + j * 4],
-                    Z2[:, i + 4 * 4 + j * 4]
-                ) / np.pi) / 2
-            )
-            maxindices_1, minindices_1 = findLocalMaximaMinima(
-                N,  
-                (1.0 + np.arctan2(
-                    Z1[:, i + j * 4], 
-                    Z1[:, i + 4 * 4 + j * 4]
-                ) / np.pi) / 2 
-            )
-            
-            maxlen_2 = maxindices_2.shape[0]
-            maxlen_1 = maxindices_1.shape[0]
-            minlen_2 = minindices_2.shape[0]
-            minlen_1 = minindices_1.shape[0]
-            length = np.min(np.array([maxlen_2, maxlen_1, minlen_2, minlen_1]))
-            out1 = maxindices_2[-length:] - maxindices_1[-length:]
-            out1 = out1 * dt / steps
-            time1 = dt * (np.arange(out1.shape[0]) / out1.shape[0]) * N
-            out2 = minindices_2[-length:] - minindices_1[-length:]
-            out2 = out2 * dt / steps
-            time2 = dt * (np.arange(out2.shape[0]) / out2.shape[0]) * N
             axes[i][3].plot(
-                time1,
-                out1.copy(),
+                T[-steps:],
+                diff,
                 '--g',
                 label = 'phase difference 1'
-            )
-            axes[i][3].plot(
-                time2,
-                out2.copy(),
-                '--b',
-                label = 'phase difference 2'
             )
             axes[i][0].set_xlabel('time')
             axes[i][0].set_ylabel('real part')

@@ -19,7 +19,7 @@ import tempfile
 class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(self,
                  model_path = 'ant.xml',
-                 frame_skip = 5,
+                 frame_skip = 1,
                  render = False,
                  gait = 'trot',
                  task = 'straight',
