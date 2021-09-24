@@ -5,6 +5,9 @@ import pandas as pd
 import os
 import shutil
 from constants import params
+from oscillator_v2 import hopf_mod_step, _get_polynomial_coef, \
+    hopf_simple_step
+
 
 np.seterr('raise')
 
@@ -598,43 +601,6 @@ def plot_ep_goal_v2(logdir, datapath, filename = 'goal_comparison.png'):
     fig.savefig(os.path.join(logdir, filename))
     plt.show()
 
-def findLocalMaximaMinima(n, arr): 
-  
-    # Empty lists to store points of 
-    # local maxima and minima 
-    mx = [] 
-    mn = [] 
-  
-    # Checking whether the first point is 
-    # local maxima or minima or neither 
-    if(arr[0] > arr[1]): 
-        mx.append(0) 
-    elif(arr[0] < arr[1]): 
-        mn.append(0) 
-  
-    # Iterating over all points to check 
-    # local maxima and local minima 
-    for i in range(1, n-1): 
-  
-        # Condition for local minima 
-        if(arr[i-1] > arr[i] < arr[i + 1]): 
-            mn.append(i) 
-  
-        # Condition for local maxima 
-        elif(arr[i-1] < arr[i] > arr[i + 1]): 
-            mx.append(i) 
-  
-    # Checking whether the last point is 
-    # local maxima or minima or neither 
-    if(arr[-1] > arr[-2]): 
-        mx.append(n-1) 
-    elif(arr[-1] < arr[-2]): 
-        mn.append(n-1) 
-  
-        # Print all the local maxima and 
-        # local minima indexes stored 
-    return np.array(mx), np.array(mn)
-
 def plot_z(steps = 1500, filename1 = 'assets/out/plots/temp.png',
         filename2 = 'assets/out/plots/temp2.png'):
     total = 6599
@@ -760,28 +726,103 @@ def complex_multiply(z1, z2):
         x2 * y1 + x1 * y2
     ], -1)
 
-def test_shifting():
+def test_coupling():
     logdir = 'assets/out/results_v9'
     index = np.random.randint(low = 0, high = 6599)
+    info = pd.read_csv(os.path.join(logdir, 'info.csv'))
+    print(info.iloc[index])
+    gait = info.iloc[index]['gait']
+    beta = 0.75
+    if 'crawl' not in gait:
+        beta = 0.5
     f = 'Quadruped_{}_z.npy'.format(index)
+    f1 = 'Quadruped_{}_omega.npy'.format(index)
+    f2 ='Quadruped_{}_heading_ctrl.npy'.format(index)
     Z = np.load(os.path.join(logdir, f))
-    phase = np.array([0.0, 0.25, 0.5, 0.75])
-    phase = np.concatenate([
-        np.cos(phase * 2 * np.pi),
-        np.sin(phase * 2 * np.pi)
-    ])
-    temp = np.concatenate([
-        np.repeat(np.expand_dims(Z[:, 0], -1), Z.shape[-1] // 2, -1),
-        np.repeat(np.expand_dims(Z[:, Z.shape[-1] // 2], -1), Z.shape[-1] // 2, -1)
-    ], -1)
+    omega = np.load(os.path.join(logdir, f1))
+    heading_ctrl = np.load(os.path.join(logdir, f2))
+    dt = 0.001
+    phase = np.arctan2(
+        Z[0, :Z.shape[-1]//2], Z[0, Z.shape[-1]//2:]
+    )
+
+    omega = np.abs(omega[-1, :])
+
+    """
     out = []
+    for i in range(phase.shape[0]):
+        if phase[i] < 0:
+            out.append(phase[i] + 2 * np.pi)
+        else:
+            out.append(phase[i])
+    phase = np.array(out)
+    phase -= np.cos(phase) * 3 * (1 - beta) / 8
+    phase = phase / (2 * np.pi)
+    """
+    print(phase / np.pi)
+    phase = np.concatenate([
+        np.cos(phase),
+        np.sin(phase)
+    ])
+    out = []
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
+    z = np.random.random((Z.shape[-1],))
+    r = np.sqrt(
+        np.square(Z[:, :Z.shape[-1] //2]) + \
+        np.square(Z[:, Z.shape[-1] //2:])
+    )
+    z1 = np.concatenate([
+        np.ones(Z.shape[-1]//2),
+        np.zeros(Z.shape[-1]//2)
+    ], -1)
+    Z1 = []
+    mu = r[-1, :].copy()
     for i in range(Z.shape[0]):
-        z = complex_multiply(Z[i, :], phase)
+        x1, y1 = np.split(z1, 2, -1)
+        r1 = np.sqrt(np.square(x1) + np.square(y1))
+        phi1 = np.arctan2(y1, x1)
+        phi1 += omega * 2 * dt
+        r1 += r1 * (mu - r1 ** 2) * dt
+        z1 = np.concatenate([
+            r1 * np.cos(phi1),
+            r1 * np.sin(phi1)
+        ], -1)
+        Z1.append(z1.copy())
+        z, w = hopf_mod_step(omega, mu, z, C, params['degree'], dt)
+        x, y = np.split(phase, 2, -1)
+        x1, y1 = np.split(z1, 2, -1)
+        z += params['coupling_strength'] * np.concatenate([
+            x1 * x - y1 * y,
+            x1 * y + y1 * x
+        ], -1)
         out.append(z.copy())
     out = np.stack(out, 0)
-    h = 1
-    w = Z.shape[-1]//2
+    Z1 = np.stack(Z1, 0)
+    h = 4
+    w = 2
     fig, ax = plt.subplots(h,w,figsize = (w * 10, h * 10))
-    for i in range(Z.shape[-1]//2):
-        ax[i].plot(out[:, i])
+    colors = [np.random.random((3, )) for i in range(h)]
+    steps = int(2 * np.pi / (np.max(np.abs(omega)) * dt))
+    for i in range(h):
+        for j in range(w):
+            ax[i][j].plot(
+                out[-steps:, 2 * i + j],
+                color = colors[i],
+                linestyle = '-',
+                label = 'dim {}'.format(i)
+            )
+            ax[i][j].plot(
+                Z1[-steps:, 2 * i + j],
+                color = 'g',
+                linestyle = ':',
+                label = 'ref dim {}'.format(i)
+            )
+            ax[i][j].plot(
+                Z[-steps:, 2 * i + j],
+                color = 'r',
+                linestyle = '--',
+                label = 'leg {}'.format(i)
+            )
+            ax[i][j].legend(loc = 'upper left')
+            ax[i][j].legend(loc = 'upper left')
     plt.show()
