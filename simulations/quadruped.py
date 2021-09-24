@@ -10,7 +10,7 @@ import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils.torch_utils import convert_observation_to_space
-from oscillator import hopf_step, _get_polynomial_coef
+from oscillator import hopf_mod_step
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET
@@ -255,6 +255,13 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def _set_observation_space(self, observation):
         self.observation_space = convert_observation_to_space(observation)
         return self.observation_space
+
+    def set_control_params(self, omega, mu, w, z):
+        self._frequency = omega
+        self._amplitude = mu
+        self.omega = self._frequency * np.pi * 2
+        self.w = w
+        self.z = z
 
     def _create_command_lst(self):
         self.commands = []

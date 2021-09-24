@@ -10,10 +10,7 @@ import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
 from utils.torch_utils import convert_observation_to_space
-from oscillator import hopf_step, _get_polynomial_coef, \
-    _coupled_mod_hopf_step, simple_hopf_step, \
-    complex_multiply 
-from oscillator_v2 import cpg_step
+from oscillator import cpg_step
 from reward import FitnessFunctionV2
 import copy
 import xml.etree.ElementTree as ET

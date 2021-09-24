@@ -19,9 +19,6 @@ class QuadrupedV2(Quadruped):
                  model_path = 'ant.xml',
                  frame_skip = 5,
                  render = False,
-                 gait = 'trot',
-                 task = 'straight',
-                 direction = 'forward',
                  policy_type = 'MultiInputPolicy',
                  track_lst = [ 
                      'desired_goal', 'joint_pos', 'action',
@@ -34,7 +31,19 @@ class QuadrupedV2(Quadruped):
                  ],
                  stairs = False,
                  verbose = 0):
-        super(QuadrupedV2, self).__init__(model_path, frame_skip, render, gait, task, direction, policy_type, track_lst, stairs, verbose)
+        super(QuadrupedV2, self).__init__(
+            model_path = model_path,
+            frame_skip = frame_skip,
+            render = render,
+            policy_type = policy_type,
+            track_lst = track_lst,
+            verbose = verbose
+        )
+        if 'crawl' in self.gait:
+            self.omega = np.array([1.6] * self._num_legs)
+        elif self.gait == 'trot':
+            self.omega = np.array([4.3])
+        self.mu = np.ones((self._num_legs,))
 
     def _set_action_space(self):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)

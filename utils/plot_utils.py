@@ -5,7 +5,7 @@ import pandas as pd
 import os
 import shutil
 from constants import params
-from oscillator_v2 import hopf_mod_step, _get_polynomial_coef, \
+from oscillator import hopf_mod_step, _get_polynomial_coef, \
     hopf_simple_step
 
 
