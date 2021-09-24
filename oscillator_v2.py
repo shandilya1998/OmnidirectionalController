@@ -2,6 +2,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from constants import params
+import pandas as pd
+from utils import _get_init_gamma
 
 def findLocalMaximaMinima(n, arr): 
   
@@ -657,3 +659,85 @@ def test_cpg_v2(
     if show:
         plt.show()
     plt.close()
+
+
+def complex_multiply(z1, z2):
+    x1, y1 = np.split(z1, 2, -1)
+    x2, y2 = np.split(z2, 2, -1)
+    return np.concatenate([
+        x2 * x1 - y2 * y1,
+        x2 * y1 + y2 * x1
+    ], -1)
+
+def test_shift():
+    index = np.random.randint(low = 0, high = 6599)
+    logdir = 'assets/out/results_v9'
+    info = pd.read_csv(os.path.join(logdir, 'info.csv'), index_col = 0)
+    gait = info.iloc[index]['gait']
+    task = info.iloc[index]['task']
+    direction = info.iloc[index]['direction']
+    Z = np.load(os.path.join(logdir, 'Quadruped_{}_z.npy'.format(index)))
+    num_osc = Z.shape[-1] // 2
+    omega = np.load(
+        os.path.join(logdir, 'Quadruped_{}_omega_o.npy'.format(index))
+    )[-1, :]
+    mu = np.square(Z[-1, :num_osc]) + np.square(Z[-1, num_osc:])
+    ref = np.concatenate([
+        np.ones((num_osc,)),
+        np.zeros((num_osc,))
+    ])
+    z = np.random.random((2 * num_osc,))
+    dt = 0.001
+    N = 10000
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50)
+    beta = _get_beta(omega, C, params['degree'])
+    Z_ = []
+    phase, heading_ctrl = _get_init_gamma(gait, task, direction)    
+    phase = phase - np.cos(phase * 2 * np.pi) * 3 * (1 - beta) / 8
+    print(phase)
+    phase = phase * 2 * np.pi
+    phi = np.arctan2(Z[0, num_osc:], Z[0, :num_osc])
+    def func(x):
+        if x<0:
+            return x + np.pi
+        else:
+            return x
+    func = np.vectorize(func)
+    phi = func(phi)
+    print(phi / (2 * np.pi))
+    phase = phi
+    steps = 2 * np.pi / (2 * np.abs(omega) * dt)
+    Z = list(Z)
+    length = len(list(Z))
+    REF = []
+    for i in range(N):
+        ref = hopf_simple_step(omega, mu, ref, dt)
+        z, w = hopf_mod_step(omega, mu, z, C, params['degree'], dt)
+        x = np.cos(phase)
+        y = np.sin(phase)
+        coupling = complex_multiply(
+            np.concatenate([x, y], -1),
+            ref
+        )
+        z += params['coupling_strength'] * coupling * dt
+        Z_.append(z.copy())
+        REF.append(ref.copy())
+        z_ = Z[-1]
+        if i >= length:
+            z_, w = hopf_mod_step(omega, mu, z_, C, params['degree'], dt)
+            Z.append(z_.copy())
+    Z_ = np.stack(Z_, 0)
+    Z = np.stack(Z, 0)
+    REF = np.stack(REF, 0)
+    fig, ax = plt.subplots(num_osc, 2, figsize = (10, 10 * num_osc))
+    for i in range(num_osc):
+        ax[i][0].plot(Z_[-int(steps[i]):, i], '-r', label = 'test')
+        ax[i][0].plot(REF[-int(steps[i]):, i], '--g', label = 'driver')
+        ax[i][0].grid()
+        ax[i][0].legend(loc = 'upper left')
+        ax[i][1].plot(Z_[-int(steps[i]):, i + num_osc], '-r', label = 'test')
+        ax[i][1].plot(REF[-int(steps[i]):, i + num_osc], '--g', label = 'driver')
+        ax[i][1].grid()
+        ax[i][1].legend(loc = 'upper left')
+    plt.show()
+

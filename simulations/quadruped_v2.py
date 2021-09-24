@@ -23,77 +23,40 @@ class QuadrupedV2(Quadruped):
                  task = 'straight',
                  direction = 'forward',
                  policy_type = 'MultiInputPolicy',
-                 track_lst = ['desired_goal', 'joint_pos', 'action', 'velocity', 'position', 'true_joint_pos', 'sensordata', 'qpos', 'qvel', 'achieved_goal', 'observation'],
+                 track_lst = [ 
+                     'desired_goal', 'joint_pos', 'action',
+                     'velocity', 'position', 'true_joint_pos',
+                     'sensordata', 'qpos', 'qvel',
+                     'achieved_goal', 'observation', 'heading_ctrl',
+                     'omega', 'z', 'mu',
+                     'd1', 'd2', 'd3',
+                     'stability', 'omega_o', 'reward'
+                 ],
                  stairs = False,
                  verbose = 0):
         super(QuadrupedV2, self).__init__(model_path, frame_skip, render, gait, task, direction, policy_type, track_lst, stairs, verbose)
 
     def _set_action_space(self):
-        self.ref_path = params['ref_path']
-        self.ref_num, self.data_path = data_generator.get_reference_info(self.ref_path, self._track_lst, params['env_name'])
-        self.ref_info = pd.read_csv(os.path.join(params['ref_path'], 'info.csv'), index_col = 0)
-        self.ref_command = self.ref_info.sample().values[0]
-        self.gait = self.ref_command[0]
-        self.task = self.ref_command[1]
-        self.direction = self.ref_command[2]
-        self.ref_data = {key : np.load(os.path.join(params['ref_path'], self.ref_command[3] + '_{}.npy'.format(key))) for key in self._track_lst}
-        self.command = np.mean(self.ref_data['desired_goal'], axis = 0)
-        self.desired_goal = self.command
-        self.achieved_goal = self.sim.data.qvel[:6].copy()
+        self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
         self._set_leg_params()
         self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         self._set_init_gamma() # set init leg phase
         self.gamma = self.init_gamma.copy()
+        self.commands =  self._create_command_lst()
+        self.command = random.choice(self.commands)
+        self.desired_goal = self.command
+        self.achieved_goal = self.sim.data.qvel[:6].copy()
         bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         low, high = bounds.T
-        low = low.min() * np.ones((params['action_dim'],), dtype = np.float32)
-        high = high.min() * np.ones((params['action_dim'],), dtype = np.float32)
+        low = low.min() * np.ones(low.shape, dtype = np.float32)
+        high = high.max() * np.ones(high.shape, dtype = np.float32)
         self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
         self._action_dim = low.shape[-1]
         return self.action_space
 
-    def reset(self):
-        self.ref_command = self.ref_info.sample().values[0]
-        self.gait = self.ref_command[0]
-        self.task = self.ref_command[1]
-        self.direction = self.ref_command[2]
-        self.ref_data = {key : np.load(os.path.join(params['ref_path'], self.ref_command[3] + '_{}.npy'.format(key))) for key in self._track_lst}
-        self.command = np.mean(self.ref_data['desired_goal'], axis = 0)
-        self.desired_goal = self.command
-        self.achieved_goal = self.sim.data.qvel[:6].copy()
-        self._set_beta()
-        self._set_leg_params()
-        self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
-        self._set_init_gamma() # set init leg phase
-        self._step = 0
-        self._last_base_position = [0, 0, params['INIT_HEIGHT']]
-        self.gamma = self.init_gamma.copy()
-        self.sim.reset()
-        self.ob = self.reset_model()
-        """
-        if self.policy_type == 'MultiInputPolicy':
-        """
-        """
-                modify this according to observation space
-        """
-        """
-            self.achieved_goal = self.sim.data.qvel[:6].copy()
-            self.command = random.choice(self.commands)
-            if self.verbose > 0:
-                print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
-            self.desired_goal = self.command
-        """
-        if len(self._track_lst) > 0 and self.verbose > 0:
-            for item in self._track_lst:
-                with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
-                    np.save(f, np.stack(self._track_item[item], axis = 0))
-        self._reset_track_lst()
-
-        return self.ob
-
     def _track_attr(self):
-        """
+        """ 
             modify this according to need
         """
         self._track_item['joint_pos'].append(self.joint_pos.copy())
@@ -107,65 +70,161 @@ class QuadrupedV2(Quadruped):
         ob =  self._get_obs()
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
-        self._track_item['desired_goal'].append(ob['desired_goal'].copy())
+        self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
+        self._track_item['omega_o'].append(self.omega.copy())
+        self._track_item['omega'].append(self.w.copy())
+        self._track_item['z'].append(self.z.copy())
+        self._track_item['mu'].append(self.mu.copy())
+        self._track_item['d1'].append(np.array([self.d1], dtype = np.float32))
+        self._track_item['d2'].append(np.array([self.d2], dtype = np.float32))
+        self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
+        self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
+        self._track_item['reward'].append(np.array([self._reward], dtype = np.float32))
 
-    def _episode_stats(self):
-        info = {
-            'desired_goal' : self.desired_goal,
-            'episode_length' : self.ref_command[3],
-            'gait' : self.ref_command[0],
-            'task' : self.ref_command[1],
-            'direction' : self.ref_command[2],
-        }
+    def _get_obs(self):
+        """
+            modify this according to observation space
+        """
+        ob = {}
+        if self.policy_type == 'MultiInputPolicy':
+            ob = {
+                'observation' : np.concatenate([
+                    self.joint_pos,
+                    self.sim.data.sensordata.copy()
+                ], -1),
+                'desired_goal' : self.desired_goal,
+                'achieved_goal' : self.achieved_goal
+            }
+        else:
+            ob = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
+        return ob
+
+    def reset(self):
+        self._step = 0
+        self._last_base_position = [0, 0, params['INIT_HEIGHT']]
+        self.gamma = self.init_gamma.copy()
+        #self.z = np.concatenate([np.cos((self.init_gamma + params['offset']) * np.pi * 2), np.sin((self.init_gamma + params['offset']) * np.pi * 2)], -1)
+        self.z = self._get_z()
+        self.sim.reset()
+        self.ob = self.reset_model()
+        if self.policy_type == 'MultiInputPolicy':
+            """
+                modify this according to observation space
+            """
+            self.achieved_goal = self.sim.data.qvel[:6].copy()
+            self.command = random.choice(self.commands)
+            if self.verbose > 0:
+                print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
+            self.desired_goal = self.command
+
+        if len(self._track_lst) > 0 and self.verbose > 0:
+            for item in self._track_lst:
+                with open(os.path.join('assets', 'episode','ant_{}.npy'.format(item)), 'wb') as f:
+                    np.save(f, np.stack(self._track_item[item], axis = 0))
+        self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
+        self._reset_track_lst()
+        self._track_attr()
+        return self.ob
 
     def do_simulation(self, action, n_frames, callback=None):
-        out = []
-        for i in range(action.shape[-1]):
-            out.append(action[i])
-            if i % 2 == 1:
-                out.append(action[i] * 0.5)
-        action = np.array(out, dtype = np.float32)
-        self.sim.data.ctrl[:] = action
-        self.action = action.copy()
-        self.joint_pos = action.copy()
+        self.action = action
+        self._frequency = None
+        self._amplitude = None
+        
+        reward_velocity = 0.0
+        reward_energy = 0.0
+        penalty = 0.0
+        done = False
+        
+        if self.verbose > 0:
+            print(self._n_steps)
+
+        """
+            The joint position of this is the same as the action:
+                No precessing required here
+        """
+
+        self.joint_pos = self.action
+        posbefore = self.get_body_com("torso").copy()
+        penalty = 0.0
+        if np.isnan(self.joint_pos).any():
+            self.joint_pos = np.nan_to_num(self.joint_pos)
+            penalty += -1.0
+        self.sim.data.ctrl[:] = self.joint_pos
         for _ in range(n_frames):
             self.sim.step()
-
+        posafter = self.get_body_com("torso").copy()
+        velocity = (posafter - posbefore) / self.dt
+        ang_vel = self.sim.data.qvel[3:6]
+        self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
+        if self.policy_type == 'MultiInputPolicy':
+            """
+                modify this according to observation space
+            """
+            if len(self._track_item['achieved_goal']) \
+                    > params['window_size']:
+                self.achieved_goal = sum([np.concatenate([
+                    velocity,
+                    ang_vel
+                ], -1)] + self._track_item[
+                    'achieved_goal'][-params['window_size'] + 1:
+                    ]
+                ) / params['window_size']
+            else:
+                self.achieved_goal = sum([np.concatenate([
+                    velocity,
+                    ang_vel
+                ], -1)] + [self._track_item[
+                    'achieved_goal'][0]] * (params['window_size'] - 1)
+                ) / params['window_size']
         if self._is_render:
             self.render()
-        self.achieved_goal = self.sim.data.qvel[:6].copy()
-
-        self.w = [0.20, 2.0, 0.10, 0.10, 0.10, 0.05, 0.05]
-        reward_velocity = -np.linalg.norm(self.achieved_goal[:3] - self.desired_goal[:3], axis = -1)
-        reward_ctrl = -np.linalg.norm(action - self.ref_data['joint_pos'][self._step, :])
-        reward_position = np.exp(-np.linalg.norm(self.sim.data.qpos[:3] - self.ref_data['qpos'][self._step, :3], axis = -1)) * self.w[2]
-        reward_orientation = np.exp(-np.linalg.norm(self.sim.data.qpos[3:7] * self.ref_data['qpos'][self._step, 3:7])) * self.w[3]
-        reward_ang_vel = -np.linalg.norm(self.achieved_goal[3:6] - self.desired_goal[3:6], axis = -1)
-        reward_contact = np.exp(-np.sum(
-            np.square(self.sim.data.cfrc_ext.flat)
-        )) * self.w[5]
-        reward_energy = np.exp(-1e-2 * np.linalg.norm(self.sim.data.actuator_force)) * self.w[6]
-        self._step += 1
-        state = self.state_vector()
-        notdone = np.isfinite(state).all() \
-            and state[2] >= 0.02 and state[2] <= 0.3
-        done = not notdone
-        if self._step >= self.ref_data['sensordata'].shape[0] - 2:
+        if self.policy_type == 'MultiInputPolicy':
+            reward_velocity += np.linalg.norm(
+                self.achieved_goal - self.desired_goal
+            )
+        else:
+            reward_velocity += np.abs(
+                self.achieved_goal[0] - self.desired_goal[0]
+            )
+        reward_energy += -np.linalg.norm(
+            self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]
+        ) - np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
+        if not upright:
             done = True
-
         self._track_attr()
-
-        reward = reward_ctrl + reward_position + reward_velocity + reward_orientation + reward_ang_vel + reward_contact + reward_energy
+        self._step += 1
+        reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
+        reward_velocity = np.exp(params['reward_velocity_coef'] * reward_velocity)
+        reward_energy = np.exp(params['reward_energy_coef'] * reward_energy)
+        reward = reward_distance + reward_velocity + reward_energy + penalty
         info = {
             'reward_velocity' : reward_velocity,
-            'reward_position' : reward_position,
+            'reward_distance' : reward_distance,
             'reward_energy' : reward_energy,
-            'reward_ang_vel' : reward_ang_vel,
-            'reward_orientation' : reward_orientation,
-            'reward_contact' : reward_contact,
-            'reward_ctrl' : reward_ctrl,
             'reward' : reward,
+            'penalty' : penalty
         }
 
+        state = self.state_vector()
+        notdone = np.isfinite(state).all() \
+            and state[2] >= 0.02 and state[2] <= 0.5
+        done = not notdone
+        self._reward = reward
+
         return reward, done, info
+
+def test():
+    index = np.random.randint(low = 0, high = 6599)
+    logdir = 'assets/out/results_v9'
+    info = pd.read_csv(os.path.join(logdir, 'info.csv'), index_col = 0)
+    print(info.iloc[index])
+    f1 = 'Quadruped_{}_joint_pos.npy'.format(index)
+    joint_pos = np.load(os.path.join(logdir, f1))
+    
+    env = QuadrupedV2()
+
+    for i in range(joint_pos.shape[0]):
+        ob = env.step(joint_pos[i, :])
+        env.render()
 

@@ -736,7 +736,7 @@ def test_coupling():
     if 'crawl' not in gait:
         beta = 0.5
     f = 'Quadruped_{}_z.npy'.format(index)
-    f1 = 'Quadruped_{}_omega.npy'.format(index)
+    f1 = 'Quadruped_{}_omega_o.npy'.format(index)
     f2 ='Quadruped_{}_heading_ctrl.npy'.format(index)
     Z = np.load(os.path.join(logdir, f))
     omega = np.load(os.path.join(logdir, f1))
@@ -744,25 +744,22 @@ def test_coupling():
     dt = 0.001
     phase = np.arctan2(
         Z[0, :Z.shape[-1]//2], Z[0, Z.shape[-1]//2:]
-    )
+    ) / np.pi
 
-    omega = np.abs(omega[-1, :])
-
-    """
+    print(phase)
     out = []
-    for i in range(phase.shape[0]):
+    for i in range(Z.shape[-1] // 2):
         if phase[i] < 0:
-            out.append(phase[i] + 2 * np.pi)
+            out.append((phase[i] + 1.0))
         else:
             out.append(phase[i])
-    phase = np.array(out)
+    phase = np.array(out) / 2
+    omega = np.abs(omega[-1, :])
     phase -= np.cos(phase) * 3 * (1 - beta) / 8
-    phase = phase / (2 * np.pi)
-    """
-    print(phase / np.pi)
+    print(phase)
     phase = np.concatenate([
-        np.cos(phase),
-        np.sin(phase)
+        np.cos(phase * 2 * np.pi),
+        np.sin(phase * 2 * np.pi)
     ])
     out = []
     C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50) 
@@ -777,17 +774,8 @@ def test_coupling():
     ], -1)
     Z1 = []
     mu = r[-1, :].copy()
-    for i in range(Z.shape[0]):
-        x1, y1 = np.split(z1, 2, -1)
-        r1 = np.sqrt(np.square(x1) + np.square(y1))
-        phi1 = np.arctan2(y1, x1)
-        phi1 += omega * 2 * dt
-        r1 += r1 * (mu - r1 ** 2) * dt
-        z1 = np.concatenate([
-            r1 * np.cos(phi1),
-            r1 * np.sin(phi1)
-        ], -1)
-        Z1.append(z1.copy())
+    for i in range(Z.shape[0] * 10):
+        z1 = hopf_simple_step(omega, mu, z1, dt)
         z, w = hopf_mod_step(omega, mu, z, C, params['degree'], dt)
         x, y = np.split(phase, 2, -1)
         x1, y1 = np.split(z1, 2, -1)
@@ -795,6 +783,7 @@ def test_coupling():
             x1 * x - y1 * y,
             x1 * y + y1 * x
         ], -1)
+        Z1.append(z1.copy())
         out.append(z.copy())
     out = np.stack(out, 0)
     Z1 = np.stack(Z1, 0)
@@ -816,12 +805,6 @@ def test_coupling():
                 color = 'g',
                 linestyle = ':',
                 label = 'ref dim {}'.format(i)
-            )
-            ax[i][j].plot(
-                Z[-steps:, 2 * i + j],
-                color = 'r',
-                linestyle = '--',
-                label = 'leg {}'.format(i)
             )
             ax[i][j].legend(loc = 'upper left')
             ax[i][j].legend(loc = 'upper left')

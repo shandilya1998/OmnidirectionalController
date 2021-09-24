@@ -16,6 +16,7 @@ import copy
 import xml.etree.ElementTree as ET
 import tempfile
 
+
 class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(self,
                  model_path = 'ant.xml',
@@ -257,12 +258,12 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
 
     def _create_command_lst(self):
         self.commands = []
-        xvel = [0.0]
-        yvel = [0.0]
-        zvel = [0.0]
-        roll_rate = [0.0]
-        pitch_rate = [0.0]
-        yaw_rate = [0.0]
+        xvel = np.zeros((50,))
+        yvel = np.zeros((50,))
+        zvel = np.zeros((50,))
+        roll_rate = np.zeros((50,))
+        pitch_rate = np.zeros((50,))
+        yaw_rate = np.zeros((50,))
         if self.gait in [
             'ds_crawl',
             'ls_crawl',
@@ -274,31 +275,38 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         ]:
             if self.task == 'rotate' or self.task == 'turn':
                 if self.direction == 'left':
-                    yaw_rate = np.arange(-0.05, 0.001, 0.001).tolist()
+                    yaw_rate = np.random.uniform(
+                        low = -0.05, high = 0.001, size = (50,)
+                    )
                 elif self.direction == 'right':
-                    yaw_rate = np.arange(0.001, 0.05, 0.001).tolist()
+                    yaw_rate = np.random.uniform(
+                        low = 0.001, high = 0.05, size = (50,)
+                    )
             elif self.task == 'straight':
                 if self.direction == 'left':
-                    yvel = np.arange(-0.05, 0.001, 0.001).tolist()
+                    yvel = np.random.uniform(
+                        low = -0.05, high = 0.001, size = (50,)
+                    )
                 elif self.direction == 'right':
-                    yvel = np.arange(0.001, 0.05, 0.001).tolist()
+                    yvel = np.random.uniform(
+                        low = 0.001, high = 0.05, size = (50,)
+                    )
                 elif self.direction == 'forward':
-                    xvel = np.arange(0.001, 0.05, 0.001).tolist()
+                    xvel = np.random.uniform(
+                        low = 0.001, high = 0.05, size = (50,)
+                    )
                 elif self.direction == 'backward':
-                    xvel = np.arange(-0.05, 0.001, 0.001).tolist()
+                    xvel = np.random.uniform(
+                        low = -0.05, high = 0.001, size = (50,)
+                    )
             else:
                 raise ValueError
 
-        for _x in xvel:
-            for _y in yvel:
-                for _z in zvel:
-                    for _roll in roll_rate:
-                        for _pitch in pitch_rate:
-                            for _yaw in yaw_rate:
-                                self.commands.append(np.array([
-                                    _x, _y, _z, _roll, _pitch, _yaw
-                                ], dtype = np.float32))
-        return self.commands
+        self.commands = np.stack(
+            [xvel, yvel, zvel, roll_rate, pitch_rate, yaw_rate], -1
+        )
+
+        return list(self.commands)
 
     @property
     def dt(self):
@@ -727,23 +735,40 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             posafter = self.get_body_com("torso").copy()
             velocity = (posafter - posbefore) / self.dt
             ang_vel = self.sim.data.qvel[3:6]
+            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
             if self.policy_type == 'MultiInputPolicy':
                 """
                     modify this according to observation space
                 """
-                self.achieved_goal = np.concatenate([
-                    velocity,
-                    ang_vel
-                ], -1)
+                if len(self._track_item['achieved_goal']) \
+                        > params['window_size']:
+                    self.achieved_goal = sum([np.concatenate([
+                        velocity,
+                        ang_vel
+                    ], -1)] + self._track_item[
+                        'achived_goal'
+                        ][-params['window_size'] + 1:]
+                    ) / params['window_size']
+                else:
+                    self.achieved_goal = sum([np.concatenate([
+                        velocity,
+                        ang_vel
+                    ], -1)] + [self._track_item[
+                        'achived_goal'][0]] * (params['window_size'] - 1)
+                    ) / params['window_size']
             if self._is_render:
                 self.render()
             if self.policy_type == 'MultiInputPolicy':
-                reward_velocity += -np.linalg.norm(self.achieved_goal - self.desired_goal + 1e-9, -1)
+                reward_velocity += np.linalg.norm(
+                    self.achieved_goal - self.desired_gaol
+                )
             else:
-                reward_velocity += np.linalg.norm(velocity[0] + 1e-9)
-            reward_energy += -np.linalg.norm(self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]) + \
-                -np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
-            self.d1, self.d2, self.d3, self.stability, upright = self.calculate_stability_reward(self.desired_goal)
+                reward_velocity += np.abs(
+                    self.achieved_goal[0] - self.desired_goal[0]
+                )
+            reward_energy += -np.linalg.norm(
+                self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]
+            ) - np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
             if not upright:
                 done = True
             counter += 1
