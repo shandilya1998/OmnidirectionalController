@@ -17,7 +17,7 @@ import pandas as pd
 class QuadrupedV2(Quadruped):
     def __init__(self,
                  model_path = 'ant.xml',
-                 frame_skip = 5,
+                 frame_skip = 1,
                  render = False,
                  policy_type = 'MultiInputPolicy',
                  track_lst = [ 
@@ -49,7 +49,6 @@ class QuadrupedV2(Quadruped):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
         self._set_leg_params()
-        self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         self._set_init_gamma() # set init leg phase
         self.gamma = self.init_gamma.copy()
         self.commands =  self._create_command_lst()
@@ -78,6 +77,7 @@ class QuadrupedV2(Quadruped):
         self._track_item['qvel'].append(self.sim.data.qvel.copy())
         ob =  self._get_obs()
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
+        self._track_item['desired_goal'].append(ob['desired_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
         self._track_item['omega_o'].append(self.omega.copy())

@@ -3,11 +3,14 @@ import numpy as np
 import os
 
 
+num_legs = 4
 action_dim = 8
 units_osc = action_dim #60#action_dim#60 exp 68 units_osc = 8
 cpg_param_size = 16 #16 #16 v1 to v4
 input_size = 212 # 212 # 132 # 132 is size for results v 3
 params = {
+    'num_legs'                    : num_legs,
+    'end_eff'                     : [5, 9, 13, 17],
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
     'dt'                          : 0.005,
@@ -300,6 +303,7 @@ params_env = {
     'dt'                          : 0.005,
     'reward_energy_coef'          : 1e-2,
     'reward_velocity_coef'        : 1e2,
+    'update_action_every'         : 1.0,
     'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
 }
 

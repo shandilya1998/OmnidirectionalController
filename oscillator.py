@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from constants import params
 
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)

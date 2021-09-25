@@ -40,7 +40,6 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         gym.GoalEnv.__init__(self)
         gym.utils.EzPickle.__init__(self)
         self._reward = 0.0
-        self.camera_name = params['camera_name']
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}
         self._step = 0
@@ -100,13 +99,14 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             self.worldtree = tree
         self.model = mujoco_py.load_model_from_path(fullpath)
         self.sim = mujoco_py.MjSim(self.model)
-        self.data = self.sim.data
         self.viewer = None
         self._viewers = {}
-        self._update_action_every = 1.
+        self._update_action_every = params['update_action_every']
         self._frequency = 2.8
         self.model.opt.timestep = params['dt']
-        self._last_base_position = [0, 0, params['INIT_HEIGHT']]
+        self._last_base_position = np.array(
+            [0, 0, params['INIT_HEIGHT']], dtype = np.float32
+        )
 
         self.metadata = {
             'render.modes': ['human', 'rgb_array', 'depth_array'],
@@ -127,10 +127,10 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
 
         self._is_render = render
         self._num_joints = self.init_qpos.shape[-1] - 7
-        self._num_legs = 4
+        self._num_legs = params['num_legs']
         self.joint_pos = self.sim.data.qpos[-self._num_joints:]
 
-        self.end_eff = [5, 9, 13, 17]
+        self.end_eff = params['end_eff']
         self.support_points = []
         self.times = []
         self.current_supports = []
@@ -338,10 +338,8 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self.stability = 0.0
 
     def _set_action_space(self):
-        self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
         self._set_leg_params()
-        self._joint_bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         self._set_init_gamma() # set init leg phase
         self.gamma = self.init_gamma.copy()
         if self.policy_type == 'MultiInputPolicy':
@@ -475,7 +473,9 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
 
     def reset(self):
         self._step = 0
-        self._last_base_position = [0, 0, params['INIT_HEIGHT']]
+        self._last_base_position = np.array(
+            [0, 0, params['INIT_HEIGHT']], dtype = np.float32
+        )
         self.gamma = self.init_gamma.copy()
         #self.z = np.concatenate([np.cos((self.init_gamma + params['offset']) * np.pi * 2), np.sin((self.init_gamma + params['offset']) * np.pi * 2)], -1)
         self.z = self._get_z()
@@ -567,6 +567,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self._track_item['qvel'].append(self.sim.data.qvel.copy())
         ob =  self._get_obs()
         self._track_item['achieved_goal'].append(ob['achieved_goal'].copy())
+        self._track_item['desired_goal'].append(ob['desired_goal'].copy())
         self._track_item['observation'].append(ob['observation'].copy())
         self._track_item['heading_ctrl'].append(self.heading_ctrl.copy())
         self._track_item['omega_o'].append(self.omega.copy())
@@ -859,7 +860,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         return self.viewer
 
     def get_body_com(self, body_name):
-        return self.data.get_body_xpos(body_name)
+        return self.sim.data.get_body_xpos(body_name)
 
     def state_vector(self):
         return np.concatenate([
