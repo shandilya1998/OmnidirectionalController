@@ -8,18 +8,22 @@ from constants import params
 from simulations import QuadrupedV2
 from oscillator import cpg_step
 import matplotlib.pyplot as plt
+import gym
 
-class LLC:
+class LLC(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(
             self,
             datapath = 'assets/out/results_v9',
             logdir = 'assets/out/results_v9',
-            render = False,
+            render = True,
         ):
+        gym.GoalEnv.__init__(self)
+        gym.utils.EzPickle.__init__(self)
         self.track_list = params['track_list']
         self.env = QuadrupedV2(
             render = render
         )
+        self.render = render
         self.dt = self.env.dt
         self.datapath = datapath
         self.logdir = os.path.join(logdir, 'llc_tests')
@@ -32,12 +36,18 @@ class LLC:
         ), index_col = 0)
 
     def cpg(self, omega, mu, z1, z2, phase):
+        factor = self.env.dt / 0.001
         return cpg_step(omega, mu, z1, z2, phase, \
-            self.env.C, params['degree'], self.dt)
+            self.env.C, params['degree'], self.env.dt / factor)
 
-    def preprocess(self, z, omega):
-        num_osc = z.shape[-1] // 2
+    def preprocess(self, z, omega, mu):
         out = []
+        num_osc = z.shape[-1] // 2
+        x, y = np.split(z, 2, -1)
+        phi = np.arctan2(y, x)
+        x = np.sqrt(mu) * np.cos(phi)
+        y = np.sqrt(mu) * np.sin(phi)
+        z = np.concatenate([x, y], -1)
         for i in range(self.env._num_legs):
             direction = 1.0
             if i in [0, 3]:
@@ -68,15 +78,19 @@ class LLC:
             self.datapath,
             'Quadruped_{}_omega.npy'.format(index)
         ))
+        Z = np.load(os.path.join(
+            self.datapath,
+            'Quadruped_{}_z.npy'.format(index)
+        ))
+        MU = np.load(os.path.join(
+            self.datapath,
+            'Quadruped_{}_mu.npy'.format(index)
+        ))
 
         omega = OMEGA[-1, :]
+        mu = MU[-1, :]
         w = W[0, :]
-        mu = np.ones((omega.shape[-1]))
-
-        z = np.concatenate([
-            np.ones((self.env._num_legs,)),
-            np.zeros((self.env._num_legs,))
-        ], -1)
+        z = Z[0, :]
         self.env.set_control_params(
             omega,
             mu,
@@ -93,8 +107,9 @@ class LLC:
             ob, reward, done, info = self.env.step(JOINT_POS[i, :])
             for key in info.keys():
                 REWARD[key].append(info[key])
-            self.env.render()
-        return REWARD, [JOINT_POS, OMEGA, W]
+            if self.render:
+                self.env.render()
+        return REWARD, [JOINT_POS, OMEGA, W, Z], []
 
     def test_cpg(self, seed = 46):
         prng = np.random.RandomState(seed)
@@ -104,6 +119,10 @@ class LLC:
         OMEGA = np.load(os.path.join(
             self.datapath,
             'Quadruped_{}_omega_o.npy'.format(index)
+        ))
+        MU = np.load(os.path.join(
+            self.datapath,
+            'Quadruped_{}_mu.npy'.format(index)
         ))
         Z = np.load(os.path.join(
             self.datapath,
@@ -117,14 +136,14 @@ class LLC:
             Z[0, self.env._num_legs:], Z[0, :self.env._num_legs]        
         )
         omega = OMEGA[-1, :]
+        mu = MU[-1, :]
         w = W[0, :]
-        mu = np.ones((omega.shape[-1]))
 
-        z = np.concatenate([
+        z_ref = np.concatenate([
             np.ones((self.env._num_legs,)),
             np.zeros((self.env._num_legs,))
         ], -1)
-        z_ref = z.copy()
+        z = np.random.random((2 * self.env._num_legs,))
         self.env.set_control_params(
             omega,
             mu, 
@@ -144,14 +163,15 @@ class LLC:
             z, w, z_ref = self.cpg(omega, mu, z_ref, z, phase)
             _Z.append(z.copy())
             _Z_REF.append(z_ref.copy())
-            JOINT_POS.append(self.preprocess(z, omega).copy())
+            JOINT_POS.append(self.preprocess(z, omega, mu).copy())
             ob, reward, done, info = self.env.step(JOINT_POS[-1])
             for key in info.keys():
                 REWARD[key].append(info[key])
-            self.env.render()
+            if self.render:
+                self.env.render()
         _Z = np.stack(_Z, 0)
         _Z_REF  = np.stack(_Z_REF, 0)
-        return REWARD, [JOINT_POS, OMEGA, W, _Z, _Z_REF]
+        return REWARD, [JOINT_POS, OMEGA, W, _Z], [_Z_REF]
 
     def _get_track_item(self):
         items = copy.deepcopy(self.env._track_item)
@@ -161,30 +181,67 @@ class LLC:
         return items
 
     def test_comparison(self, seed = 46):
-        reward_ref, plot_ref = self.test_env(seed = seed)
+        reward_ref, plot_ref, _ = self.test_env(seed = seed)
         _track_item_ref = self._get_track_item()
-        reward, plot = self.test_cpg(seed = seed)
+        reward, plot, _ = self.test_cpg(seed = seed)
         _track_item = self._get_track_item()
 
         omega = _track_item_ref['omega_o'][-1]
-        T = np.arange(_track_item_ref['joint_pos'].shape[0]) * self.env.dt
-        steps = int(2 * np.pi / (np.min(omega) * self.env.dt * 2)) 
-        fig1, ax1 = plt.subplots(4, 3,figsize = (21, 28))
+        T = np.arange(_track_item_ref['joint_pos'].shape[0] - 1) * self.env.dt
+        steps = int(2 * np.pi / (np.min(np.abs(omega)) * self.env.dt))
+        fig, ax = plt.subplots(self.env._num_legs, 2, figsize = (14,7))
+        for i in range(self.env._num_legs):
+            ax[i][0].plot(
+                T,
+                plot_ref[-1][:, i],
+                label = 'ref {}'.format(i),
+                color = 'b',
+                linestyle = '-'
+            )
+            ax[i][0].plot(
+                T,
+                plot[-1][:, i],
+                label = 'cpg {}'.format(i),
+                color = 'r',
+                linestyle = '--'
+            )
+            ax[i][1].plot(
+                T,
+                plot_ref[-1][:, i + self.env._num_legs], 
+                label = 'ref {}'.format(i),
+                color = 'b',
+                linestyle = '--'
+            )   
+            ax[i][1].plot(
+                T,
+                plot[-1][:, i + self.env._num_legs],
+                label = 'cpg {}'.format(i),
+                color = 'r',
+                linestyle = '-'
+            )
+            ax[i][0].set_xlabel('time')
+            ax[i][0].set_ylabel('real part')
+            ax[i][1].set_xlabel('time')
+            ax[i][1].set_ylabel('imaginary part')
+        plt.show()
+        plt.close()
+
+        fig1, ax1 = plt.subplots(4, 3, figsize = (21, 28))
         joints = ['hip', 'knee1', 'knee2']
         for i in range(self.env._num_legs):
             for j in range(3):
                 ax1[i][j].plot(
-                    T[-steps * 3:],
-                    _track_item_ref['joint_pos'][-steps:, 3 * i + j ],
+                    T[-steps * 2:],
+                    _track_item_ref['joint_pos'][-steps * 2:, 3 * i + j ],
                     label = 'ref {} {}'.format(joints[j], i),
-                    color = 'b',
+                    color = 'r',
                     linestyle = '--'
                 )
                 ax1[i][j].plot(
-                    T[-steps * 3:],
-                    _track_item['joint_pos'][-steps:, 3 * i + j],
+                    T[-steps * 2:],
+                    _track_item['joint_pos'][-steps * 2:, 3 * i + j],
                     label = 'cpg {} {}'.format(joints[j], i),
-                    color = 'r',
+                    color = 'b',
                     linestyle = '--'
                 )
                 ax1[i][j].legend(loc = 'upper left')

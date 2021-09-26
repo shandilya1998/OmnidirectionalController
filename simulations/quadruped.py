@@ -20,7 +20,7 @@ import tempfile
 class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(self,
                  model_path = 'ant.xml',
-                 frame_skip = 1,
+                 frame_skip = 5,
                  render = False,
                  gait = 'trot',
                  task = 'straight',
@@ -257,9 +257,9 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         return self.observation_space
 
     def set_control_params(self, omega, mu, w, z):
-        self._frequency = omega
+        self._frequency = omega / (2 * np.pi)
         self._amplitude = mu
-        self.omega = self._frequency * np.pi * 2
+        self.omega = omega
         self.w = w
         self.z = z
 
@@ -689,7 +689,8 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         time_omega = 0.0
         self.mu = np.array(amp, dtype = np.float32)
         self.omega = np.array(omg, dtype = np.float32) * self.heading_ctrl
-        self.z, w = hopf_step(self.omega, self.mu, self.z, self.C, params['degree'])
+        self.z, w = hopf_mod_step(self.omega, self.mu, self.z, self.C,
+                params['degree'], self.dt)
         self.w = w
         out = []
         for i in range(self._num_legs):
@@ -762,13 +763,13 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
                         velocity,
                         ang_vel
                     ], -1)] + [self._track_item[
-                        'achived_goal'][0]] * (params['window_size'] - 1)
+                        'achieved_goal'][0]] * (params['window_size'] - 1)
                     ) / params['window_size']
             if self._is_render:
                 self.render()
             if self.policy_type == 'MultiInputPolicy':
                 reward_velocity += np.linalg.norm(
-                    self.achieved_goal - self.desired_gaol
+                    self.achieved_goal - self.desired_goal
                 )
             else:
                 reward_velocity += np.abs(

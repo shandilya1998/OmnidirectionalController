@@ -17,7 +17,7 @@ import pandas as pd
 class QuadrupedV2(Quadruped):
     def __init__(self,
                  model_path = 'ant.xml',
-                 frame_skip = 1,
+                 frame_skip = 5,
                  render = False,
                  policy_type = 'MultiInputPolicy',
                  track_lst = [ 
