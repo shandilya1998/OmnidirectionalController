@@ -283,7 +283,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             if self.task == 'rotate' or self.task == 'turn':
                 if self.direction == 'left':
                     yaw_rate = np.random.uniform(
-                        low = -0.05, high = 0.001, size = (50,)
+                        low = -0.05, high = -0.001, size = (50,)
                     )
                 elif self.direction == 'right':
                     yaw_rate = np.random.uniform(
@@ -292,7 +292,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             elif self.task == 'straight':
                 if self.direction == 'left':
                     yvel = np.random.uniform(
-                        low = -0.05, high = 0.001, size = (50,)
+                        low = -0.05, high = -0.001, size = (50,)
                     )
                 elif self.direction == 'right':
                     yvel = np.random.uniform(
@@ -304,13 +304,13 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
                     )
                 elif self.direction == 'backward':
                     xvel = np.random.uniform(
-                        low = -0.05, high = 0.001, size = (50,)
+                        low = -0.05, high = -0.001, size = (50,)
                     )
             else:
                 raise ValueError
 
         self.commands = np.stack(
-            [xvel, yvel, zvel, roll_rate, pitch_rate, yaw_rate], -1
+            [yvel, xvel, zvel, roll_rate, pitch_rate, yaw_rate], -1
         )
 
         return list(self.commands)

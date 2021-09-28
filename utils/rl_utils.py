@@ -3,7 +3,7 @@ import gym
 from constants import params
 from typing import Any, Dict
 
-class SaveOnBestTrainingRewardCallback(sb3..common.callbacks.BaseCallback):
+class SaveOnBestTrainingRewardCallback(sb3.common.callbacks.BaseCallback):
     """
     Callback for saving a model (the check is done every ``check_freq`` steps)
     based on the training reward (in practice, we recommend using ``EvalCallback``).

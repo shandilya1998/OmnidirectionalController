@@ -26,6 +26,8 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         self.env = QuadrupedV2(
             render = render
         )
+        self.sim = self.env.sim
+        self.model = self.env.model
         self.render = render
         self.dt = self.env.dt
         self.datapath = datapath
@@ -51,53 +53,44 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
         )
 
-    def learn(self):
-        self.rl_model.learn(
-            total_timesteps = params['total_timesteps'],
-            callback = self.rl_callback
-        )
+    def render(self, mode='human',
+           width=params['DEFAULT_SIZE'],
+           height=params['DEFAULT_SIZE'],
+           camera_id=None,
+           camera_name=None ):
+        self.env.render()
 
-    def __set_rl_callback(self):
-        recordcallback = CustomCallback(
-            self.env,
-            render_freq = params['render_freq']
+    def close(self):
+        self.env.close()
+
+    def reset(self):
+        self.omega = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.mu = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.phase = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.z2 = np.concatenate([
+            np.ones((self.env._num_legs,), dtype = np.float32),
+            np.zeros((self.env._num_legs,), dtype = np.float32)
+        ], -1)
+        self.z2 = self.z1.copy()
+        ob = self.env.reset()
+        return ob
+
+    def step(self, action):
+        self.omega = action[:self.env._num_legs]
+        self.mu = action[self.env._num_legs: 2 * self.env._num_legs]
+        self.phase = action[2 * self.env._num_legs: 3 * self.env._num_legs]
+        self.env.set_control_params(
+            self.omega,
+            self.mu, 
+            self.w,  
+            self.z2,  
         )
-        if os.path.exists(os.path.join(
-            self.logdir, 'checkpoints'
-        )):
-            shutil.rmtree(os.path.join(
-                self.logdir, 'checkpoints'
-            ))
-        os.mkdir(os.path.join(
-                self.logdir, 'checkpoints'
-        ))
-        checkpointcallback = sb3.common.callbacks.CheckpointCallback(
-            save_freq = params['save_freq'],
-            save_paths = os.path.join(self.logdir, 'checkpoints'),
-            name_prefix = 'rl_model'
+        self.z2, self.w, self.z1 = self.cpg(
+            self.omega, self.mu, self.z1, self.z2, self.phase
         )
-        if os.path.exists(os.path.join(
-            self.logdir, 'best_model'
-        )):
-            shutil.rmtree(os.path.join(
-                self.logdir,
-                'best_model'
-            ))
-        os.mkdir(os.path.join(
-            self.logdir,
-            'best_model'
-        ))
-        evalcallback = sb3.common.callback.EvalCallback(
-            self.env,
-            best_model_save_path = os.path.join(self.logdir, 'best_model')
-            eval_freq = params['eval_freq'],
-            log_path = self.logdir
-        )
-        self.rl_callback = sb3.common.callbacks.CallbackList([
-            checkpointcallback,
-            recordcallback,
-            evalcallback,
-        ])
+        self.joint_pos = self.preprocess(self.z2, self.omega, self.mu)
+        ob, rewards, done, info = self.env.step(self.joint_pos)
+        return ob, rewards, done, info
 
     def cpg(self, omega, mu, z1, z2, phase):
         return cpg_step(omega, mu, z1, z2, phase, \
@@ -324,7 +317,83 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
                     ax1[i][j].set_ylabel('joint position')
         plt.show()
 
+class Learner:
+    def __init__(self,
+            name = 'llc_runs',
+            datapath = 'assets/out/results_v9',
+            logdir = 'assets/out/results_v9',
+            render = True,
+        ):
+        self.name = name
+        self.datapath = datapath
+        self.logdir = os.path.join(logdir, name)
+        self.llc = LLC(
+            self.name,
+            self.datapath,
+            self.logdir,
+            render
+        )
+        if os.path.exists(
+                os.path.join(self.logdir, 'tensorboard')
+            ):
+            shutil.rmtree(os.path.join(self.logdir, 'tensorboard'))
+        os.mkdir(os.path.join(self.logdir, 'tensorboard'))
+        self.__set_rl_callback()
+        self.rl_model = sb3.TD3(
+            'MultiInputPolicy',
+            self.llc,
+            tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
+        ) 
 
+    def learn(self):
+        self.rl_model.learn(
+            total_timesteps = params['total_timesteps'],
+            callback = self.rl_callback
+        )
+
+    def __set_rl_callback(self):
+        recordcallback = CustomCallback(
+            self.llc,
+            render_freq = params['render_freq']
+        )
+        if os.path.exists(os.path.join(
+            self.logdir, 'checkpoints'
+        )):
+            shutil.rmtree(os.path.join(
+                self.logdir, 'checkpoints'
+            ))
+        os.mkdir(os.path.join(
+                self.logdir, 'checkpoints'
+        ))
+        checkpointcallback = sb3.common.callbacks.CheckpointCallback(
+            save_freq = params['save_freq'],
+            save_path = os.path.join(self.logdir, 'checkpoints'),
+            name_prefix = 'rl_model'
+        )
+        if os.path.exists(os.path.join(
+            self.logdir, 'best_model'
+        )):
+            shutil.rmtree(os.path.join(
+                self.logdir,
+                'best_model'
+            ))
+        os.mkdir(os.path.join(
+            self.logdir,
+            'best_model'
+        ))
+        evalcallback = sb3.common.callbacks.EvalCallback(
+            self.llc,
+            best_model_save_path = os.path.join(
+                self.logdir, 'best_model'
+            ),
+            eval_freq = params['eval_freq'],
+            log_path = self.logdir
+        )
+        self.rl_callback = sb3.common.callbacks.CallbackList([
+            checkpointcallback,
+            recordcallback,
+            evalcallback,
+        ])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -340,13 +409,15 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     print(args.seed)
-    llc = LLC()
+    learner = Learner()
     if args.task == 'test_cpg':
-        llc.test_cpg(seed = args.seed)
+        learner.llc.test_cpg(seed = args.seed)
     elif args.task == 'test_env':
-        llc.test_env(seed = args.seed)
+        learner.llc.test_env(seed = args.seed)
+    elif args.task == 'test_comparison':
+        learner.llc.test_comparison(seed = args.seed)
     elif args.task is None:
-        llc.test_comparison(seed = args.seed)
+        learner.llc.learn()
     else:
         raise ValueError(
             'Expected one of `test_cpg` or `test_env` as task \

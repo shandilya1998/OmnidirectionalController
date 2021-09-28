@@ -45,6 +45,27 @@ class QuadrupedV2(Quadruped):
             self.omega = np.array([4.3])
         self.mu = np.ones((self._num_legs,))
 
+    def _set_behaviour(self, gait, task, direction):
+        self.gait = gait
+        self.task = task
+        self.direction = direction
+        self._create_command_lst()
+
+    def __sample_behaviour(self):
+        self.gait = random.choice(['trot', 'ls_crawl', 'ds_crawl'])
+        if 'crawl' in self.gait:
+            self.task = random.choice(['straight', 'turn', 'rotate'])
+        else:
+            self.task = random.choice(['straight', 'turn'])
+        if self.task == 'turn':
+            self.direction = random.choice(['left', 'right'])
+        else:
+            self.direction = random.choice([
+                'forward', 'backward',
+                'left', 'right'
+            ])
+        self._create_command_lst()
+
     def _set_action_space(self):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
@@ -121,6 +142,7 @@ class QuadrupedV2(Quadruped):
                 modify this according to observation space
             """
             self.achieved_goal = self.sim.data.qvel[:6].copy()
+            self.__sample_behaviour()
             self.command = random.choice(self.commands)
             if self.verbose > 0:
                 print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
