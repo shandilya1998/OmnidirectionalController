@@ -27,7 +27,7 @@ class QuadrupedV2(Quadruped):
                      'achieved_goal', 'observation', 'heading_ctrl',
                      'omega', 'z', 'mu',
                      'd1', 'd2', 'd3',
-                     'stability', 'omega_o', 'reward'
+                     'stability', 'omega_o', 'reward', 'rewards'
                  ],
                  stairs = False,
                  verbose = 0):
@@ -45,12 +45,6 @@ class QuadrupedV2(Quadruped):
             self.omega = np.array([4.3])
         self.mu = np.ones((self._num_legs,))
 
-    def _set_behaviour(self, gait, task, direction):
-        self.gait = gait
-        self.task = task
-        self.direction = direction
-        self._create_command_lst()
-
     def __sample_behaviour(self):
         self.gait = random.choice(['trot', 'ls_crawl', 'ds_crawl'])
         if 'crawl' in self.gait:
@@ -64,6 +58,7 @@ class QuadrupedV2(Quadruped):
                 'forward', 'backward',
                 'left', 'right'
             ])
+        self._set_action_space()
         self._create_command_lst()
 
     def _set_action_space(self):
@@ -110,6 +105,7 @@ class QuadrupedV2(Quadruped):
         self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
         self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
         self._track_item['reward'].append(np.array([self._reward], dtype = np.float32))
+        self._track_item['rewards'].append(self.rewards.copy(), dtype = np.float32)
 
     def _get_obs(self):
         """
@@ -228,7 +224,7 @@ class QuadrupedV2(Quadruped):
             done = True
         self._track_attr()
         self._step += 1
-        reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
+        reward_distance = 1 - np.exp(-np.linalg.norm(self.sim.data.qpos[:2]))
         reward_velocity = np.exp(-reward_velocity * 1e3)
         reward_energy = np.exp(-reward_energy)
         reward = reward_velocity + reward_energy + penalty + reward_distance
@@ -239,6 +235,12 @@ class QuadrupedV2(Quadruped):
             'reward' : reward,
             'penalty' : penalty
         }
+        self.rewards = np.array([
+            reward_velocity,
+            reward_distance,
+            reward_energy,
+            penalty
+        ], dtype = np.float32)
 
         state = self.state_vector()
         notdone = np.isfinite(state).all() \

@@ -16,7 +16,7 @@ params = {
     'dt'                          : 0.001,
     'units_output_mlp'            : [60,100, 100, cpg_param_size],
     'input_size_low_level_control': input_size, 
-    'units_low_level_control'     : [256, 1024, 1024, 512, 32],
+    'units_low_level_control'     : [256, 512, 256, 81],
     'cpg_param_size'              : cpg_param_size,
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
@@ -376,7 +376,8 @@ params_rl = {
                                         'd3',
                                         'stability',
                                         'omega_o',
-                                        'reward'
+                                        'reward',
+                                        'rewards'
                                     ],
     'ref_path'                    : os.path.join('assets', 'out', 'reference'),
     'env_name'                    : 'Quadruped',
@@ -459,6 +460,21 @@ params.update({
     'eval_freq'                   : 2000,
     'total_timesteps'             : int(1e6),
     'max_episode_size'            : 2000,
+    'props'                       : {
+                                        'ls_crawl' : {
+                                            'omega' : [np.pi / 6, 5 * np.pi / 6],
+                                            'mu' : [0.10, 0.75]
+                                        },
+                                        'ds_crawl' : {  
+                                            'omega' : [np.pi / 6, 5 * np.pi / 6],
+                                            'mu' : [0.10, 0.75]
+                                        },
+                                        'trot' : {
+                                            'omega' : [np.pi, 11 * np.pi / 6 - np.pi / 10],
+                                            'mu' : [0.1, 0.6]
+                                        },
+                                    
+                                    },
 })
 
 if params['observation_version'] == 0:

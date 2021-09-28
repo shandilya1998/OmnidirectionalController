@@ -140,6 +140,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self._set_action_space()
         action = self.action_space.sample()
         self.action = np.zeros(self._action_dim)
+        self.rewards = np.zers((4,), dtype = np.float32)
         self._track_attr()
 
         action = self.action_space.sample()
@@ -154,6 +155,14 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self._cam_dist = 1.0
         self._cam_yaw = 0.0
         self._cam_pitch = 0.0
+
+    def set_behaviour(self, gait, task, direction):
+        self.gait = gait
+        self.task = task
+        self.direction = direction
+        self._set_action_space()
+        ob = self.reset()
+        self._set_observation_space(ob)
 
     def get_feet_contacts(self):
         contact_points = []
@@ -579,6 +588,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
         self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
         self._track_item['reward'].append(np.array([self._reward], dtype = np.float32))
+        self._track_item['rewards'].append(np.array(self._rewards, dtype = np.float32))
 
     def _get_track_item(self, item):
         return self._track_item[item].copy()
@@ -787,10 +797,16 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             if self._step % params['max_step_length'] == 0:
                 break
         self._n_steps += 1
-        reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
+        reward_distance = 1 - np.exp(-np.linalg.norm(self.sim.data.qpos[:2]))
         reward_velocity = np.exp(params['reward_velocity_coef'] * reward_velocity)
         reward_energy = np.exp(params['reward_energy_coef'] * reward_energy)
         reward = reward_distance + reward_velocity + reward_energy + penalty
+        self.rewards = np.array([
+            reward_velocity,
+            reward_distance,
+            reward_energy,
+            penalty
+        ], dtype = np.float32)
         info = {
             'reward_velocity' : reward_velocity,
             'reward_distance' : reward_distance,
