@@ -28,7 +28,7 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         )
         self.sim = self.env.sim
         self.model = self.env.model
-        self.render = render
+        self._render = render
         self.dt = self.env.dt
         self.datapath = datapath
         self.logdir = os.path.join(logdir, name)
@@ -41,24 +41,26 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             self.datapath,
             'info.csv'
         ), index_col = 0)
-        if os.path.exists(
-                os.path.join(self.logdir, 'tensorboard')
-            ):
-            shutil.rmtree(os.path.join(self.logdir, 'tensorboard'))
-        os.mkdir(os.path.join(self.logdir, 'tensorboard'))
-        self.__set_rl_callback()
-        self.rl_model = sb3.TD3(
-            'MultiInputPolicy',
-            self.env,
-            tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
-        )
+        self.observation_space = self.env.observation_space
+        self.action_space = self.env.action_space
+        self.omega = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.w = self.omega.copy()
+        self.mu = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.phase = np.zeros((self.env._num_legs,), dtype = np.float32)
+        self.z1 = np.concatenate([
+            np.ones((self.env._num_legs,), dtype = np.float32),
+            np.zeros((self.env._num_legs,), dtype = np.float32)
+        ], -1) 
+        self.z2 = self.z1.copy()
 
     def render(self, mode='human',
            width=params['DEFAULT_SIZE'],
            height=params['DEFAULT_SIZE'],
            camera_id=None,
            camera_name=None ):
-        self.env.render()
+        return self.env.render(mode = mode,
+            width = width, height = height, camera_id = camera_id,
+            camera_name = camera_name)
 
     def close(self):
         self.env.close()
@@ -67,12 +69,18 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         self.omega = np.zeros((self.env._num_legs,), dtype = np.float32)
         self.mu = np.zeros((self.env._num_legs,), dtype = np.float32)
         self.phase = np.zeros((self.env._num_legs,), dtype = np.float32)
-        self.z2 = np.concatenate([
+        self.z1 = np.concatenate([
             np.ones((self.env._num_legs,), dtype = np.float32),
             np.zeros((self.env._num_legs,), dtype = np.float32)
         ], -1)
         self.z2 = self.z1.copy()
         ob = self.env.reset()
+        self.env.set_control_params(
+            self.omega,
+            self.mu,
+            self.w,
+            self.z2,
+        )
         return ob
 
     def step(self, action):
@@ -101,8 +109,8 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         num_osc = z.shape[-1] // 2
         x, y = np.split(z, 2, -1)
         phi = np.arctan2(y, x)
-        x = np.sqrt(mu) * np.cos(phi)
-        y = np.sqrt(mu) * np.sin(phi)
+        x = np.sqrt(np.abs(mu)) * np.cos(phi)
+        y = np.sqrt(np.abs(mu)) * np.sin(phi)
         z = np.concatenate([x, y], -1)
         for i in range(self.env._num_legs):
             direction = 1.0
@@ -172,7 +180,7 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             Z.append(z.copy())
             for key in info.keys():
                 REWARD[key].append(info[key])
-            if self.render:
+            if self._render:
                 self.env.render()
         JOINT_POS = np.stack(JOINT_POS, 0)
         Z = np.stack(Z, 0)
@@ -234,7 +242,7 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             ob, reward, done, info = self.env.step(JOINT_POS[-1])
             for key in info.keys():
                 REWARD[key].append(info[key])
-            if self.render:
+            if self._render:
                 self.env.render()
         Z = np.stack(Z, 0)
         Z_REF  = np.stack(Z_REF, 0)
@@ -322,17 +330,26 @@ class Learner:
             name = 'llc_runs',
             datapath = 'assets/out/results_v9',
             logdir = 'assets/out/results_v9',
-            render = True,
+            render = False,
         ):
         self.name = name
         self.datapath = datapath
         self.logdir = os.path.join(logdir, name)
-        self.llc = LLC(
+        self.llc = sb3.common.env_util.make_vec_env(
+            env_id = LLC,
+            env_kwargs = {
+                'name' : self.name,
+                'datapath' : self.datapath,
+                'logdir' : self.logdir,
+                'render' : render
+            }, n_envs = 1
+        )
+        self.eval_llc = sb3.common.monitor.Monitor(LLC(
             self.name,
             self.datapath,
             self.logdir,
             render
-        )
+        ))
         if os.path.exists(
                 os.path.join(self.logdir, 'tensorboard')
             ):
@@ -343,6 +360,9 @@ class Learner:
             'MultiInputPolicy',
             self.llc,
             tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
+            learning_starts = 500,
+            train_freq = (5, "step"),
+            verbose = 2,
         ) 
 
     def learn(self):
@@ -353,7 +373,7 @@ class Learner:
 
     def __set_rl_callback(self):
         recordcallback = CustomCallback(
-            self.llc,
+            self.eval_llc,
             render_freq = params['render_freq']
         )
         if os.path.exists(os.path.join(
@@ -382,7 +402,7 @@ class Learner:
             'best_model'
         ))
         evalcallback = sb3.common.callbacks.EvalCallback(
-            self.llc,
+            self.eval_llc,
             best_model_save_path = os.path.join(
                 self.logdir, 'best_model'
             ),
@@ -417,7 +437,7 @@ if __name__ == '__main__':
     elif args.task == 'test_comparison':
         learner.llc.test_comparison(seed = args.seed)
     elif args.task is None:
-        learner.llc.learn()
+        learner.learn()
     else:
         raise ValueError(
             'Expected one of `test_cpg` or `test_env` as task \

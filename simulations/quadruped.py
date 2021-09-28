@@ -283,28 +283,28 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             if self.task == 'rotate' or self.task == 'turn':
                 if self.direction == 'left':
                     yaw_rate = np.random.uniform(
-                        low = -0.05, high = -0.001, size = (50,)
+                        low = -0.1, high = -0.001, size = (50,)
                     )
                 elif self.direction == 'right':
                     yaw_rate = np.random.uniform(
-                        low = 0.001, high = 0.05, size = (50,)
+                        low = 0.001, high = 0.1, size = (50,)
                     )
             elif self.task == 'straight':
                 if self.direction == 'left':
                     yvel = np.random.uniform(
-                        low = -0.05, high = -0.001, size = (50,)
+                        low = -0.1, high = -0.001, size = (50,)
                     )
                 elif self.direction == 'right':
                     yvel = np.random.uniform(
-                        low = 0.001, high = 0.05, size = (50,)
+                        low = 0.001, high = 0.1, size = (50,)
                     )
                 elif self.direction == 'forward':
                     xvel = np.random.uniform(
-                        low = 0.001, high = 0.05, size = (50,)
+                        low = 0.001, high = 0.1, size = (50,)
                     )
                 elif self.direction == 'backward':
                     xvel = np.random.uniform(
-                        low = -0.05, high = -0.001, size = (50,)
+                        low = -0.1, high = -0.001, size = (50,)
                     )
             else:
                 raise ValueError
@@ -345,7 +345,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         if self.policy_type == 'MultiInputPolicy':
             self.commands =  self._create_command_lst()
             self.command = random.choice(self.commands)
-            self.desired_goal = self.command
+            self.desired_goal = self.command.copy()
             self.achieved_goal = self.sim.data.qvel[:6].copy()
 
         if self.task != 'turn':
@@ -489,7 +489,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             self.command = random.choice(self.commands)
             if self.verbose > 0:
                 print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
-            self.desired_goal = self.command
+            self.desired_goal = self.command.copy()
 
         if len(self._track_lst) > 0 and self.verbose > 0:
             for item in self._track_lst:
@@ -804,7 +804,8 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
             and state[2] >= 0.02 and state[2] <= 0.5
         done = not notdone
         self._reward = reward
-
+        if self._step >= params['max_episode_size']:
+            done = True
         return reward, done, info
 
     def render(self,

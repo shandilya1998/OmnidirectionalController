@@ -2,6 +2,9 @@ import stable_baselines3 as sb3
 import gym
 from constants import params
 from typing import Any, Dict
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
 
 class SaveOnBestTrainingRewardCallback(sb3.common.callbacks.BaseCallback):
     """
@@ -97,23 +100,31 @@ class CustomCallback(sb3.common.callbacks.BaseCallback):
             )
             self.logger.record(
                 "trajectory/video",
-                Video(th.ByteTensor([screens]), fps=40),
+                sb3.common.logger.Video(torch.ByteTensor([screens]), fps=40),
                 exclude=("stdout", "log", "json", "csv"),
             )
             for item in params['track_list']:
-                ITEM = np.stack(self._eval_env._track_item[item], 0)
+                ITEM = np.stack(self._eval_env.env.env._track_item[item], 0)
                 fig, ax = plt.subplots(
                     1, ITEM.shape[-1],
-                    figsize = (7.5 * ITEM, 7.5)
+                    figsize = (7.5 * ITEM.shape[-1], 7.5)
                 )
                 T = np.arange(ITEM.shape[0]) * self._eval_env.dt
-                for j in range(ITEM.shape[-1]):
-                    ax[j].plot(T, ITEM[:, j], color = 'r',
-                        label = '{}_{}'.format(item, j),
+                if ITEM.shape[-1] > 1:
+                    for j in range(ITEM.shape[-1]):
+                        ax[j].plot(T, ITEM[:, j], color = 'r',
+                            label = '{}_{}'.format(item, j),
+                            linestyle = '--')
+                        ax[j].set_xlabel('time', fontsize = 12)
+                        ax[j].set_ylabel('{}'.format(item), fontsize = 12)
+                        ax[j].legend(loc = 'upper left')
+                else:
+                    ax.plot(T, ITEM[:, 0], color = 'r',
+                        label = '{}_{}'.format(item, 0), 
                         linestyle = '--')
-                    ax[j].set_xlabel('time', fontsize = 12)
-                    ax[j].set_ylabel('{}'.format(item), fontsize = 12)
-                    ax[j].legend(loc = 'upper left')
+                    ax.set_xlabel('time', fontsize = 12) 
+                    ax.set_ylabel('{}'.format(item), fontsize = 12) 
+                    ax.legend(loc = 'upper left')
                 self.logger.record("trajectory/{}".format(item), 
                     sb3.common.logger.Figure(
                         fig, close=True

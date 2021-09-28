@@ -301,8 +301,8 @@ params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.05,
     'dt'                          : 0.001,
-    'reward_energy_coef'          : 1e-2,
-    'reward_velocity_coef'        : 1e2,
+    'reward_energy_coef'          : 1e-3,
+    'reward_velocity_coef'        : 1,
     'update_action_every'         : 1.0,
     'INIT_JOINT_POS'              : np.array([0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0], dtype = np.float32)
 }
@@ -456,8 +456,9 @@ params.update({
     'weight_net_units'            : [256, 512, 1024, 512, 256],
     'save_freq'                   : 1000,
     'render_freq'                 : 5000,
-    'eval_freq'                   : 500,
+    'eval_freq'                   : 2000,
     'total_timesteps'             : int(1e6),
+    'max_episode_size'            : 2000,
 })
 
 if params['observation_version'] == 0:

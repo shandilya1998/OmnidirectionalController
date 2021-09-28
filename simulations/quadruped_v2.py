@@ -57,7 +57,7 @@ class QuadrupedV2(Quadruped):
             self.task = random.choice(['straight', 'turn', 'rotate'])
         else:
             self.task = random.choice(['straight', 'turn'])
-        if self.task == 'turn':
+        if self.task == 'turn' or self.task == 'rotate':
             self.direction = random.choice(['left', 'right'])
         else:
             self.direction = random.choice([
@@ -146,7 +146,7 @@ class QuadrupedV2(Quadruped):
             self.command = random.choice(self.commands)
             if self.verbose > 0:
                 print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
-            self.desired_goal = self.command
+            self.desired_goal = self.command.copy()
 
         if len(self._track_lst) > 0 and self.verbose > 0:
             for item in self._track_lst:
@@ -162,6 +162,7 @@ class QuadrupedV2(Quadruped):
         self._frequency = None
         self._amplitude = None
         
+        reward_distance = 0.0
         reward_velocity = 0.0
         reward_energy = 0.0
         penalty = 0.0
@@ -211,27 +212,29 @@ class QuadrupedV2(Quadruped):
         if self._is_render:
             self.render()
         if self.policy_type == 'MultiInputPolicy':
-            reward_velocity += np.linalg.norm(
+            reward_velocity += np.sum(np.square(
                 self.achieved_goal - self.desired_goal
-            )
+            ))
         else:
-            reward_velocity += np.abs(
+            reward_velocity += np.square(
                 self.achieved_goal[0] - self.desired_goal[0]
             )
-        reward_energy += -np.linalg.norm(
+        reward_energy += 0.5 * np.linalg.norm(
             self.sim.data.actuator_force * self.sim.data.qvel[-self._num_joints:]
-        ) - np.linalg.norm(np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
+        ) + 0.5 * 1e-3 * np.sum(np.square(
+            np.clip(self.sim.data.cfrc_ext, -1, 1).flat)
+        )
         if not upright:
             done = True
         self._track_attr()
         self._step += 1
         reward_distance = np.linalg.norm(self.sim.data.qpos[:2])
-        reward_velocity = np.exp(params['reward_velocity_coef'] * reward_velocity)
-        reward_energy = np.exp(params['reward_energy_coef'] * reward_energy)
-        reward = reward_distance + reward_velocity + reward_energy + penalty
+        reward_velocity = np.exp(-reward_velocity * 1e3)
+        reward_energy = np.exp(-reward_energy)
+        reward = reward_velocity + reward_energy + penalty + reward_distance
         info = {
-            'reward_velocity' : reward_velocity,
             'reward_distance' : reward_distance,
+            'reward_velocity' : reward_velocity,
             'reward_energy' : reward_energy,
             'reward' : reward,
             'penalty' : penalty
@@ -242,6 +245,9 @@ class QuadrupedV2(Quadruped):
             and state[2] >= 0.02 and state[2] <= 0.5
         done = not notdone
         self._reward = reward
+
+        if self._step >= params['max_episode_size']:
+            done = True
 
         return reward, done, info
 
