@@ -6,7 +6,7 @@ from constants import params
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
     r = np.sqrt(np.square(x) + np.square(y))
-    phi = np.arctan2(y, x) + dt * omega * 4
+    phi = np.arctan2(y, x) + dt * np.abs(omega) * 2
     r += dt * r * (mu - r ** 2)
     z = np.concatenate([
         r * np.cos(phi),
@@ -82,7 +82,7 @@ def hopf_mod_step(omega, mu, z, C, degree, dt = 0.001):
     phi = np.arctan2(y, x)
     mean = np.abs(1 / (2 * beta * (1 - beta)))
     amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
-    w = 2 * np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
+    w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
     phi += dt * w 
     r += dt * (mu - r ** 2) * r 
     x = r * np.cos(phi)

@@ -308,7 +308,7 @@ params_env = {
 }
 
 
-max_steps = 300 #data collection env
+max_steps = 10000 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -452,8 +452,12 @@ params.update({
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
     'env_version'                 : 1,
-    'coupling_strength'           : 10,
-    'weight_net_units'            : [256, 512, 1024, 512, 256]
+    'coupling_strength'           : 2.4,
+    'weight_net_units'            : [256, 512, 1024, 512, 256],
+    'save_freq'                   : 1000,
+    'render_freq'                 : 5000,
+    'eval_freq'                   : 500,
+    'total_timesteps'             : int(1e6),
 })
 
 if params['observation_version'] == 0:

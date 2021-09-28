@@ -6,13 +6,16 @@ import argparse
 import copy
 from constants import params
 from simulations import QuadrupedV2
-from oscillator import cpg_step
+from oscillator import cpg_step, hopf_mod_step, hopf_simple_step
 import matplotlib.pyplot as plt
 import gym
+import stable_baselines3 as sb3
+from utils.rl_utils import CustomCallback, SaveOnBestTrainingRewardCallback
 
 class LLC(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(
             self,
+            name = 'llc_runs',
             datapath = 'assets/out/results_v9',
             logdir = 'assets/out/results_v9',
             render = True,
@@ -26,7 +29,9 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         self.render = render
         self.dt = self.env.dt
         self.datapath = datapath
-        self.logdir = os.path.join(logdir, 'llc_tests')
+        self.logdir = os.path.join(logdir, name)
+        if not os.path.exists(logdir):
+            os.mkdir(logdir)
         if os.path.exists(self.logdir):
             shutil.rmtree(self.logdir)    
         os.mkdir(self.logdir)
@@ -34,11 +39,69 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             self.datapath,
             'info.csv'
         ), index_col = 0)
+        if os.path.exists(
+                os.path.join(self.logdir, 'tensorboard')
+            ):
+            shutil.rmtree(os.path.join(self.logdir, 'tensorboard'))
+        os.mkdir(os.path.join(self.logdir, 'tensorboard'))
+        self.__set_rl_callback()
+        self.rl_model = sb3.TD3(
+            'MultiInputPolicy',
+            self.env,
+            tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
+        )
+
+    def learn(self):
+        self.rl_model.learn(
+            total_timesteps = params['total_timesteps'],
+            callback = self.rl_callback
+        )
+
+    def __set_rl_callback(self):
+        recordcallback = CustomCallback(
+            self.env,
+            render_freq = params['render_freq']
+        )
+        if os.path.exists(os.path.join(
+            self.logdir, 'checkpoints'
+        )):
+            shutil.rmtree(os.path.join(
+                self.logdir, 'checkpoints'
+            ))
+        os.mkdir(os.path.join(
+                self.logdir, 'checkpoints'
+        ))
+        checkpointcallback = sb3.common.callbacks.CheckpointCallback(
+            save_freq = params['save_freq'],
+            save_paths = os.path.join(self.logdir, 'checkpoints'),
+            name_prefix = 'rl_model'
+        )
+        if os.path.exists(os.path.join(
+            self.logdir, 'best_model'
+        )):
+            shutil.rmtree(os.path.join(
+                self.logdir,
+                'best_model'
+            ))
+        os.mkdir(os.path.join(
+            self.logdir,
+            'best_model'
+        ))
+        evalcallback = sb3.common.callback.EvalCallback(
+            self.env,
+            best_model_save_path = os.path.join(self.logdir, 'best_model')
+            eval_freq = params['eval_freq'],
+            log_path = self.logdir
+        )
+        self.rl_callback = sb3.common.callbacks.CallbackList([
+            checkpointcallback,
+            recordcallback,
+            evalcallback,
+        ])
 
     def cpg(self, omega, mu, z1, z2, phase):
-        factor = self.env.dt / 0.001
         return cpg_step(omega, mu, z1, z2, phase, \
-            self.env.C, params['degree'], self.env.dt / factor)
+            self.env.C, params['degree'], self.env.dt)
 
     def preprocess(self, z, omega, mu):
         out = []
@@ -66,10 +129,6 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         index = prng.randint(low = 0, high = 6599)
         test = self.info.iloc[index]
         print(test)
-        JOINT_POS = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_joint_pos.npy'.format(index)
-        ))
         OMEGA = np.load(os.path.join(
             self.datapath,
             'Quadruped_{}_omega_o.npy'.format(index)
@@ -103,12 +162,27 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         ob, reward, done, info = self.env.step(ac)
         REWARD = {key : [] for key in info.keys()}
         ob = self.env.reset()
-        for i in range(JOINT_POS.shape[0]):
-            ob, reward, done, info = self.env.step(JOINT_POS[i, :])
+        JOINT_POS = []
+        Z = []
+        for i in range(params['MAX_STEPS']):
+            z, w = hopf_mod_step(
+                omega,
+                mu,
+                z,
+                self.env.C,
+                params['degree'],
+                self.dt
+            )
+            joint_pos = self.preprocess(z, omega, mu)
+            ob, reward, done, info = self.env.step(joint_pos)
+            JOINT_POS.append(joint_pos.copy())
+            Z.append(z.copy())
             for key in info.keys():
                 REWARD[key].append(info[key])
             if self.render:
                 self.env.render()
+        JOINT_POS = np.stack(JOINT_POS, 0)
+        Z = np.stack(Z, 0)
         return REWARD, [JOINT_POS, OMEGA, W, Z], []
 
     def test_cpg(self, seed = 46):
@@ -156,24 +230,24 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         ob, reward, done, info = self.env.step(ac)
         REWARD = {key : [] for key in info.keys()}
         ob = self.env.reset()
-        _Z = []
-        _Z_REF = []
+        Z = []
+        Z_REF = []
         JOINT_POS = []
-        for i in range(Z.shape[0]):
+        for i in range(params['MAX_STEPS']):
             z, w, z_ref = self.cpg(omega, mu, z_ref, z, phase)
-            _Z.append(z.copy())
-            _Z_REF.append(z_ref.copy())
+            Z.append(z.copy())
+            Z_REF.append(z_ref.copy())
             JOINT_POS.append(self.preprocess(z, omega, mu).copy())
             ob, reward, done, info = self.env.step(JOINT_POS[-1])
             for key in info.keys():
                 REWARD[key].append(info[key])
             if self.render:
                 self.env.render()
-        _Z = np.stack(_Z, 0)
-        _Z_REF  = np.stack(_Z_REF, 0)
-        return REWARD, [JOINT_POS, OMEGA, W, _Z], [_Z_REF]
+        Z = np.stack(Z, 0)
+        Z_REF  = np.stack(Z_REF, 0)
+        return REWARD, [JOINT_POS, OMEGA, W, Z], [Z_REF]
 
-    def _get_track_item(self):
+    def __get_track_item(self):
         items = copy.deepcopy(self.env._track_item)
         for key in items.keys():
             items[key] = np.stack(items[key])
@@ -182,9 +256,9 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
 
     def test_comparison(self, seed = 46):
         reward_ref, plot_ref, _ = self.test_env(seed = seed)
-        _track_item_ref = self._get_track_item()
+        _track_item_ref = self.__get_track_item()
         reward, plot, _ = self.test_cpg(seed = seed)
-        _track_item = self._get_track_item()
+        _track_item = self.__get_track_item()
 
         omega = _track_item_ref['omega_o'][-1]
         T = np.arange(_track_item_ref['joint_pos'].shape[0] - 1) * self.env.dt
@@ -192,29 +266,29 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         fig, ax = plt.subplots(self.env._num_legs, 2, figsize = (14,7))
         for i in range(self.env._num_legs):
             ax[i][0].plot(
-                T,
-                plot_ref[-1][:, i],
+                T[-steps:],
+                plot_ref[-1][-steps:, i],
                 label = 'ref {}'.format(i),
                 color = 'b',
                 linestyle = '-'
             )
             ax[i][0].plot(
-                T,
-                plot[-1][:, i],
+                T[-steps:],
+                plot[-1][-steps:, i],
                 label = 'cpg {}'.format(i),
                 color = 'r',
                 linestyle = '--'
             )
             ax[i][1].plot(
-                T,
-                plot_ref[-1][:, i + self.env._num_legs], 
+                T[-steps:],
+                plot_ref[-1][-steps:, i + self.env._num_legs], 
                 label = 'ref {}'.format(i),
                 color = 'b',
                 linestyle = '--'
             )   
             ax[i][1].plot(
-                T,
-                plot[-1][:, i + self.env._num_legs],
+                T[-steps:],
+                plot[-1][-steps:, i + self.env._num_legs],
                 label = 'cpg {}'.format(i),
                 color = 'r',
                 linestyle = '-'
@@ -226,27 +300,28 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         plt.show()
         plt.close()
 
-        fig1, ax1 = plt.subplots(4, 3, figsize = (21, 28))
-        joints = ['hip', 'knee1', 'knee2']
+        fig1, ax1 = plt.subplots(4, 2, figsize = (21, 14))
+        joints = ['hip', 'knee1']
         for i in range(self.env._num_legs):
             for j in range(3):
-                ax1[i][j].plot(
-                    T[-steps * 2:],
-                    _track_item_ref['joint_pos'][-steps * 2:, 3 * i + j ],
-                    label = 'ref {} {}'.format(joints[j], i),
-                    color = 'r',
-                    linestyle = '--'
-                )
-                ax1[i][j].plot(
-                    T[-steps * 2:],
-                    _track_item['joint_pos'][-steps * 2:, 3 * i + j],
-                    label = 'cpg {} {}'.format(joints[j], i),
-                    color = 'b',
-                    linestyle = '--'
-                )
-                ax1[i][j].legend(loc = 'upper left')
-                ax1[i][j].set_xlabel('time')
-                ax1[i][j].set_ylabel('joint position')
+                if j != 2:
+                    ax1[i][j].plot(
+                        T[-steps:],
+                        _track_item_ref['joint_pos'][-steps:, 3 * i + j ],
+                        label = 'ref {} {}'.format(joints[j], i),
+                        color = 'b',
+                        linestyle = '--'
+                    )
+                    ax1[i][j].plot(
+                        T[-steps:],
+                        _track_item['joint_pos'][-steps:, 3 * i + j],
+                        label = 'cpg {} {}'.format(joints[j], i),
+                        color = 'r',
+                        linestyle = '--'
+                    )
+                    ax1[i][j].legend(loc = 'upper left')
+                    ax1[i][j].set_xlabel('time')
+                    ax1[i][j].set_ylabel('joint position')
         plt.show()
 
 
