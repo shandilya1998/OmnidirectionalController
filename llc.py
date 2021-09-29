@@ -53,6 +53,13 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         ], -1) 
         self.z2 = self.z1.copy()
 
+    def get_action(self):
+        return np.concatenate([
+            self.env.omega / (2 * np.pi),
+            self.env.mu,
+            self.env.init_gamma
+        ])
+
     def toggle_render_switch(self):
         self._render = not self._render
     
@@ -77,13 +84,13 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
             np.zeros((self.env._num_legs,), dtype = np.float32)
         ], -1)
         self.z2 = self.z1.copy()
-        ob = self.env.reset()
         self.env.set_control_params(
             self.omega,
             self.mu,
             self.w,
             self.z2,
         )
+        ob = self.env.reset()
         return ob
 
     def step(self, action):
@@ -253,7 +260,7 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         Z_REF  = np.stack(Z_REF, 0)
         return REWARD, [JOINT_POS, OMEGA, W, Z], [Z_REF]
 
-    def __get_track_item(self):
+    def get_track_item(self):
         items = copy.deepcopy(self.env._track_item)
         for key in items.keys():
             items[key] = np.stack(items[key])
@@ -262,9 +269,9 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
 
     def test_comparison(self, seed = 46):
         reward_ref, plot_ref, _ = self.test_env(seed = seed)
-        _track_item_ref = self.__get_track_item()
+        _track_item_ref = self.get_track_item()
         reward, plot, _ = self.test_cpg(seed = seed)
-        _track_item = self.__get_track_item()
+        _track_item = self.get_track_item()
 
         omega = _track_item_ref['omega_o'][-1]
         T = np.arange(_track_item_ref['joint_pos'].shape[0] - 1) * self.env.dt
@@ -328,7 +335,7 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
                     ax1[i][j].legend(loc = 'upper left')
                     ax1[i][j].set_xlabel('time')
                     ax1[i][j].set_ylabel('joint position')
-        plt.show()
+        plt.show() 
 
 
 class LocomotionGenerator:
@@ -346,9 +353,9 @@ class LocomotionGenerator:
             self.mode = mode
             self.index = 0
             self.total_steps = 0
-            if mode == 'generate':
+            if self.mode == 'generate':
                 self.__reset()
-            elif mode == 'load':
+            elif self.mode == 'load':
                 self.info = pd.read_csv(os.path.join(
                     self.datapath, 'info.csv'
                 ), index_col = 0)
@@ -357,138 +364,151 @@ class LocomotionGenerator:
                     axis = 0
                 )
 
-        def reset(self):
-            if os.path.exists(self.datapath):
-                shutil.rmtree(self.datapath)
-            os.mkdir(self.datapath)
-            if os.path.exists(self.logdir):
-                shutil.rmtree(self.logdir)
-            os.mkdir(self.logdir)
-            self.info = pd.DataFrame(
-                {'gait' : [], 'task' : [], 'direction' : [], 'id' : [], 'length' : []}
+    def reset(self):
+        if os.path.exists(self.datapath):
+            shutil.rmtree(self.datapath)
+        os.mkdir(self.datapath)
+        if os.path.exists(self.logdir):
+            shutil.rmtree(self.logdir)
+        os.mkdir(self.logdir)
+        self.info = pd.DataFrame(
+            {'gait' : [], 'task' : [], 'direction' : [], 'id' : [], 'length' : []}
+        )
+
+    def done(self):
+        self.info.to_csv(os.path.join(log_dir, 'info.csv'))
+        print('Total Steps: {}'.format(2 * np.p.total_steps))
+
+    def step(self,
+            callback = lambda: True,
+            callfreq = 1,
+            env_name = 'MePed',
+            run_type = 'random'
+        ):
+        ob = self.env.reset()
+        Z = None
+        W = None
+        MU = None
+        OMEGA = None
+        z = None
+        mu = np.random.uniform(
+            low = params['props'][self.env.gait]['mu'][0],
+            high = params['props'][self.env.gait]['mu'][1]
+        )
+        omega = np.random.uniform(
+            low = params['props'][self.env.gait]['omega'][0],
+            high = params['props'][self.env.gait]['omega'][1]
+        )
+        if run_type == 'constant_mu':
+            if self.env.gait == 'trot':
+                mu = 0.45
+            else:
+                mu = 0.6
+        elif run_type == 'constant_omega':
+            if self.env.gait == 'trot':
+                omega = 4.4 / (2 * np.pi)
+            else:
+                omega = 2.2 / (2 * np.pi)
+        z = np.concatenate([ 
+            np.cos(2 * np.pi * self.env.init_gamma),
+            np.sin(2 * np.pi * self.env.init_gamma)
+        ], -1)
+        mu = np.random.uniform(
+            low = params['props'][self.env.gait]['mu'][0],
+            high = params['props'][self.env.gait]['mu'][1]
+        )
+        omega = np.random.uniform(
+            low = params['props'][self.env.gait]['omega'][0],
+            high = params['props'][self.env.gait]['omega'][1]
+        )
+        omega = np.array(
+            [omega] * self.env._num_legs, dtype = np.float32
+        ) * self.env.heading_ctrl
+        if self.env.task == 'straight' or self.env.task == 'rotate':
+            mu = np.array([mu] * self.env._num_legs, dtype = np.float32)
+        elif self.env.task == 'turn':
+            mu2 = np.random.uniform(
+                low = mu,
+                high = props[self.env.gait]['mu']
             )
+            if self.env.direction == 'left':
+                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
+            elif env.direction == 'right':
+                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
+        else:
+            raise ValueError('Expected one of `straight`, `rotate` or \
+                `turn`, got {}'.format(self.env.task))
 
-        def done(self):
-            self.info.to_csv(os.path.join(log_dir, 'info.csv'))
-            print('Total Steps: {}'.format(self.total_steps))
+        phase = 2 * np.pi * self.env.init_gamma
 
-        def step(self,
-                callback = lambda x: x,
-                callfreq = 1,
-                env_name = 'MePed'
-            ):
-            ob = self.env.reset()
-            Z = None
-            W = None
-            MU = None
-            OMEGA = None
-            z = None
-            omega = None
-            mu = None
+        self.env.set_control_params(
+            omega,
+            mu,
+            w,
+            z,
+        ) 
+
+        action = np.concatenate([
+            omega, mu, phase
+        ], -1)
+            
+        for i in range(params['max_episode_size']):
             if self.mode == 'generate':
-                z = np.concatenate([ 
-                    np.cos(2 * np.pi * self.env.init_gamma),
-                    np.sin(2 * np.pi * self.env.init_gamma)
-                ], -1)
-                mu = np.random.uniform(
-                    low = params['props'][self.env.gait]['mu'][0],
-                    high = params['props'][self.env.gait]['mu'][1]
-                )
-                omega = np.random.uniform(
-                    low = params['props'][self.env.gait]['omega'][0],
-                    high = params['props'][self.env.gait]['omega'][1]
-                )
-                omega = np.array(
-                    [omega] * self.env._num_legs, dtype = np.float32
-                ) * self.env.heading_ctrl
-                if self.env.task == 'straight' or self.env.task == 'rotate':
-                    mu = np.array([mu] * self.env._num_legs, dtype = np.float32)
-                elif self.env.task == 'turn':
-                    mu2 = np.random.uniform(
-                        low = mu,
-                        high = props[self.env.gait]['mu']
-                    )
-                    if self.env.direction == 'left':
-                        mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
-                    elif env.direction == 'right':
-                        mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
-                else:
-                    raise ValueError('Expected one of `straight`, `rotate` or \
-                        `turn`, got {}'.format(self.env.task))
+                ob, reward, done, info = self.env.step(action)
+                self.total_steps += 1
             elif self.mode == 'load':
-                Z = np.load(os.path.join(
-                    self.datapath,
-                    '{}_{}_{}.npy'.format(
-                        env_name,
-                        self.index,
-                        'z'
-                    )
-                ))
-                MU = np.load(os.path.join(
-                    self.datapath,
-                    '{}_{}_{}.npy'.format(
-                        env_name,
-                        self.index,
-                        'mu'
-                    )
-                ))
-                OMEGA = np.load(os.path.join(
-                    self.datapath,
-                    '{}_{}_{}.npy'.format(
-                        env_name,
-                        self.index,
-                        'omega_o'
-                    )
-                ))
-                W = np.load(os.path.join(
-                    self.datapath,
-                    '{}_{}_{}.npy'.format(
-                        env_name,
-                        self.index,
-                        'w'
-                    )
-                ))
-                z = Z[0, :]
-                omega = OMEGA[-1, :]
-                mu = MU[-1, :]
+                joint_pos = self.env.preprocess(Z[i, :], omega, mu)
+                ob, reward, done, info = self.env.env.step(action)
+            if self._render:
+                self.env.render()
+        if self.mode == 'generate':
+            case = {
+                'gait': self.env.gait,
+                'task': self.env.task,
+                'direction': self.env.direction,
+                'id': '{}_{}'.format(env_name, self.index),
+                'length': params['max_episode_size'],
+                'type' : 'random'
+            }
+            self.info = self.info.append(case, ignore_index = True)
+            for item in params['track_list']:
+                with open(
+                    os.path.join(
+                        self.logdir, '{}_{}_{}.npy'.format(
+                            env_name,
+                            self.index,
+                            item
+                        )
+                    ), 'wb'
+                ) as f:
+                    np.save(f, np.stack(data[item], axis = 0))
+        elif self.mode == 'plot':
+            raise NotImplementedError
+        callback()
+        self.index += 1
 
-            action = np.concatenate([
-                self.omega, self.mu, self.phase
-            ], -1)
-                
-            for i in range(params['max_episode_size']):
-                if i % callfreq == 0:
-                    callback(i)
-                if self.mode == 'generate':
-                    ob, reward, done, info = self.env.step(action)
-                    self.total_steps += 1
-                elif self.mode = 'load':
-                    joint_pos = self.env.preprocess(Z[i, :], omega, mu)
-                    ob, reward, done, info = self.env.env.step(action)
-                if self._render:
-                    self.env.render()
-            if self.mode = 'generate':
-                case = {
-                    'gait': self.env.gait,
-                    'task': self.env.task,
-                    'direction': self.env.direction,
-                    'id': '{}_{}'.format(env_name, self.index),
-                    'length': params['max_episode_size'],
-                    'type' : 'random'
-                }
-                self.info = self.info.append(case, ignore_index = True)
-                for item in params['track_list']:
-                    with open(
-                        os.path.join(
-                            self.logdir, '{}_{}_{}.npy'.format(
-                                env_name,
-                                self.index,
-                                item
-                            )
-                        ), 'wb'
-                    ) as f:
-                        np.save(f, np.stack(data[item], axis = 0))
-                self.index += 1
+
+def training_step(
+    model,
+    optim,
+    x,
+    y,
+    logger,
+    step
+):
+    loss = 0.0
+    model.zero_grad()
+    y_pred = model(x)
+    loss += torch.nn.functional.mse_loss(y_pred, y)
+    loss.backward()
+    optim.step()
+    optim.zero_grad()
+    logger.add_scalar(
+        'Train/Loss',
+        loss.detach().cpu().numpy(),
+        step
+    )
+    return loss.detach().cpu().numpy()
 
 class Learner:
     def __init__(self,
@@ -528,7 +548,7 @@ class Learner:
             verbose = 2,
         )
         self.lg = LocomotionGenerator(
-            self.llc.env,
+            self.llc,
             mode = 'generate',
             datpath = self.datapath,
             logdir = self.logdir,
@@ -539,7 +559,7 @@ class Learner:
             self._model.parameters(),
             lr = params['LEARNING_RATE']
         )   
-        self.supervied_scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        self.supervised_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.supervised_optim,
             gamma = params['GAMMA']
         )
@@ -565,7 +585,7 @@ class Learner:
                         'X' : [],
                         'Y' : []
                     }
-                    for row for self.epoch_rows.iterrows():
+                    for row in self.epoch_rows.iterrows():
                         achieved_goal = np.load(
                             os.path.join(
                                 self.datapath, '{}_{}.npy'.format(
@@ -631,8 +651,8 @@ class Learner:
 
                 for j in range(params['max_episode_size']):
                     self.lg.step(
-                        callback = self.__imitate.
-                        callfrreq = params['train_freq']
+                        callback = self.__imitate,
+                        callfrreq = params['train_freq'],
                         env_name = 'MePed'
                     )
 

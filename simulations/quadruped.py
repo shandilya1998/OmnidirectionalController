@@ -140,7 +140,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self._set_action_space()
         action = self.action_space.sample()
         self.action = np.zeros(self._action_dim)
-        self.rewards = np.zers((4,), dtype = np.float32)
+        self.rewards = np.zeros((4,), dtype = np.float32)
         self._track_attr()
 
         action = self.action_space.sample()

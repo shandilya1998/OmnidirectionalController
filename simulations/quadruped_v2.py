@@ -61,6 +61,44 @@ class QuadrupedV2(Quadruped):
         self._set_action_space()
         self._create_command_lst()
 
+        mu = np.random.uniform(
+            low = params['props'][self.gait]['mu'][0],
+            high = params['props'][self.gait]['mu'][1]
+        )
+        omega = np.random.uniform(
+            low = params['props'][self.gait]['omega'][0],
+            high = params['props'][self.gait]['omega'][1]
+        )
+        z = np.concatenate([
+            np.ones_like(2 * np.pi * self.init_gamma),
+            np.zeros_like(2 * np.pi * self.init_gamma)
+        ], -1)
+        omega = np.array(
+            [omega] * self._num_legs, dtype = np.float32
+        ) * self.heading_ctrl
+        if self.task == 'straight' or self.task == 'rotate':
+            mu = np.array([mu] * self._num_legs, dtype = np.float32)
+        elif self.task == 'turn':
+            mu2 = np.random.uniform(
+                low = mu,
+                high = props[self.gait]['mu']
+            ) 
+            if self.direction == 'left':
+                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
+            elif env.direction == 'right':
+                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
+        else:
+            raise ValueError('Expected one of `straight`, `rotate` or \
+                `turn`, got {}'.format(self.task))
+        
+        phase = 2 * np.pi * self.init_gamma
+        self.set_control_params(
+            omega,
+            mu,
+            omega,
+            z
+        )
+
     def _set_action_space(self):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
         self._set_beta()
@@ -105,7 +143,7 @@ class QuadrupedV2(Quadruped):
         self._track_item['d3'].append(np.array([self.d3], dtype = np.float32))
         self._track_item['stability'].append(np.array([self.stability], dtype = np.float32))
         self._track_item['reward'].append(np.array([self._reward], dtype = np.float32))
-        self._track_item['rewards'].append(self.rewards.copy(), dtype = np.float32)
+        self._track_item['rewards'].append(self.rewards.copy())
 
     def _get_obs(self):
         """
