@@ -13,6 +13,7 @@ from utils.torch_utils import convert_observation_to_space
 from utils import data_generator
 from simulations.quadruped import Quadruped
 import pandas as pd
+import copy
 
 class QuadrupedV2(Quadruped):
     def __init__(self,
@@ -79,14 +80,15 @@ class QuadrupedV2(Quadruped):
         if self.task == 'straight' or self.task == 'rotate':
             mu = np.array([mu] * self._num_legs, dtype = np.float32)
         elif self.task == 'turn':
+            mu1 = copy.deepcopy(mu)
             mu2 = np.random.uniform(
                 low = mu,
-                high = params['props'][self.gait]['mu']
-            ) 
+                high = params['props'][self.gait]['mu'][-1]
+            )
             if self.direction == 'left':
-                mu = np.array([mu, mu2, mu2, mu], dtype = np.float32)
+                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
             elif self.direction == 'right':
-                mu = np.array([mu2, mu, mu, mu2], dtype = np.float32)
+                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
         else:
             raise ValueError('Expected one of `straight`, `rotate` or \
                 `turn`, got {}'.format(self.task))
