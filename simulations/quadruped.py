@@ -19,6 +19,7 @@ import tempfile
 
 class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(self,
+                 learning_task = 'rl',
                  model_path = 'ant.xml',
                  frame_skip = 5,
                  render = False,
@@ -39,6 +40,7 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
                  verbose = 0):
         gym.GoalEnv.__init__(self)
         gym.utils.EzPickle.__init__(self)
+        self.learning_task = learning_task
         self._reward = 0.0
         self._track_lst = track_lst
         self._track_item = {key : [] for key in self._track_lst}

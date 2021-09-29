@@ -44,6 +44,10 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         ), index_col = 0)
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
+        low = -np.ones((12,), dtype = np.float32)
+        high = np.ones((12,), dtype = np.float32)
+        self._action_dim = 12
+        self.action_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
         self.omega = np.zeros((self.env._num_legs,), dtype = np.float32)
         self.w = self.omega.copy()
         self.mu = np.zeros((self.env._num_legs,), dtype = np.float32)
@@ -55,11 +59,48 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         self.z2 = self.z1.copy()
 
     def get_action(self):
-        return np.concatenate([
-            self.env.omega / (2 * np.pi),
-            self.env.mu,
-            self.env.init_gamma
-        ])
+        return self.env.cpg_action.copy()
+    
+    def compute_reward(self, desired_goal, achieved_goal, info):
+        reward_velocity = 0.0
+        if self.env.policy_type == 'MultiInputPolicy':
+            reward_velocity += np.sum(np.square(
+                achieved_goal - desired_goal
+            ), axis = -1)
+        else:
+            reward_velocity += np.sum(np.square(
+                achieved_goal[0] - desired_goal[0]
+            ), axis = -1)
+        reward_velocity = np.exp(-reward_velocity * 1e3)
+        reward = 0.0
+        if isinstance(info, np.ndarray):
+            out = {}
+            for item in info:
+                for key in item.keys():
+                    if key in out.keys():
+                        out[key].append(item[key])
+                    else:
+                        out[key] = [item[key]]
+            out = {
+                key : np.array(out[key], dtype = np.float32) \
+                    for key in out.keys()
+            }
+            info = out
+            reward = np.concatenate([
+                np.expand_dims(reward_velocity, -1),
+                np.expand_dims(info['penalty'], -1),
+                np.expand_dims(info['reward_energy'], -1),
+                np.expand_dims(info['reward_distance'], -1),
+            ], -1)
+        else:
+            reward = np.array([
+                reward_velocity,
+                info['penalty'],
+                info['reward_energy'],
+                info['reward_distance'],
+            ], dtype = np.float32)
+        reward = np.round(np.sum(reward, -1).astype(np.float32), 6)
+        return reward
 
     def toggle_render_switch(self):
         self._render = not self._render
@@ -99,7 +140,8 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         self.mu = action[self.env._num_legs: 2 * self.env._num_legs]
         self.phase = action[
             2 * self.env._num_legs: 3 * self.env._num_legs
-        ] * 2 * np.pi
+        ] * np.pi
+        self.env.z = self.z2
         self.env.set_control_params(
             self.omega,
             self.mu, 
@@ -489,34 +531,13 @@ class LocomotionGenerator:
         self.index += 1
 
 
-def training_step(
-    model,
-    optim,
-    x,
-    y,
-    logger,
-    step
-):
-    loss = 0.0
-    model.zero_grad()
-    y_pred = model(x)
-    loss += torch.nn.functional.mse_loss(y_pred, y)
-    loss.backward()
-    optim.step()
-    optim.zero_grad()
-    logger.add_scalar(
-        'Train/Loss',
-        loss.detach().cpu().numpy(),
-        step
-    )
-    return loss.detach().cpu().numpy()
 
 class Learner:
     def __init__(self,
             name = 'llc_runs',
             datapath = 'assets/out/results_v9',
             logdir = 'assets/out/results_v9',
-            render = False,
+            render = True,
         ):
         self._render = render
         self.name = name
@@ -565,16 +586,9 @@ class Learner:
             'MultiInputPolicy',
             sb3.common.monitor.Monitor(self.llc),
             tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
-            learning_starts = 500,
+            learning_starts = params['LEARNING_STARTS'],
             train_freq = (5, "step"),
             verbose = 2,
-            replay_buffer_class = sb3.her.HerReplayBuffer,
-            replay_buffer_kwargs = dict(
-                n_sampled_goal=4,
-                goal_selection_strategy='future',
-                online_sampling=True,
-                max_episode_length = params['max_episode_size'],
-            ),
             batch_size = params['BATCH_SIZE']
         )
         """
@@ -656,7 +670,6 @@ if __name__ == '__main__':
         help = 'Seed for random number generator'
     )
     args = parser.parse_args()
-    print(args.seed)
     learner = Learner()
     if args.task == 'test_cpg':
         learner.llc.toggle_render_switch()

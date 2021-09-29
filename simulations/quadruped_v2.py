@@ -17,6 +17,7 @@ import copy
 
 class QuadrupedV2(Quadruped):
     def __init__(self,
+                 learning_task = 'rl',
                  model_path = 'ant.xml',
                  frame_skip = 5,
                  render = False,
@@ -33,6 +34,7 @@ class QuadrupedV2(Quadruped):
                  stairs = False,
                  verbose = 0):
         super(QuadrupedV2, self).__init__(
+            learning_task = learning_task,
             model_path = model_path,
             frame_skip = frame_skip,
             render = render,
@@ -93,9 +95,15 @@ class QuadrupedV2(Quadruped):
             raise ValueError('Expected one of `straight`, `rotate` or \
                 `turn`, got {}'.format(self.task))
         
-        phase = 2 * np.pi * self.init_gamma
-        self.set_control_params(
+        y, x = np.split(self._get_z(), 2, -1) 
+        phase = np.arctan2(y, x) / np.pi
+        self.cpg_action = np.concatenate([
             omega,
+            mu,
+            phase
+        ])
+        self.set_control_params(
+            omega * 2 * np.pi,
             mu,
             omega,
             z
@@ -183,6 +191,8 @@ class QuadrupedV2(Quadruped):
             if self.verbose > 0:
                 print('[Quadruped] Command is `{}` with gait `{}` in task `{}` and direction `{}`'.format(self.command, self.gait, self.task, self.direction))
             self.desired_goal = self.command.copy()
+            if self.learning_task == 'imitate':
+                self.desired_goal = self.achieved_goal.copy()
 
         if len(self._track_lst) > 0 and self.verbose > 0:
             for item in self._track_lst:
@@ -245,6 +255,8 @@ class QuadrupedV2(Quadruped):
                 ], -1)] + [self._track_item[
                     'achieved_goal'][0]] * (params['window_size'] - 1)
                 ) / params['window_size']
+        if self.learning_task == 'imitate':
+            self.desired_goal = self.achieved_goal.copy()
         if self._is_render:
             self.render()
         if self.policy_type == 'MultiInputPolicy':

@@ -133,7 +133,7 @@ class ImitationLearning(sb3.TD3):
             current_q_values = self.critic(replay_data.observations, replay_data.actions)
 
             # Compute critic loss
-            critic_loss = sum([F.mse_loss(current_q, target_q_values) for current_q in current_q_values])
+            critic_loss = sum([torch.nn.functional.mse_loss(current_q, target_q_values) for current_q in current_q_values])
             critic_losses.append(critic_loss.item())
 
             # Optimize the critics
@@ -147,7 +147,7 @@ class ImitationLearning(sb3.TD3):
                 predicted_actions = self.actor(replay_data.observations)
                 actor_loss = torch.nn.functional.mse_loss(
                     predicted_actions,
-                    replay.actions
+                    replay_data.actions
                 ) 
 
                 # Optimize the actor
@@ -155,8 +155,8 @@ class ImitationLearning(sb3.TD3):
                 actor_loss.backward()
                 self.actor.optimizer.step()
 
-                polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
-                polyak_update(self.actor.parameters(), self.actor_target.parameters(), self.tau)
+                sb3.common.utils.polyak_update(self.critic.parameters(), self.critic_target.parameters(), self.tau)
+                sb3.common.utils.polyak_update(self.actor.parameters(), self.actor_target.parameters(), self.tau)
 
         self.logger.record("train/n_updates", self._n_updates, exclude="tensorboard")
         if len(actor_losses) > 0:
@@ -181,22 +181,11 @@ class ImitationLearning(sb3.TD3):
             The two differs when the action space is not normalized (bounds are not [-1, 1]).
         """
         # Select action randomly or according to policy
-        if self.num_timesteps < learning_starts and not (self.use_sde and self.use_sde_at_warmup):
-            # Warmup phase
-            unscaled_action = np.array([self.action_space.sample()])
-            print('here2')
-            print(unscaled_action)
-        else:
-            # Note: when using continuous actions,
-            # we assume that the policy uses tanh to scale the action
-            # We use non-deterministic action in the case of SAC, for TD3, it does not matter
-            #unscaled_action, _ = self.predict(self._last_obs, deterministic=False)
-            unscaled_action = np.array(
-                [env.env.get_action() for env in self.env.envs],
-                dtype = np.float32
-            )
-            print('here1')
-            print(unscaled_action)
+        #unscaled_action, _ = self.predict(self._last_obs, deterministic=False)
+        unscaled_action = np.array(
+            [env.env.get_action() for env in self.env.envs],
+            dtype = np.float32
+        )
 
 
         # Rescale the action from [low, high] to [-1, 1]
