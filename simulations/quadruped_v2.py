@@ -81,12 +81,12 @@ class QuadrupedV2(Quadruped):
         elif self.task == 'turn':
             mu2 = np.random.uniform(
                 low = mu,
-                high = props[self.gait]['mu']
+                high = params['props'][self.gait]['mu']
             ) 
             if self.direction == 'left':
-                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
-            elif env.direction == 'right':
-                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
+                mu = np.array([mu, mu2, mu2, mu], dtype = np.float32)
+            elif self.direction == 'right':
+                mu = np.array([mu2, mu, mu, mu2], dtype = np.float32)
         else:
             raise ValueError('Expected one of `straight`, `rotate` or \
                 `turn`, got {}'.format(self.task))

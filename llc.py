@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import gym
 import stable_baselines3 as sb3
 from utils.rl_utils import CustomCallback, SaveOnBestTrainingRewardCallback
+from utils.il_utils import ImitationLearning
 
 class LLC(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(
@@ -354,7 +355,7 @@ class LocomotionGenerator:
             self.index = 0
             self.total_steps = 0
             if self.mode == 'generate':
-                self.__reset()
+                self.reset()
             elif self.mode == 'load':
                 self.info = pd.read_csv(os.path.join(
                     self.datapath, 'info.csv'
@@ -539,122 +540,58 @@ class Learner:
             shutil.rmtree(os.path.join(self.logdir, 'tensorboard'))
         os.mkdir(os.path.join(self.logdir, 'tensorboard'))
         self.__set_rl_callback()
+        n_actions = self.llc.action_space.sample().shape[-1]
         self.rl_model = sb3.TD3(
+            'MultiInputPolicy',
+            sb3.common.monitor.Monitor(self.llc),
+            replay_buffer_class = sb3.her.HerReplayBuffer,
+            replay_buffer_kwargs = dict(
+                n_sampled_goal=4,
+                goal_selection_strategy='future',
+                online_sampling=True,
+                max_episode_length = params['max_episode_size'],
+            ),
+            action_noise = sb3.common.noise.OrnsteinUhlenbeckActionNoise(
+                mean = params['OU_MEAN'] * np.ones(n_actions),
+                sigma = params['OU_SIGMA'] * np.ones(n_actions)
+            ),
+            learning_starts = params['LEARNING_STARTS'],
+            tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
+            train_freq = (5, "step"),
+            verbose = 2,
+            batch_size = params['BATCH_SIZE']
+        )
+        self.il_model = ImitationLearning(
             'MultiInputPolicy',
             sb3.common.monitor.Monitor(self.llc),
             tensorboard_log = os.path.join(self.logdir, 'tensorboard'),
             learning_starts = 500,
             train_freq = (5, "step"),
             verbose = 2,
+            replay_buffer_class = sb3.her.HerReplayBuffer,
+            replay_buffer_kwargs = dict(
+                n_sampled_goal=4,
+                goal_selection_strategy='future',
+                online_sampling=True,
+                max_episode_length = params['max_episode_size'],
+            ),
+            batch_size = params['BATCH_SIZE']
         )
+        """
         self.lg = LocomotionGenerator(
             self.llc,
             mode = 'generate',
-            datpath = self.datapath,
+            datapath = self.datapath,
             logdir = self.logdir,
             render = self._render
         )
-        self.supervised_llc = Controller()
-        self.supervised_optim  = torch.optim.Adam(
-            self._model.parameters(),
-            lr = params['LEARNING_RATE']
-        )   
-        self.supervised_scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            self.supervised_optim,
-            gamma = params['GAMMA']
-        )
-        self._prev_supervised_llc_eval_loss = 1e8
-        self.epoch_rows = None
-
-    def __imitate_step(self, count):
-        if self.epoch_rows is not None:
-            pass
-        return count        
+        """
 
     def imitate(self):
-        _prev_supervised_llc_eval_loss = 1e8
-        for i in range(params['n_epochs']):
-            if i % params['n_eval_steps'] == 0:
-                eval_loss = self.__eval_supervised_llc()
-                if eval_loss <= _prev_supervised_llc_eval_loss:
-                    self.__save_supervised_llc()
-                    _prev_supervised_llc_eval_loss = eval_loss
-                if i > params['learning_starts']:
-                    self.epoch_rows = self.lg.sample(n = params['batch_size']).reset_index(drop=True)
-                    self.epoch_data = {
-                        'X' : [],
-                        'Y' : []
-                    }
-                    for row in self.epoch_rows.iterrows():
-                        achieved_goal = np.load(
-                            os.path.join(
-                                self.datapath, '{}_{}.npy'.format(
-                                    row['id'], 
-                                    'achieved_goal'
-                                )
-                            )
-                        )
-                        omega = np.load(os.path.join(
-                            self.datapath, '{}_{}.npy'.format(
-                                row['id'],
-                                'omega_o'
-                            )
-                        ))
-                        mu = np.load(os.path.join(
-                            self.datapath, '{}_{}.npy'.format(
-                                row['id'],
-                                'mu'
-                            )
-                        ))
-                        z = np.load(os.path.join(
-                            self.datapathm, '{}_{}.npy'.format(
-                                row['id'],
-                                'z'
-                            )
-                        ))
-                        x, y = np.split(z, 2, -1)
-                        def func(x):
-                            if x < 0:
-                                return x + 2 * np.pi
-                            else:
-                                return x
-                        func = np.vectorize(func)
-                        phase = func(np.arctan2(y, x)[0, :])
-                        Y = []
-                        X = []
-                        for i in range(params['max_episode_size']):
-                            Y.append(
-                                np.concatenate([
-                                    omega[-1].copy() / (2 * np.pi),
-                                    mu[-1].copy(),
-                                    phase.copy() / (2 * np.pi)
-                                ], -1)
-                            )
-                            desired_goal = None
-                            if i < params['window_size']:
-                                desired_goal = sum(achieved_goal[: i +1, :])/(i + 1)
-                            elif i > params['window_size'] and \
-                                i < params['max_episode_size'] - \
-                                    params['window_size']:
-                                desired_goal = sum(achieved_goal[
-                                        i - params['window_size'] + 1: i + 1, :]
-                                    ) / params['window_size']
-                            else:
-                                desired_goal = sum(achieved_goal[-params['window_size']:, :]) / params['window_size']
-                            X.append(np.concatenate([
-                                desired_goal,
-                                desired_goal,
-                           ]))
-                        self.epoch_data['X'].append(
-
-                        )
-
-                for j in range(params['max_episode_size']):
-                    self.lg.step(
-                        callback = self.__imitate,
-                        callfrreq = params['train_freq'],
-                        env_name = 'MePed'
-                    )
+        self.il_model.learn(
+            total_timesteps = params['total_timesteps'],
+            callback = self.rl_callback
+        )
 
     def learn(self):
         self.rl_model.learn(
@@ -730,7 +667,9 @@ if __name__ == '__main__':
     elif args.task == 'test_comparison':
         learner.llc.toggle_render_switch()
         learner.llc.test_comparison(seed = args.seed)
-    elif args.task is None:
+    elif args.task == 'train_il':
+        learner.imitate()
+    elif args.task == 'train_rl':
         learner.learn()
     else:
         raise ValueError(

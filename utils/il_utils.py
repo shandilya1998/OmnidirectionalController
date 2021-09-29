@@ -1,6 +1,8 @@
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import stable_baselines3 as sb3
 import torch
 import os
+import numpy as np
 
 class ImitationLearning(sb3.TD3):
     """
@@ -49,9 +51,9 @@ class ImitationLearning(sb3.TD3):
 
     def __init__(
         self,
-        policy: Union[str, Type[TD3Policy]],
-        env: Union[GymEnv, str],
-        learning_rate: Union[float, Schedule] = 1e-3,
+        policy: Union[str, Type[sb3.td3.policies.TD3Policy]],
+        env: Union[sb3.common.type_aliases.GymEnv, str],
+        learning_rate: Union[float, sb3.common.type_aliases.Schedule] = 1e-3,
         buffer_size: int = 1000000,  # 1e6
         learning_starts: int = 100,
         batch_size: int = 100,
@@ -59,8 +61,8 @@ class ImitationLearning(sb3.TD3):
         gamma: float = 0.99,
         train_freq: Union[int, Tuple[int, str]] = (1, "episode"),
         gradient_steps: int = -1,
-        action_noise: Optional[ActionNoise] = None,
-        replay_buffer_class: Optional[ReplayBuffer] = None,
+        action_noise: Optional[sb3.common.noise.ActionNoise] = None,
+        replay_buffer_class: Optional[sb3.common.buffers.ReplayBuffer] = None,
         replay_buffer_kwargs: Optional[Dict[str, Any]] = None,
         optimize_memory_usage: bool = False,
         policy_delay: int = 2,
@@ -71,25 +73,25 @@ class ImitationLearning(sb3.TD3):
         policy_kwargs: Optional[Dict[str, Any]] = None,
         verbose: int = 0,
         seed: Optional[int] = None,
-        device: Union[th.device, str] = "auto",
+        device: Union[torch.device, str] = "auto",
         _init_setup_model: bool = True,
     ):
 
         super(ImitationLearning, self).__init__(
-            policy,
-            env,
-            learning_rate,
-            buffer_size,
-            learning_starts,
-            batch_size,
-            tau,
-            gamma,
-            train_freq,
-            gradient_steps,
-            action_noise=action_noise,
-            replay_buffer_class=replay_buffer_class,
-            replay_buffer_kwargs=replay_buffer_kwargs,
-            optimize_memory_usage=optimize_memory_usage,
+            policy = policy,
+            env = env,
+            learning_rate = learning_rate,
+            buffer_size = buffer_size,
+            learning_starts = learning_starts,
+            batch_size = batch_size,
+            tau = tau,
+            gamma = gamma,
+            train_freq = train_freq,
+            gradient_steps = gradient_steps,
+            action_noise = action_noise,
+            replay_buffer_class = replay_buffer_class,
+            replay_buffer_kwargs = replay_buffer_kwargs,
+            optimize_memory_usage = optimize_memory_usage,
             policy_delay = policy_delay,
             target_policy_noise = target_policy_noise,
             target_noise_clip = target_noise_clip,
@@ -101,7 +103,6 @@ class ImitationLearning(sb3.TD3):
             device = device,
             _init_setup_model = _init_setup_model
         )
-
 
     def train(self, gradient_steps: int, batch_size: int = 100) -> None:
         # Switch to train mode (this affects batch norm / dropout)
@@ -118,15 +119,15 @@ class ImitationLearning(sb3.TD3):
             # Sample replay buffer
             replay_data = self.replay_buffer.sample(batch_size, env=self._vec_normalize_env)
 
-            with th.no_grad():
+            with torch.no_grad():
                 # Select action according to policy and add clipped noise
                 noise = replay_data.actions.clone().data.normal_(0, self.target_policy_noise)
                 noise = noise.clamp(-self.target_noise_clip, self.target_noise_clip)
                 next_actions = (self.actor_target(replay_data.next_observations) + noise).clamp(-1, 1)
 
                 # Compute the next Q-values: min over all critics targets
-                next_q_values = th.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
-                next_q_values, _ = th.min(next_q_values, dim=1, keepdim=True)
+                next_q_values = torch.cat(self.critic_target(replay_data.next_observations, next_actions), dim=1)
+                next_q_values, _ = torch.min(next_q_values, dim=1, keepdim=True)
                 target_q_values = replay_data.rewards + (1 - replay_data.dones) * self.gamma * next_q_values
 
             # Get current Q-values estimates for each critic network
@@ -144,7 +145,11 @@ class ImitationLearning(sb3.TD3):
             # Delayed policy updates
             if self._n_updates % self.policy_delay == 0:
                 # Compute actor loss
-                actor_loss = -self.critic.q1_forward(replay_data.observations, self.actor(replay_data.observations)).mean()
+                predicted_actions = self.actor(replay_data.observations)
+                actor_loss = torch.nn.functional.mse_loss(
+                    predicted_actions,
+                    replay.actions
+                )
                 actor_losses.append(actor_loss.item())
 
                 # Optimize the actor
@@ -161,7 +166,7 @@ class ImitationLearning(sb3.TD3):
         self.logger.record("train/critic_loss", np.mean(critic_losses))
 
     def _sample_action(
-        self, learning_starts: int, action_noise: Optional[ActionNoise] = None
+        self, learning_starts: int, action_noise: Optional[sb3.common.noise.ActionNoise] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Sample an action according to the exploration policy.
@@ -208,14 +213,14 @@ class ImitationLearning(sb3.TD3):
 
     def collect_rollouts(
         self,
-        env: VecEnv,
-        callback: BaseCallback,
-        train_freq: TrainFreq,
-        replay_buffer: ReplayBuffer,
-        action_noise: Optional[ActionNoise] = None,
+        env: sb3.common.vec_env.base_vec_env.VecEnv,
+        callback: sb3.common.callbacks.BaseCallback,
+        train_freq: sb3.common.type_aliases.TrainFreq,
+        replay_buffer: sb3.common.buffers.ReplayBuffer,
+        action_noise: Optional[sb3.common.noise.ActionNoise] = None,
         learning_starts: int = 0,
         log_interval: Optional[int] = None,
-    ) -> RolloutReturn:
+    ) -> sb3.common.type_aliases.RolloutReturn:
         """
         Collect experiences and store them into a ``ReplayBuffer``.
         :param env: The training environment
@@ -235,6 +240,7 @@ class ImitationLearning(sb3.TD3):
         :return:
         """
         # Switch to eval mode (this affects batch norm / dropout)
+        print(type(self.policy))
         self.policy.set_training_mode(False)
 
         episode_rewards, total_timesteps = [], []
