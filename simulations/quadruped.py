@@ -9,7 +9,7 @@ import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils.torch_utils import convert_observation_to_space
+from utils.env_utils import convert_observation_to_space
 from oscillator import hopf_mod_step
 from reward import FitnessFunctionV2
 import copy
@@ -163,8 +163,8 @@ class Quadruped(gym.GoalEnv, gym.utils.EzPickle):
         self.task = task
         self.direction = direction
         self._set_action_space()
-        ob = self.reset()
-        self._set_observation_space(ob)
+        self._create_command_lst()
+
 
     def get_feet_contacts(self):
         contact_points = []

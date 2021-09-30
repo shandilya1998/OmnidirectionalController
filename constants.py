@@ -13,7 +13,7 @@ params = {
     'end_eff'                     : [5, 9, 13, 17],
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 45,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.001,
+    'dt'                          : 0.002,
     'units_output_mlp'            : [60,100, 100, cpg_param_size],
     'input_size_low_level_control': input_size, 
     'units_low_level_control'     : [256, 512, 256, 81],
@@ -300,7 +300,7 @@ params.update(params_per)
 params_env = {
     'DEFAULT_SIZE'                : 500,
     'INIT_HEIGHT'                 : 0.05,
-    'dt'                          : 0.001,
+    'dt'                          : 0.002,
     'reward_energy_coef'          : 1e-3,
     'reward_velocity_coef'        : 1,
     'update_action_every'         : 1.0,
@@ -308,7 +308,7 @@ params_env = {
 }
 
 
-max_steps = 10000 #data collection env
+max_steps = 2000 #data collection env
 n_envs = 1
 params_rl = {
     'MAX_STEPS'                   : max_steps,
@@ -331,7 +331,7 @@ params_rl = {
     'steps'                       : int(1e7),
     'n_steps'                     : 8,
     'n_envs'                      : n_envs,
-    'dt'                          : 0.001,
+    'dt'                          : 0.002,
     'max_step_length'             : 600,
     'gait_list'                   : [
                                         'ds_crawl',
@@ -398,7 +398,7 @@ params_pretrain = {
     'min_epoch_size'              : 1000,
     'motion_state_size'           : 6,#:exp69, 6,#:exp 67,68, 3 #:exp66, 4 :exp64,65,
     'robot_state_size'            : 18,#:exp69, 111,#:exp67,68, 111 for stable_baselines model #4*action_dim + 4 + 8*3,
-    'dt'                          : 0.001,
+    'dt'                          : 0.002,
     'units_output_mlp'            : [256,512,100,action_dim],
     'units_osc'                   : units_osc,
     'units_combine_rddpg'         : [200, units_osc],
@@ -441,8 +441,8 @@ params.update({
                                         np.pi / 6,
                                         5 * np.pi / 6,
                                         np.pi,
-                                        11 * np.pi / 6 - np.pi / 10,
-                                        11 * np.pi / 6,
+                                        3 * np.pi / 2,
+                                        3 * np.pi / 2 + np.pi / 6,
                                         2 * np.pi
                                     ], dtype = np.float32),
     'camera_name'                 : 'esp32cam',
@@ -453,13 +453,13 @@ params.update({
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
     'env_version'                 : 1,
-    'coupling_strength'           : 2.4,
+    'coupling_strength'           : 1,
     'weight_net_units'            : [256, 512, 1024, 512, 256],
     'save_freq'                   : 1000,
     'render_freq'                 : 5000,
     'eval_freq'                   : 2000,
     'total_timesteps'             : int(1e6),
-    'max_episode_size'            : 2000,
+    'max_episode_size'            : 500,
     'props'                       : {
                                         'ls_crawl' : {
                                             'omega' : [np.pi / 6, 5 * np.pi / 6],
@@ -470,8 +470,8 @@ params.update({
                                             'mu' : [0.10, 0.75]
                                         },
                                         'trot' : {
-                                            'omega' : [np.pi, 11 * np.pi / 6 - np.pi / 10],
-                                            'mu' : [0.1, 0.6]
+                                            'omega' : [np.pi, 3 * np.pi / 2],
+                                            'mu' : [0.1, 0.5]
                                         },
                                     
                                     },

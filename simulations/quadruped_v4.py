@@ -9,7 +9,7 @@ import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils.torch_utils import convert_observation_to_space
+from utils.env_utils import convert_observation_to_space
 from oscillator import cpg_step
 from reward import FitnessFunctionV2
 import copy

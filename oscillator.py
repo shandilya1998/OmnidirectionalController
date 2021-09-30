@@ -2,6 +2,9 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from constants import params
+import argparse
+import shutil
+from tqdm import tqdm
 
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
@@ -13,6 +16,14 @@ def hopf_simple_step(omega, mu, z, dt = 0.001):
         r * np.sin(phi)
     ], -1)
     return z
+
+def hopf(omega, mu, z, N, dt):
+    Z = []
+    for i in range(N):
+        z = hopf_simple_step(omega, mu, z, dt)
+        Z.append(z.copy())
+    return np.stack(Z, 0)
+
 
 def _get_pattern(thresholds, dx = 0.001):
     out = []
@@ -70,6 +81,14 @@ def _get_beta(x, C, degree):
 
 def _get_omega_choice(phi):
     return np.tanh(1e3 * (phi))
+
+def hopf_mod(omega, mu, z, C, degree, N, dt):
+    Z = []
+    for i in range(N):
+        z, w = hopf_mod_step(omega, mu, z, C, degree, dt)
+        Z.append(z.copy())
+    return np.stack(Z, 0)
+
 
 def hopf_mod_step(omega, mu, z, C, degree, dt = 0.001):
     """ 
@@ -133,6 +152,27 @@ def cpg_step(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     x1, y1 = np.split(z1, 2, -1) 
     xs = np.cos(phase)
     ys = np.sin(phase)
+    coupling = np.concatenate([
+        xs * x1 - ys * y1, 
+        xs * y1 + x1 * ys
+    ], -1) 
+    z2 += dt * params['coupling_strength'] * coupling
+    return z2, w, z1
+
+def cpg_step_v2(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
+    z1 = hopf_simple_step(omega, mu, z1, dt) 
+    z2, w = hopf_mod_step(omega, mu, z2, C, params['degree'], dt) 
+    x1, y1 = np.split(z1, 2, -1)
+    p1 = np.arctan2(y1, x1)
+    r1 = np.sqrt(x1 ** 2 + y1 ** 2)
+    x1 = (
+        r1 ** (np.abs(w) / np.abs(omega * 2))
+    ) * np.cos(p1 * np.abs(w) / np.abs(omega * 2))
+    y1 = (
+        r1 ** (np.abs(w) / np.abs(omega * 2))
+    ) * np.sin(p1 * np.abs(w) / np.abs(omega * 2))
+    xs = np.cos(phase / np.abs(2 * omega))
+    ys = np.sin(phase / np.abs(2 * omega))
     coupling = np.concatenate([
         xs * x1 - ys * y1, 
         xs * y1 + x1 * ys

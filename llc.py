@@ -6,12 +6,13 @@ import argparse
 import copy
 from constants import params
 from simulations import QuadrupedV2
-from oscillator import cpg_step, hopf_mod_step, hopf_simple_step
+from oscillator import cpg_step, hopf_mod_step, hopf_simple_step, cpg_step_v2
 import matplotlib.pyplot as plt
 import gym
 import stable_baselines3 as sb3
 from utils.rl_utils import CustomCallback, SaveOnBestTrainingRewardCallback
 from utils.il_utils import ImitationLearning
+from utils.env_utils import get_control_params, sample_gait_task_direction
 
 class LLC(gym.GoalEnv, gym.utils.EzPickle):
     def __init__(
@@ -181,45 +182,31 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
         return out
 
     def test_env(self, seed = 46):
-        prng = np.random.RandomState(seed)
-        index = prng.randint(low = 0, high = 6599)
-        test = self.info.iloc[index]
-        print(test)
-        OMEGA = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_omega_o.npy'.format(index)
-        ))
-        W = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_omega.npy'.format(index)
-        ))
-        Z = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_z.npy'.format(index)
-        ))
-        MU = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_mu.npy'.format(index)
-        ))
-
-        omega = OMEGA[-1, :]
-        mu = MU[-1, :]
-        w = W[0, :]
-        z = Z[0, :]
+        REWARD = {}
+        ac = self.env.action_space.sample()
+        ob, reward, done, info = self.env.step(ac)
+        ob = self.env.reset()
+        REWARD = {key : [] for key in info.keys()}
+        gait, task, direction = sample_gait_task_direction(seed)
+        self.env.set_behaviour(gait, task, direction)
+        omega, mu, z = get_control_params(self.env, seed = seed)
+        w = omega.copy()
         self.env.set_control_params(
             omega,
             mu,
             w,
             z,
         )
-        info = None
-        REWARD = {}
-        ac = self.env.action_space.sample()
-        ob, reward, done, info = self.env.step(ac)
-        REWARD = {key : [] for key in info.keys()}
-        ob = self.env.reset()
+        print('---------------------------')
+        print('gait: {}'.format(self.env.gait))
+        print('task: {}'.format(self.env.task))
+        print('direction: {}'.format(self.env.direction))
+        print('omega: {}'.format(np.abs(self.env._frequency)))
+        print('mu: {}'.format(np.abs(self.env._amplitude)))
         JOINT_POS = []
         Z = []
+        OMEGA = []
+        W = []
         for i in range(params['MAX_STEPS']):
             z, w = hopf_mod_step(
                 omega,
@@ -230,82 +217,100 @@ class LLC(gym.GoalEnv, gym.utils.EzPickle):
                 self.dt
             )
             joint_pos = self.preprocess(z, omega, mu)
+            self.env.set_control_params(
+                omega,
+                mu,
+                w,
+                z,
+            )
             ob, reward, done, info = self.env.step(joint_pos)
             JOINT_POS.append(joint_pos.copy())
             Z.append(z.copy())
+            OMEGA.append(omega.copy())
+            W.append(w.copy())
             for key in info.keys():
                 REWARD[key].append(info[key])
             if self._render:
                 self.env.render()
         JOINT_POS = np.stack(JOINT_POS, 0)
         Z = np.stack(Z, 0)
+        OMEGA = np.stack(OMEGA, 0)
+        W = np.stack(W, 0)
+        print('DONE')
+        print('---------------------------')
         return REWARD, [JOINT_POS, OMEGA, W, Z], []
 
     def test_cpg(self, seed = 46):
-        prng = np.random.RandomState(seed)
-        index = prng.randint(low = 0, high = 6599)
-        test = self.info.iloc[index]
-        print(test)
-        OMEGA = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_omega_o.npy'.format(index)
-        ))
-        MU = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_mu.npy'.format(index)
-        ))
-        Z = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_z.npy'.format(index)
-        ))
-        W = np.load(os.path.join(
-            self.datapath,
-            'Quadruped_{}_omega.npy'.format(index)
-        ))
-        phase = np.arctan2(
-            Z[0, self.env._num_legs:], Z[0, :self.env._num_legs]        
-        )
-        omega = OMEGA[-1, :]
-        mu = MU[-1, :]
-        w = W[0, :]
-
-        z_ref = np.concatenate([
-            np.ones((self.env._num_legs,)),
-            np.zeros((self.env._num_legs,))
-        ], -1)
-        z = np.random.random((2 * self.env._num_legs,))
-        self.env.set_control_params(
-            omega,
-            mu, 
-            w,  
-            z,  
-        )   
-        info = None
         REWARD = {}
         ac = self.env.action_space.sample()
         ob, reward, done, info = self.env.step(ac)
-        REWARD = {key : [] for key in info.keys()}
         ob = self.env.reset()
+        REWARD = {key : [] for key in info.keys()}
+        gait, task, direction = sample_gait_task_direction(seed)
+        self.env.set_behaviour(gait, task, direction)
+        omega, mu, z = get_control_params(self.env, seed = seed)
+        w = omega.copy()
+        z_ref = np.concatenate([
+            np.ones((self.env._num_legs,), dtype = np.float32),
+            np.zeros((self.env._num_legs, ), dtype = np.float32)
+        ], -1)
+        x, y = np.split(self.env.z, 2, -1)
+        phase = np.arctan2(y, x) / np.pi
+        z = np.concatenate([
+            np.ones_like(omega),
+            np.zeros_like(omega),
+        ], -1)
+        self.env.set_control_params(
+            omega,
+            mu, 
+            omega,
+            z,  
+        )
+        print('---------------------------')
+        print('gait: {}'.format(self.env.gait))
+        print('task: {}'.format(self.env.task))
+        print('direction: {}'.format(self.env.direction))
+        print('omega: {}'.format(np.abs(self.env._frequency)))
+        print('mu: {}'.format(np.abs(self.env._amplitude)))
+        JOINT_POS = []
         Z = []
         Z_REF = []
-        JOINT_POS = []
+        OMEGA = []
+        W = []
         for i in range(params['MAX_STEPS']):
             z, w, z_ref = self.cpg(omega, mu, z_ref, z, phase)
+            self.env.set_control_params(
+                omega,
+                mu,
+                w,
+                z,
+            )
             Z.append(z.copy())
             Z_REF.append(z_ref.copy())
             JOINT_POS.append(self.preprocess(z, omega, mu).copy())
+            OMEGA.append(omega.copy())
+            W.append(w.copy())
             ob, reward, done, info = self.env.step(JOINT_POS[-1])
             for key in info.keys():
                 REWARD[key].append(info[key])
             if self._render:
                 self.env.render()
+        JOINT_POS = np.stack(JOINT_POS, 0)
         Z = np.stack(Z, 0)
         Z_REF  = np.stack(Z_REF, 0)
+        OMEGA = np.stack(OMEGA, 0)
+        W = np.stack(W, 0)
+        print('DONE')
+        print('---------------------------')
         return REWARD, [JOINT_POS, OMEGA, W, Z], [Z_REF]
 
     def get_track_item(self):
         items = copy.deepcopy(self.env._track_item)
         for key in items.keys():
+            shapes = []
+            for j in range(len(items[key])):
+                if items[key][j].shape not in shapes:
+                    shapes.append(items[key][j].shape)
             items[key] = np.stack(items[key])
         items = {key: np.stack(items[key], 0) for key in items.keys()}
         return items
@@ -428,80 +433,16 @@ class LocomotionGenerator:
             env_name = 'MePed',
             run_type = 'random'
         ):
-        ob = self.env.reset()
-        Z = None
-        W = None
-        MU = None
-        OMEGA = None
-        z = None
-        mu = np.random.uniform(
-            low = params['props'][self.env.gait]['mu'][0],
-            high = params['props'][self.env.gait]['mu'][1]
-        )
-        omega = np.random.uniform(
-            low = params['props'][self.env.gait]['omega'][0],
-            high = params['props'][self.env.gait]['omega'][1]
-        )
-        if run_type == 'constant_mu':
-            if self.env.gait == 'trot':
-                mu = 0.45
-            else:
-                mu = 0.6
-        elif run_type == 'constant_omega':
-            if self.env.gait == 'trot':
-                omega = 4.4 / (2 * np.pi)
-            else:
-                omega = 2.2 / (2 * np.pi)
-        z = np.concatenate([ 
-            np.cos(2 * np.pi * self.env.init_gamma),
-            np.sin(2 * np.pi * self.env.init_gamma)
-        ], -1)
-        mu = np.random.uniform(
-            low = params['props'][self.env.gait]['mu'][0],
-            high = params['props'][self.env.gait]['mu'][1]
-        )
-        omega = np.random.uniform(
-            low = params['props'][self.env.gait]['omega'][0],
-            high = params['props'][self.env.gait]['omega'][1]
-        )
-        omega = np.array(
-            [omega] * self.env._num_legs, dtype = np.float32
-        ) * self.env.heading_ctrl
-        if self.env.task == 'straight' or self.env.task == 'rotate':
-            mu = np.array([mu] * self.env._num_legs, dtype = np.float32)
-        elif self.env.task == 'turn':
-            mu2 = np.random.uniform(
-                low = mu,
-                high = props[self.env.gait]['mu']
-            )
-            if self.env.direction == 'left':
-                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
-            elif env.direction == 'right':
-                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
-        else:
-            raise ValueError('Expected one of `straight`, `rotate` or \
-                `turn`, got {}'.format(self.env.task))
+        ob = self.env.reset() 
+        action = self.env.env.cpg_action.copy()
+        omega = self.env.env.omega.copy()
+        mu = self.env.env.mu.copy()
 
-        phase = 2 * np.pi * self.env.init_gamma
+        x, y = np.split(self.env.env.z, 2, -1)
 
-        self.env.set_control_params(
-            omega,
-            mu,
-            w,
-            z,
-        ) 
-
-        action = np.concatenate([
-            omega, mu, phase
-        ], -1)
-            
         for i in range(params['max_episode_size']):
-            if self.mode == 'generate':
-                ob, reward, done, info = self.env.step(action)
-                self.total_steps += 1
-            elif self.mode == 'load':
-                joint_pos = self.env.preprocess(Z[i, :], omega, mu)
-                ob, reward, done, info = self.env.env.step(action)
+            ob, reward, done, info = self.env.step(action)
+            self.total_steps += 1
             if self._render:
                 self.env.render()
         if self.mode == 'generate':
@@ -531,7 +472,6 @@ class LocomotionGenerator:
         self.index += 1
 
 
-
 class Learner:
     def __init__(self,
             name = 'llc_runs',
@@ -553,7 +493,7 @@ class Learner:
             self.name,
             self.datapath,
             self.logdir,
-            self._render
+            False
         ))
         if os.path.exists(
                 os.path.join(self.logdir, 'tensorboard')

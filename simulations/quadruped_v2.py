@@ -9,7 +9,8 @@ import os
 import mujoco_py
 from collections import OrderedDict
 from tempfile import TemporaryFile
-from utils.torch_utils import convert_observation_to_space
+from utils.env_utils import convert_observation_to_space, get_control_params, \
+    sample_gait_task_direction
 from utils import data_generator
 from simulations.quadruped import Quadruped
 import pandas as pd
@@ -49,65 +50,29 @@ class QuadrupedV2(Quadruped):
         self.mu = np.ones((self._num_legs,))
 
     def __sample_behaviour(self):
-        self.gait = random.choice(['trot', 'ls_crawl', 'ds_crawl'])
-        if 'crawl' in self.gait:
-            self.task = random.choice(['straight', 'turn', 'rotate'])
-        else:
-            self.task = random.choice(['straight', 'turn'])
-        if self.task == 'turn' or self.task == 'rotate':
-            self.direction = random.choice(['left', 'right'])
-        else:
-            self.direction = random.choice([
-                'forward', 'backward',
-                'left', 'right'
-            ])
-        self._set_action_space()
-        self._create_command_lst()
-
-        mu = np.random.uniform(
-            low = params['props'][self.gait]['mu'][0],
-            high = params['props'][self.gait]['mu'][1]
-        )
-        omega = np.random.uniform(
-            low = params['props'][self.gait]['omega'][0],
-            high = params['props'][self.gait]['omega'][1]
-        )
-        z = np.concatenate([
-            np.ones_like(2 * np.pi * self.init_gamma),
-            np.zeros_like(2 * np.pi * self.init_gamma)
-        ], -1)
-        omega = np.array(
-            [omega] * self._num_legs, dtype = np.float32
-        ) * self.heading_ctrl
-        if self.task == 'straight' or self.task == 'rotate':
-            mu = np.array([mu] * self._num_legs, dtype = np.float32)
-        elif self.task == 'turn':
-            mu1 = copy.deepcopy(mu)
-            mu2 = np.random.uniform(
-                low = mu,
-                high = params['props'][self.gait]['mu'][-1]
-            )
-            if self.direction == 'left':
-                mu = np.array([mu1, mu2, mu2, mu1], dtype = np.float32)
-            elif self.direction == 'right':
-                mu = np.array([mu2, mu1, mu1, mu2], dtype = np.float32)
-        else:
-            raise ValueError('Expected one of `straight`, `rotate` or \
-                `turn`, got {}'.format(self.task))
-        
-        y, x = np.split(self._get_z(), 2, -1) 
-        phase = np.arctan2(y, x) / np.pi
-        self.cpg_action = np.concatenate([
-            omega,
-            mu,
-            phase
-        ])
+        gait, task, direction = sample_gait_task_direction()
+        self.set_behaviour(gait, task, direction)
+        omega, mu, z = get_control_params(self)
         self.set_control_params(
-            omega * 2 * np.pi,
+            omega,
             mu,
             omega,
             z
         )
+
+    def set_control_params(self, omega, mu, w, z):
+        self._frequency = omega / (2 * np.pi)
+        self._amplitude = mu
+        self.omega = omega
+        self.w = w
+        self.z = z
+        y, x = np.split(self.z, 2, -1) 
+        phase = np.arctan2(y, x) / np.pi
+        self.cpg_action = np.concatenate([
+            self._frequency,
+            self._amplitude, 
+            phase
+        ])
 
     def _set_action_space(self):
         self.init_b = np.concatenate([self.joint_pos, self.sim.data.sensordata.copy()], -1)
