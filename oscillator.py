@@ -85,10 +85,12 @@ def _get_omega_choice(phi):
 
 def hopf_mod(omega, mu, z, C, degree, N, dt):
     Z = []
+    W = []
     for i in range(N):
         z, w = hopf_mod_step(omega, mu, z, C, degree, dt)
         Z.append(z.copy())
-    return np.stack(Z, 0)
+        W.append(w.copy())
+    return np.stack(Z, 0), np.stack(W, 0)
 
 
 def hopf_mod_step(omega, mu, z, C, degree, dt = 0.001):
@@ -129,9 +131,9 @@ def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
     Z2 = []
     W = []
     z1 = np.array([1, 0], dtype = np.float32)
-    z2 = z1.copy()
+    z2 = np.array([1, 0], dtype = np.float32)
     for i in range(N):
-        z2, w, z1 = cpg_step(omega, mu, z1, z2, phase, degree, dt)
+        z2, w, z1 = cpg_step(omega, mu, z1, z2, phase, C, degree, dt)
         Z1.append(z1.copy())
         Z2.append(z2.copy())
         W.append(w.copy())
@@ -177,7 +179,7 @@ if __name__ == '__main__':
     np.save(open(os.path.join(plot_path, 'coef.npy'), 'wb'), C)
     _plot_beta_polynomial(plot_path, C, params['degree'], params['thresholds'], dt * 50)
     Z_hopf = hopf(omega.copy(), mu.copy(), z.copy(), N, dt)
-    Z_mod = hopf_mod(omega.copy(), mu.copy(), z.copy(), C, params['degree'], N, dt)
+    Z_mod, _ = hopf_mod(omega.copy(), mu.copy(), z.copy(), C, params['degree'], N, dt)
     os.mkdir(os.path.join(plot_path, 'hopf'))
     T = np.arange(N, dtype = np.float32) * dt
     print('Plotting Output.')
@@ -215,7 +217,7 @@ if __name__ == '__main__':
     z = np.concatenate([np.cos(phi * 2 * np.pi), np.sin(phi * 2 * np.pi)], -1)
     omega = 1.6 * np.ones((4,), dtype = np.float32)
     mu = np.ones((4,), dtype = np.float32)
-    Z_mod = hopf_mod(omega.copy(), mu.copy(), z.copy(), C, params['degree'], N, dt)
+    Z_mod, _ = hopf_mod(omega.copy(), mu.copy(), z.copy(), C, params['degree'], N, dt)
     fig, axes = plt.subplots(2,2, figsize = (10,10))
     num_osc = 4
     color = ['r', 'b', 'g', 'y']
@@ -239,7 +241,6 @@ if __name__ == '__main__':
         axes[1][1].set_ylabel('phase (radian)')
         axes[1][1].set_title('Trend in Phase')
     fig.savefig(os.path.join(plot_path, 'phase_comparison.png'))
-    plt.show()
     test_cpg_entrainment(cpg, C, hopf_mod)
     print('Done.')
     print('Thank You.')
