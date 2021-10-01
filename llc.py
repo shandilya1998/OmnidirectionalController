@@ -6,7 +6,7 @@ import argparse
 import copy
 from constants import params
 from simulations import QuadrupedV2
-from oscillator import cpg_step, hopf_mod_step, hopf_simple_step, cpg_step_v2
+from oscillator import cpg_step, hopf_mod_step, hopf_simple_step
 import matplotlib.pyplot as plt
 import gym
 import stable_baselines3 as sb3

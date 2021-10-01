@@ -5,6 +5,7 @@ from constants import params
 import argparse
 import shutil
 from tqdm import tqdm
+from utils.cpg_utils import test_cpg_entrainment
 
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
@@ -103,48 +104,12 @@ def hopf_mod_step(omega, mu, z, C, degree, dt = 0.001):
     amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
     w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
     phi += dt * w 
-    r += dt * (mu - r ** 2) * r 
+    r += params['lambda'] * dt * (mu - r ** 2) * r 
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     z_ = np.concatenate([x, y], -1) 
     return z_, w
 
-def findLocalMaximaMinima(n, arr):
-
-    # Empty lists to store points of
-    # local maxima and minima
-    mx = []
-    mn = []
-
-    # Checking whether the first point is
-    # local maxima or minima or neither
-    if(arr[0] > arr[1]):
-        mx.append(0)
-    elif(arr[0] < arr[1]):
-        mn.append(0)
-
-    # Iterating over all points to check
-    # local maxima and local minima
-    for i in range(1, n-1):
-
-        # Condition for local minima
-        if(arr[i-1] > arr[i] < arr[i + 1]):
-            mn.append(i)
-
-        # Condition for local maxima
-        elif(arr[i-1] < arr[i] > arr[i + 1]):
-            mx.append(i)
-
-    # Checking whether the last point is
-    # local maxima or minima or neither
-    if(arr[-1] > arr[-2]):
-        mx.append(n-1)
-    elif(arr[-1] < arr[-2]):
-        mn.append(n-1)
-
-        # Print all the local maxima and
-        # local minima indexes stored
-    return np.array(mx), np.array(mn)
 
 def cpg_step(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     z1 = hopf_simple_step(omega, mu, z1, dt) 
@@ -159,27 +124,18 @@ def cpg_step(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     z2 += dt * params['coupling_strength'] * coupling
     return z2, w, z1
 
-def cpg_step_v2(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
-    z1 = hopf_simple_step(omega, mu, z1, dt) 
-    z2, w = hopf_mod_step(omega, mu, z2, C, params['degree'], dt) 
-    x1, y1 = np.split(z1, 2, -1)
-    p1 = np.arctan2(y1, x1)
-    r1 = np.sqrt(x1 ** 2 + y1 ** 2)
-    x1 = (
-        r1 ** (np.abs(w) / np.abs(omega * 2))
-    ) * np.cos(p1 * np.abs(w) / np.abs(omega * 2))
-    y1 = (
-        r1 ** (np.abs(w) / np.abs(omega * 2))
-    ) * np.sin(p1 * np.abs(w) / np.abs(omega * 2))
-    xs = np.cos(phase / np.abs(2 * omega))
-    ys = np.sin(phase / np.abs(2 * omega))
-    coupling = np.concatenate([
-        xs * x1 - ys * y1, 
-        xs * y1 + x1 * ys
-    ], -1) 
-    z2 += dt * params['coupling_strength'] * coupling
-    return z2, w, z1
-
+def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
+    Z1 = []
+    Z2 = []
+    W = []
+    z1 = np.array([1, 0], dtype = np.float32)
+    z2 = z1.copy()
+    for i in range(N):
+        z2, w, z1 = cpg_step(omega, mu, z1, z2, phase, degree, dt)
+        Z1.append(z1.copy())
+        Z2.append(z2.copy())
+        W.append(w.copy())
+    return np.stack(Z2, 0), np.stack(W, 0), np.stack(Z1, 0)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -284,5 +240,6 @@ if __name__ == '__main__':
         axes[1][1].set_title('Trend in Phase')
     fig.savefig(os.path.join(plot_path, 'phase_comparison.png'))
     plt.show()
+    test_cpg_entrainment(cpg, C, hopf_mod)
     print('Done.')
     print('Thank You.')
