@@ -126,6 +126,27 @@ def cpg_step(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     z2 += dt * params['coupling_strength'] * coupling
     return z2, w, z1
 
+def cpg_step_v2(omega, mu, z1, z2, phase, C, degree, N, dt = 0.001):
+    x1, y1 = np.split(z1, 2, -1)
+    x2, y2 = np.split(z2, 2, -1)
+    xs = np.cos(phase)
+    ys = np.sin(phase)
+    coupling = np.concatenate([
+        xs * x1 - ys * y1,
+        xs * y1 + x1 * ys
+    ], -1)
+    x1, y1 = np.split(coupling, 2, -1)
+    theta = np.arctan2(y2, x2)
+    r = np.sqrt(x2 ** 2 + y2 ** 2)
+    coupling = np.concatenate([
+        np.sin(theta) * (x1 * np.sin(theta) - y1 * np.cos(theta)),
+        np.sin(theta) * (x1 * np.cos(theta) + y1 * np.cos(theta)) + y1
+    ], -1)
+    z1 = hopf_simple_step(omega, mu, z1, dt) 
+    z2, w = hopf_mod_step(omega, mu, z2, C, params['degree'], dt) 
+    z2 += dt * params['coupling_strength'] * coupling
+    return z2, w, z1
+
 def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
     Z1 = []
     Z2 = []
@@ -133,7 +154,7 @@ def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
     z1 = np.array([1, 0], dtype = np.float32)
     z2 = np.array([1, 0], dtype = np.float32)
     for i in range(N):
-        z2, w, z1 = cpg_step(omega, mu, z1, z2, phase, C, degree, dt)
+        z2, w, z1 = cpg_step_v2(omega, mu, z1, z2, phase, C, degree, dt)
         Z1.append(z1.copy())
         Z2.append(z2.copy())
         W.append(w.copy())

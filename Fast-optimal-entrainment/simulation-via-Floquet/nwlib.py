@@ -47,7 +47,7 @@ class ND:
             n += 1
             if n > 1e8:
                 print("Limitcycle doesn't pass 'y_basis'")
-                exit
+                raise NotImplementedError
             y_temp = X[1,0]
         Tnum = num[1] - num[0] 
         return Tnum, Xstart
@@ -71,7 +71,7 @@ class ND:
             n += 1
             if n > 1e8:
                 print("Limitcycle doesn't pass 'x_basis'")
-                exit
+                raise NotImplementedError
             x_temp = X[0,0]
         Tnum = num[1] - num[0] 
         return Tnum, Xstart
@@ -503,7 +503,7 @@ class ModHopf:
         F = np.array([[fx], [fy]], dtype = np.float32)
         return F
 
-    def dif_per(self, X, q1):
+    def dif_per1(self, X, q1):
         x = X[0, 0]
         y = X[0, 0]
         phi = np.arctan2(y, x)
@@ -515,9 +515,109 @@ class ModHopf:
         F = np.array([[fx], [fy]], dtype = np.float32)
         return F
 
+    def dwdx(self, x, y):
+        return -self.amplitude * 1e3 * y * (
+            1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
+        ) / (x ** 2 + y ** 2)
+
+    def dwdy(self, x, y):
+        return self.amplitude * 1e3 * x * (
+            1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
+        ) / (x ** 2 + y ** 2)
+
     def Jacobian(self, X):
         x = X[0, 0]
         y = X[1, 0]
+        phi = np.arctan2(y, x)
+        omega = self.omega * (
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        f1x = 1 - 3 * x * x - y * y - y * self.dwdx(x, y)
+        f1y = -2 * x * y - omega - y * self.dwdy(x, y)
+        f2x = -2 * x * y + omega + x * self.dwdx(x, y)
+        f2y = 1 - 3 * y * y - x * x + x * self.dwdy(x, y)
+        J = np.array([[f1x, f1y],
+                      [f2x, f2y]])
+        return J
+
+class ModHopf_rescale:
+    def __init__(self, omega, timescale):
+        self.omega = omega
+        self.C = np.load('../../assets/out/plots/coef.npy')
+        self.degree = 15
+        beta = _get_beta(self.omega, self.C, self.degree)
+        self.mean = np.abs(1 / (2 * self.beta * (1 - self.beta)))
+        self.amplitude = (1 - 2 * self.beta) / (2 * self.beta * (1 - self.beta))
+        self.timescale = timescale
+
+    def dif(self, X):
+        x = X[0, 0]
+        y = X[0, 0]
+        fx = (1 - x ** 2 + y ** 2) * x - self.omega * y
+        fy = (1 - x ** 2 + y ** 2) * y + self.omega * x
+        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
+        return F
+
+    def dif_per(self, X, q):
+        x = X[0, 0]
+        y = X[0, 0]
+        phi = np.arctan2(y, x)
+        omega = self.omega * (
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q[0, 0]
+        fy = (1 - x ** 2 + y ** 2) * y + omega * x + q[1, 0]
+        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
+        return F
+
+    def dif_per(self, X, q1):
+        x = X[0, 0]
+        y = X[0, 0]
+        phi = np.arctan2(y, x)
+        omega = self.omega * (
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q1
+        fy = (1 - x ** 2 + y ** 2) * y + omega * x
+        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
+        return F
+
+    def dif_per1(self, X, q1):
+        x = X[0, 0]
+        y = X[0, 0]
+        phi = np.arctan2(y, x)
+        omega = self.omega * (
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q1
+        fy = (1 - x ** 2 + y ** 2) * y + omega * x
+        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
+        return F
+
+    def dwdx(self, x, y):
+        return -self.amplitude * 1e3 * y * (
+            1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
+        ) / (x ** 2 + y ** 2)
+
+    def dwdy(self, x, y):
+        return self.amplitude * 1e3 * x * (
+            1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
+        ) / (x ** 2 + y ** 2)
+
+    def Jacobian(self, X):
+        x = X[0, 0]
+        y = X[1, 0]
+        phi = np.arctan2(y, x)
+        omega = self.omega * (
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        f1x = 1 - 3 * x * x - y * y - y * self.dwdx(x, y)
+        f1y = -2 * x * y - omega - y * self.dwdy(x, y)
+        f2x = -2 * x * y + omega + x * self.dwdx(x, y)
+        f2y = 1 - 3 * y * y - x * x + x * self.dwdy(x, y)
+        J = np.array([[f1x, f1y],
+                      [f2x, f2y]]) * self.timescale
+        return J
 
 
 ################van der pol#################################################
