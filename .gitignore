@@ -3,4 +3,5 @@
 *.npy
 *.npz
 *.zip
+*.dat
 ICRA2020_ARS/

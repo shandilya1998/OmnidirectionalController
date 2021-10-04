@@ -10,7 +10,7 @@ from utils.cpg_utils import test_cpg_entrainment
 def hopf_simple_step(omega, mu, z, dt = 0.001):
     x, y = np.split(z, 2, -1)
     r = np.sqrt(np.square(x) + np.square(y))
-    phi = np.arctan2(y, x) + dt * np.abs(omega) * 2
+    phi = np.arctan2(y, x) + dt * np.abs(omega) * 2 * params['alpha']
     r += dt * r * (mu - r ** 2)
     z = np.concatenate([
         r * np.cos(phi),
@@ -104,9 +104,9 @@ def hopf_mod_step(omega, mu, z, C, degree, dt = 0.001):
     phi = np.arctan2(y, x)
     mean = np.abs(1 / (2 * beta * (1 - beta)))
     amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
-    w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi))
+    w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi)) * params['alpha']
     phi += dt * w 
-    r += params['lambda'] * dt * (mu - r ** 2) * r 
+    r += params['lambda'] * dt * (mu - params['beta'] * r ** 2) * r 
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     z_ = np.concatenate([x, y], -1) 
@@ -184,28 +184,61 @@ if __name__ == '__main__':
     T = np.arange(N, dtype = np.float32) * dt
     print('Plotting Output.')
     for i in tqdm(range(num_osc)):
-        num_steps = int(num_osc / ((i + 1) * dt))
+        num_steps = int(2 * np.pi / (2 * omega[i] * dt * params['alpha']))
         fig, axes = plt.subplots(2,2, figsize = (12,12))
-        axes[0][0].plot(T[:num_steps], Z_hopf[:num_steps, i], linestyle = ':', color = 'r', label = 'constant omega')
-        axes[0][0].plot(T[:num_steps], Z_mod[:num_steps, i], color = 'b', label = 'variable omega')
+        axes[0][0].plot(
+            T[-num_steps:], Z_hopf[-num_steps:, i],
+            linestyle = ':', color = 'r',
+            label = 'constant omega'
+        )
+        axes[0][0].plot(
+            T[-num_steps:], Z_mod[-num_steps:, i],
+            color = 'b', label = 'variable omega')
         axes[0][0].set_xlabel('time (s)',fontsize=15)
         axes[0][0].set_ylabel('real part',fontsize=15)
         axes[0][0].set_title('Trend in Real Part',fontsize=15)
         axes[0][0].legend()
-        axes[0][1].plot(T[:num_steps], Z_hopf[:num_steps, i + num_osc], linestyle = ':', color = 'r', label = 'constant omega')
-        axes[0][1].plot(T[:num_steps], Z_mod[:num_steps, i + num_osc], color = 'b', label = 'variable omega')
+        axes[0][1].plot(
+            T[-num_steps:], Z_hopf[-num_steps:, i + num_osc],
+            linestyle = ':', color = 'r',
+            label = 'constant omega'
+        )
+        axes[0][1].plot(T[-num_steps:], Z_mod[-num_steps:, i + num_osc],
+            color = 'b', label = 'variable omega'
+        )
         axes[0][1].set_xlabel('time (s)',fontsize=15)
         axes[0][1].set_ylabel('imaginary part',fontsize=15)
         axes[0][1].set_title('Trend in Imaginary Part',fontsize=15)
         axes[0][1].legend()
-        axes[1][0].plot(Z_hopf[:, i], Z_hopf[:, i + num_osc], linestyle = ':', color = 'r', label = 'constant omega')
-        axes[1][0].plot(Z_mod[:, i], Z_mod[:, i + num_osc], color = 'b', label = 'variable omega')
+        axes[1][0].plot(
+            Z_hopf[:, i], Z_hopf[:, i + num_osc],
+            linestyle = ':', color = 'r',
+            label = 'constant omega'
+        )
+        axes[1][0].plot(
+            Z_mod[:, i], Z_mod[:, i + num_osc],
+            color = 'b', label = 'variable omega'
+        )
         axes[1][0].set_xlabel('real part',fontsize=15)
         axes[1][0].set_ylabel('imaginary part',fontsize=15)
         axes[1][0].set_title('Phase Space',fontsize=15)
         axes[1][0].legend()
-        axes[1][1].plot(T[:num_steps], np.arctan2(Z_hopf[:num_steps, i], Z_hopf[:num_steps, i + num_osc]), linestyle = ':', color = 'r', label = 'constant omega')
-        axes[1][1].plot(T[:num_steps], np.arctan2(Z_mod[:num_steps, i], Z_mod[:num_steps, i + num_osc]), color = 'b', label = 'variable omega')
+        axes[1][1].plot(
+            T[-num_steps:],
+            np.arctan2(
+                Z_hopf[-num_steps:, i],
+                Z_hopf[-num_steps:, i + num_osc]
+            ), linestyle = ':',
+            color = 'r', label = 'constant omega'
+        )
+        axes[1][1].plot(
+            T[-num_steps:],
+            np.arctan2(
+                Z_mod[-num_steps:, i],
+                Z_mod[-num_steps:, i + num_osc]
+            ), color = 'b', 
+            label = 'variable omega'
+        )
         axes[1][1].set_xlabel('time (s)',fontsize=15)
         axes[1][1].set_ylabel('phase (radians)',fontsize=15)
         axes[1][1].set_title('Trend in Phase',fontsize=15)
@@ -222,8 +255,8 @@ if __name__ == '__main__':
     num_osc = 4
     color = ['r', 'b', 'g', 'y']
     label = ['Phase {:2f}'.format(i) for i in [0.0, 0.25, 0.5, 0.75]]
-    num_steps = int(2 * np.pi / (1.6 * dt))
     for i in tqdm(range(num_osc)):
+        num_steps = int(2 * np.pi / (2 * omega[i] * dt * params['alpha']))
         axes[0][0].plot(T[:num_steps], Z_mod[:num_steps, i], color = color[i], linestyle = '--')
         axes[0][0].set_xlabel('time (s)')
         axes[0][0].set_ylabel('real part')
@@ -236,11 +269,15 @@ if __name__ == '__main__':
         axes[1][0].set_xlabel('real part')
         axes[1][0].set_ylabel('imaginary part')
         axes[1][0].set_title('Phase Space')
-        axes[1][1].plot(T, np.arctan2(Z_mod[:, i], Z_mod[:, i + num_osc]), color = color[i], linestyle = '--')
+        axes[1][1].plot(
+            T[-num_steps:],
+            np.arctan2(Z_mod[-num_steps:, i], Z_mod[-num_steps:, i + num_osc]),
+            color = color[i], linestyle = '--'
+        )
         axes[1][1].set_xlabel('time (s)')
         axes[1][1].set_ylabel('phase (radian)')
         axes[1][1].set_title('Trend in Phase')
     fig.savefig(os.path.join(plot_path, 'phase_comparison.png'))
-    test_cpg_entrainment(cpg, C, hopf_mod)
+    test_cpg_entrainment(cpg, C, hopf_mod, hopf)
     print('Done.')
     print('Thank You.')
