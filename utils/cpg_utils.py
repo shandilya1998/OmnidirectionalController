@@ -46,7 +46,7 @@ def test_cpg_entrainment(cpg, C, hopf_mod, hopf):
     mu = np.random.uniform(low = 0.0, high = 1.0, size = (1,))
     phase = np.random.uniform(low = 0.0, high = 2 * np.pi, size = (1,))
     N = 100000
-    dt = 0.001
+    dt = 0.005
     lambdas = np.power(10.0, np.arange(-2, 2, 1)).tolist()
     fig, ax = plt.subplots(3, 3, figsize = (22.5, 22.5))
     steps = int(2 * np.pi / (2 * omega[0] * dt * params['alpha']))

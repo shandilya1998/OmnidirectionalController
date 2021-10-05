@@ -453,7 +453,7 @@ params.update({
     'observation_version'         : 0,
     'max_epoch_size'              : 100,
     'env_version'                 : 1,
-    'coupling_strength'           : 0.01,
+    'coupling_strength'           : 2.5,
     'weight_net_units'            : [256, 512, 1024, 512, 256],
     'save_freq'                   : 1000,
     'render_freq'                 : 5000,
@@ -477,7 +477,7 @@ params.update({
                                     },
     'lambda'                      : 1,
     'beta'                        : 1.0,
-    'alpha'                       : 2,
+    'alpha'                       : 2.0,
 })
 
 if params['observation_version'] == 0:

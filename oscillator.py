@@ -154,7 +154,7 @@ def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
     z1 = np.array([1, 0], dtype = np.float32)
     z2 = np.array([1, 0], dtype = np.float32)
     for i in range(N):
-        z2, w, z1 = cpg_step_v2(omega, mu, z1, z2, phase, C, degree, dt)
+        z2, w, z1 = cpg_step(omega, mu, z1, z2, phase, C, degree, dt)
         Z1.append(z1.copy())
         Z2.append(z2.copy())
         W.append(w.copy())
