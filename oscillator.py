@@ -160,6 +160,78 @@ def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
         W.append(w.copy())
     return np.stack(Z2, 0), np.stack(W, 0), np.stack(Z1, 0)
 
+def F(X, omega, degree, C):
+    beta = _get_beta(omega, C, degree)
+    mean = np.abs(1 / (2 * beta * (1 - beta)))
+    amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
+    x, y = np.split(X, 2, -1)
+    phi = np.arctan2(y, x)
+    w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi)) / 2
+    return np.concatenate([
+        (1 - x ** 2 - y ** 2) * x - w * y,
+        (1 - x ** 2 - y ** 2) * y + w * x)
+    ], -1)
+
+def jacobian(X, omega, C, degree):
+    beta = _get_beta(omega, C, degree)
+    mean = np.abs(1 / (2 * beta * (1 - beta)))
+    amplitude = (1 - 2 * beta) / (2 * beta * (1 - beta))
+    x, y = np.split(X, 2, -1)
+    phi = np.arctan2(y, x)
+    w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi)) / 2
+    x, y = np.split(X, 2, -1)
+    dwdx = -1e3 * amplitude * (
+        1 - np.square(np.tanh(1e3 * np.arctan2(y, x)))
+    )* y / (x ** 2 + y ** 2)
+    dwdy = 1e3 * amplitude * (
+        1 - np.square(np.tanh(1e3 * np.arctan2(y, x)))
+    )* x / (x ** 2 + y ** 2)
+    return np.stack([
+        np.concatenate([
+            -3 * x *x - y * y - y * dwdx,
+            -2 * x * y - w - y * dwdy
+        ], -1),
+        np.concatenate([
+            - 2 * x * y + w + x * dwdx,
+            1 - 3 * y * y - x * x + x * dwdy
+        ], -1)
+    ])
+
+def phi(t, X0_0, omega, C, degree, dt):
+    shape = X0_0.shape[-1] // 2
+    x, y = np.split(X0_0, 2, -1)
+    steps = int(t / dt)
+    I = np.identity(2)
+    if shape > 1:
+        I = np.concatenate([
+            np.concatenate([I[:, 0]] * shape, -1),
+            np.concatenate([I[:, 1]] * shape, -1)
+        ], -1)
+    out = I.copy()
+    for i in range(steps):
+        out += jacobian(X0_0, omega, C, degree) * out * dt
+    return out
+
+def lmbda(X0_0, omega, C, degree, dt):
+    T = 2 * np.pi / omega
+    return np.log(phi(T, X0_0, omega, C, degree, dt)) / T
+
+def left_eigen_vectors(lmbda):
+    _, v = np.linalg.eig(lmbda.conj().T)
+    return v
+
+def ZSF(t, X0_0, v, lmbda, omega, C, degree, dt):
+    PHI = phi(t, X0_0, omega, C, degree, dt) 
+    pt = PHI * np.exp(-lmbda * t)
+    return np.linalg.inv(pt).conj().T * v[:, 0]
+
+
+def q(t, P, phase, X0_0, v, lmbda, omega, C, degree, dt):
+    zsf1 = ZSF(t + dt + phase / omega, X0_0, v, lmbda, omega, C, degree, dt)
+    zsf2 = ZSF(t - dt + phase / omega, X0_0, v, lmbda, omega, C, degree, dt)
+    zsf_dt = (zsf2 - zsf1) / (2 * dt)
+    return np.sqrt(P/np.linalg.norm(zsf_dt) ** 2) * zsf_dt
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
