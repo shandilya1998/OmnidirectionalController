@@ -126,27 +126,6 @@ def cpg_step(omega, mu, z1, z2, phase, C, degree, dt = 0.001):
     z2 += dt * params['coupling_strength'] * coupling
     return z2, w, z1
 
-def cpg_step_v2(omega, mu, z1, z2, phase, C, degree, N, dt = 0.001):
-    x1, y1 = np.split(z1, 2, -1)
-    x2, y2 = np.split(z2, 2, -1)
-    xs = np.cos(phase)
-    ys = np.sin(phase)
-    coupling = np.concatenate([
-        xs * x1 - ys * y1,
-        xs * y1 + x1 * ys
-    ], -1)
-    x1, y1 = np.split(coupling, 2, -1)
-    theta = np.arctan2(y2, x2)
-    r = np.sqrt(x2 ** 2 + y2 ** 2)
-    coupling = np.concatenate([
-        np.sin(theta) * (x1 * np.sin(theta) - y1 * np.cos(theta)),
-        np.sin(theta) * (x1 * np.cos(theta) + y1 * np.cos(theta)) + y1
-    ], -1)
-    z1 = hopf_simple_step(omega, mu, z1, dt) 
-    z2, w = hopf_mod_step(omega, mu, z2, C, params['degree'], dt) 
-    z2 += dt * params['coupling_strength'] * coupling
-    return z2, w, z1
-
 def cpg(omega, mu, phase, C, degree, N, dt = 0.001):
     Z1 = []
     Z2 = []
@@ -225,12 +204,49 @@ def ZSF(t, X0_0, v, lmbda, omega, C, degree, dt):
     pt = PHI * np.exp(-lmbda * t)
     return np.linalg.inv(pt).conj().T * v[:, 0]
 
+def ISF(theta):
+    raise NotImplementedError
 
-def q(t, P, phase, X0_0, v, lmbda, omega, C, degree, dt):
-    zsf1 = ZSF(t + dt + phase / omega, X0_0, v, lmbda, omega, C, degree, dt)
-    zsf2 = ZSF(t - dt + phase / omega, X0_0, v, lmbda, omega, C, degree, dt)
-    zsf_dt = (zsf2 - zsf1) / (2 * dt)
-    return np.sqrt(P/np.linalg.norm(zsf_dt) ** 2) * zsf_dt
+def Q(t, P, phase, X0_0, v, lmbda, omega, C, degree, dt):
+    zsf1 = ZSF((t + dt) * omega + phase, X0_0, v, lmbda, omega, C, degree, dt)
+    zsf2 = ZSF((t - dt) * omega + phase, X0_0, v, lmbda, omega, C, degree, dt)
+    dzsfdt = (zsf2 - zsf1) / (2 * dt)
+    return np.sqrt(P/np.linalg.norm(dzsfdt) ** 2) * dzsfdt
+
+def cpg_step_v2(omega, mu, r, z, y, theta, t, phase, C, degree = 15, dt = 0.001):
+    q = Q(t, params['power'], phase, dt)
+    z, w = hopf_mod_step(omega, mu, z, C, degree, dt)
+    z += q - params['alpha'] * y
+    return z, w, r, t, y
+
+def cpg_v2(omega, mu, phase, C, degree, N, dt = 0.001):
+    Q = []
+    Z = []
+    W = []
+    Y = []
+    r = 1.02 - mu
+    R = [r]
+    T = [np.array([0.0], dtype = np.float32)]
+    t = np.zeros(mu.shape, dtype = np.float32)
+    theta = np.zeros(mu.shape)
+    z = np.array([1.02, 0], dtype = np.float32)
+    z2 = np.array([
+        1.2 * np.cos(phase),
+        1.2 * np.sin(phase)
+    ], dtype = np.float32)
+    for i in range(N):
+        z, w, r, theta, y, q = cpg_step_v2(omega, mu, r, z, y, theta, t, phase, C, degree, dt)
+        t += dt
+        Z.append(z.copy())
+        W.append(w.copy())
+        R.append(r.copy())
+        T.append(t.copy())
+        Y.append(y.copy())
+        Q.append(q.copy())
+    return np.stack(Z, 0), np.stack(W, 0), \
+        np.stack(R, 0), np.stack(T, 0), \
+        np.stack(Y, 0), np.stack(Q, 0)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

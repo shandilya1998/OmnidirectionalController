@@ -478,6 +478,7 @@ params.update({
     'lambda'                      : 1,
     'beta'                        : 1.0,
     'alpha'                       : 2.0,
+    'power'                       : 0.64
 })
 
 if params['observation_version'] == 0:
