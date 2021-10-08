@@ -601,16 +601,16 @@ class ModHopf_rescale:
         return F * self.timescale
 
     def dif_per(self, X, q): 
-        x = X[0, 0]
-        y = X[0, 0]
+        x, y = np.split(X, 2, 0)
         phi = np.arctan2(y, x)
         omega = self.omega * ( 
             self.mean + self.amplitude * _get_omega_choice(phi)
         ) / 2 
-        r = np.sqrt(x * x + y * y)
-        fx = (1.0 - r * r) * x - omega * y + q[0, 0]
-        fy = (1.0 - r * r) * y + omega * x + q[1, 0]
-        F = np.stack([fx, fy], 0)
+        F = self.hopf_simple_step(omega, 1.0, X)
+        fx, fy = np.split(F, 2, 0)
+        fx = fx + q[0]
+        fy = fy + q[1]
+        F = np.concatenate([fx, fy], 0)
         return F * self.timescale
 
     def dif_per1(self, X, q1):

@@ -32,10 +32,15 @@ class simple:
     def Calc_mu_nu(self):
         Z2 = 0 # <Z, Z>
         Zdif2 = 0 # <Z', Z'>
+        #print(self.Tnum)
+        #print(self.v0_.shape)
         for tt in range(self.Tnum):
             v0 = self.v0_[:,tt:tt+1]
             v0dif = self.v0_dif[:,tt:tt+1]
-            Z2 += np.dot(v0.T, v0) # <Z, Z>
+            #print(v0.shape)
+            #print(Z2)
+            #print(tt)
+            Z2 = Z2 + np.dot(v0.T, v0) # <Z, Z>
             Zdif2 += np.dot(v0dif.T, v0dif) # <dZ/dt, dZ/dt>
         Z2 = Z2 / self.Tnum
         Zdif2 = Zdif2 / self.Tnum / self.omega / self.omega # <Z', Z'>
