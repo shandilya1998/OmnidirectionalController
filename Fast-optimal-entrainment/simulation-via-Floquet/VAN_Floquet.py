@@ -180,7 +180,7 @@ plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 filename = "v0_dif.pdf"
 filepath = figpath + filename
 
-plt.figure(5)
+plt.figure(3)
 plt.plot(Time_ax, v0_dif[0,:], label = r"$v_dif{0x}$", color = 'r')
 plt.plot(Time_ax, v0_dif[1,:], linestyle = '--', label = r"$v_dif{0y}$", color = 'g')
 plt.xlabel(r"$\theta$", size=20) 
