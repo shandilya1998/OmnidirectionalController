@@ -127,7 +127,7 @@ plt.ylabel(r"$u_0$", size = 20)
 plt.xticks([0, T/4, T/2, 3*T/4, T], [ "0", "π/2", "π", "3π/2", "2π"])
 #plt.xticks([0, T/4, T/2, 3*T/4, T], [ "0", "T/4", "T/2", "3T/4", "T"])
 plt.xlim(0,T)
-plt.ylim(-1.3,1.3)
+#plt.ylim(-1.3,1.3)
 plt.legend(fontsize=17)
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 
@@ -143,7 +143,7 @@ plt.ylabel(r"$u_1$", size = 20)
 
 plt.xticks([0, T/4, T/2, 3*T/4, T], [ "0", "π/2", "π", "3π/2", "2π"])
 plt.xlim(0,T)
-plt.ylim(-1.3,1.3)
+#plt.ylim(-1.3,1.3)
 plt.legend(fontsize=17)
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 
@@ -159,7 +159,7 @@ plt.ylabel(r"$v_0$", size = 20)
 
 plt.xticks([0, T/4, T/2, 3*T/4, T], [ "0", "π/2", "π", "3π/2", "2π"])
 plt.xlim(0,T)
-plt.ylim(-1.1,1.1)
+#plt.ylim(-1.1,1.1)
 plt.legend(fontsize=17)
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 
@@ -175,7 +175,7 @@ plt.ylabel(r"$v_1$", size = 20)
 
 plt.xticks([0, T/4, T/2, 3*T/4, T], [ "0", "π/2", "π", "3π/2", "2π"])
 plt.xlim(0,T)
-plt.ylim(-1.4,1.4)
+#plt.ylim(-1.4,1.4)
 plt.legend(fontsize=17)
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 
