@@ -8,7 +8,7 @@ pi = np.pi
 
 # simulation parameter
 tmax = 100 # running time for convergence
-dt = 2.5e-5 # step width
+dt = 1e-3 # step width
 
 ND = my.ND(tmax, dt)
 
@@ -20,11 +20,14 @@ c = 0.3 # c = mu
 
 #ModHopf = my.ModHopf(mu, 0, 0) # standard. At first, we calculated with this.
 
-timescale = 10 # Transformation from t to t'=t/timescale
-ModHopf = my.ModHopf_rescale(c, timescale, 0, 0)
+omega = np.array([[2 * np.pi - 0.5]], dtype = np.float32)
+Tnum = (2 * np.pi / (omega * dt))
+timescale = 1 # Transformation from t to t'=t/timescale
+ModHopf = my.ModHopf_rescale(omega, timescale)
+omega = omega[0][0]
 
 # inital point
-Xstart = np.ones((2,1))
+Xstart = np.ones((2,1)) 
 
 print("calculating X to convergence...", end="")
 

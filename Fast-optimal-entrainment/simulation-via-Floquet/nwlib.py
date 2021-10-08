@@ -1,5 +1,5 @@
 import numpy as np 
-
+import matplotlib.pyplot as plt
 pi = np.pi
 
 ################ time integration ############################################
@@ -33,23 +33,33 @@ class ND:
         n = 0
         y_temp = X[1,0]
         num = []
+        #print('start')
+        #fig, axes = plt.subplots(2, 1, figsize = (5, 10))
+        #lst = []
+        #print(self.dt)
         while m < 2:
             k1 = self.dt*F(X)
             k2 = self.dt*F(X+0.5*k1)
             k3 = self.dt*F(X+0.5*k2)
             k4 = self.dt*F(X+k3)
             X += (k1+2*k2+2*k3+k4)/6
+            #lst.append(X.copy())
+            #axes[0].plot(np.stack(lst, 0)[:, 0, 0])
+            #axes[1].plot(np.stack(lst, 0)[:, 1, 0])
+            #plt.pause(0.05)
             if y_basis < y_temp and y_basis >= X[1,0]: # θ = 0 when the y component falls below y_basis.
                 num.append(n)
                 if m == 0:
                     Xstart = X # この時のXを初期値とする. 
                 m += 1
+                #print('found')
             n += 1
             if n > 1e8:
                 print("Limitcycle doesn't pass 'y_basis'")
                 raise NotImplementedError
             y_temp = X[1,0]
         Tnum = num[1] - num[0] 
+        #print('done')
         return Tnum, Xstart
     
     def find_Tnum_X(self, F, X, x_basis):
@@ -119,7 +129,7 @@ class Floquet:
                 k2 = self.dt * np.dot(self.Jacobi(X_half_next).T, (v0+k1/2) )
                 k3 = self.dt * np.dot(self.Jacobi(X_half_next).T, (v0+k2/2) )
                 k4 = self.dt * np.dot(self.Jacobi(X_next).T, (v0+k3) )
-                v0 +=  (k1+2*k2+2*k3+k4)/6 # RungeKutta method
+                v0 = v0 + (k1+2*k2+2*k3+k4)/6 # RungeKutta method
                 prob = np.dot(v0.T, self.F(X_next)/self.omega) # production <v0, u0>
             v0 = v0 / prob # normalization every cycle
                 
@@ -169,7 +179,7 @@ class Floquet:
                 k2 = np.dot(self.Jacobi(X_half_next), u1 + 0.5*k1) * self.dt
                 k3 = np.dot(self.Jacobi(X_half_next), u1 + 0.5*k2) * self.dt
                 k4 = np.dot(self.Jacobi(X_next), u1 + k3) * self.dt
-                u1 += (k1+2*k2+2*k3+k4)/6
+                u1 = u1 + (k1+2*k2+2*k3+k4)/6
                 
             norm1 = np.linalg.norm(u1)
             u1 = u1 / norm1 # normalization
@@ -194,7 +204,7 @@ class Floquet:
             k3 = np.dot(self.Jacobi(X_half_next) - lambda1*np.identity(SIZE), u1 + 0.5*k2) * self.dt
             k4 = np.dot(self.Jacobi(X_next) - lambda1*np.identity(SIZE), u1 + k3) * self.dt
         
-            u1 += (k1+2*k2+2*k3+k4)/6
+            u1 = u1 + (k1+2*k2+2*k3+k4)/6
 
         return lambda1, u1rec
     
@@ -221,7 +231,7 @@ class Floquet:
                 k2 = self.dt * (np.dot(self.Jacobi(X_half_next).T - lambda1*np.identity(SIZE), (v1+k1/2)))
                 k3 = self.dt * np.dot(self.Jacobi(X_half_next).T - lambda1*np.identity(SIZE), (v1+k2/2) )
                 k4 = self.dt * np.dot(self.Jacobi(X_next).T - lambda1*np.identity(SIZE), (v1+k3) )
-                v1 +=  (k1+2*k2+2*k3+k4)/6
+                v1 = v1 + (k1+2*k2+2*k3+k4)/6
             
             v1 = v1 / np.dot(v1.T, u1_[:,self.Tnum-1:self.Tnum]) # <v1, u1> = 1
         
@@ -244,7 +254,7 @@ class Floquet:
             k2 = self.dt * (np.dot(self.Jacobi(X_half_next).T - lambda1*np.identity(SIZE), (v1+k1/2)))
             k3 = self.dt * np.dot(self.Jacobi(X_half_next).T - lambda1*np.identity(SIZE), (v1+k2/2) )
             k4 = self.dt * np.dot(self.Jacobi(X_next).T - lambda1*np.identity(SIZE), (v1+k3) )
-            v1 +=  (k1+2*k2+2*k3+k4)/6
+            v1 = v1 + (k1+2*k2+2*k3+k4)/6
                 
         return v1rec
     
@@ -269,7 +279,7 @@ class Floquet:
                 k2 = self.dt*np.dot(self.Jacobi(X_half_next), y + k1/2)
                 k3 = self.dt*np.dot(self.Jacobi(X_half_next), y + k2/2)
                 k4 = self.dt*np.dot(self.Jacobi(np.array([X0_[:,(tt+1)%self.Tnum]]).T), y + k3)
-                y += (k1+2*k2+2*k3+k4)/6
+                y = y + (k1+2*k2+2*k3+k4)/6
         return M
     
     def Calc_u1u2(self, lambda1, lambda2, evec1, evec2, X0_, u0_, v0_):
@@ -468,7 +478,7 @@ class SL:
 
 def _get_beta(x, C, degree):
     x = np.abs(x)
-    X = np.stack([x ** p for p in range(degree, -1, -1 )], 0)
+    X = np.concatenate([x ** p for p in range(degree, -1, -1 )], 0)
     return np.array([np.sum(C * X[:, i]) for i in range(X.shape[-1])], dtype = np.float32)
 
 def _get_omega_choice(phi):
@@ -483,12 +493,21 @@ class ModHopf:
         self.mean = np.abs(1 / (2 * self.beta * (1 - self.beta)))
         self.amplitude = (1 - 2 * self.beta) / (2 * self.beta * (1 - self.beta))
 
+    def hopf_simple_step(self, omega, mu, z):
+        x, y = np.split(z, 2, 0)
+        r = np.sqrt(x * x + y * y)
+        dx = ((mu - r * r) * x - omega * y)
+        dy = ((mu - r * r) * y + omega * x)
+        z = np.concatenate([dx, dy], 0)
+        return z
+
     def dif(self, X):
-        x = X[0, 0]
-        y = X[0, 0]
-        fx = (1 - x ** 2 + y ** 2) * x - self.omega * y
-        fy = (1 - x ** 2 + y ** 2) * y + self.omega * x
-        F = np.array([[fx], [fy]], dtype = np.float32)
+        x, y = np.split(X, 2, 0)
+        phi = np.arctan2(y, x)
+        omega = self.omega * ( 
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        F = self.hopf_simple_step(omega, 1.0, X)
         return F
 
     def dif_per(self, X, q):
@@ -498,9 +517,10 @@ class ModHopf:
         omega = self.omega * (
             self.mean + self.amplitude * _get_omega_choice(phi)
         ) / 2
-        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q[0, 0]
-        fy = (1 - x ** 2 + y ** 2) * y + omega * x + q[1, 0]
-        F = np.array([[fx], [fy]], dtype = np.float32)
+        r = np.sqrt(x * x + y * y)
+        fx = (1.0 - r * r) * x - omega * y + q[0, 0]
+        fy = (1.0 - r * r) * y + omega * x + q[1, 0]
+        F = np.stack([fx, fy], 0)
         return F
 
     def dif_per1(self, X, q1):
@@ -510,99 +530,111 @@ class ModHopf:
         omega = self.omega * ( 
             self.mean + self.amplitude * _get_omega_choice(phi)
         ) / 2 
-        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q1
-        fy = (1 - x ** 2 + y ** 2) * y + omega * x 
-        F = np.array([[fx], [fy]], dtype = np.float32)
+        r = np.sqrt(x * x + y * y)
+        fx = (1.0 - r * r) * x - omega * y + q1
+        fy = (1.0 - r * r) * y + omega * x
+        F = np.stack([fx, fy], 0)
         return F
 
-    def dwdx(self, x, y):
-        return -self.amplitude * 1e3 * y * (
+    def dwdx(self, x, y): 
+        return -self.omega * self.amplitude * 1e3 * y * ( 
             1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
-        ) / (x ** 2 + y ** 2)
+        ) / ((x ** 2 + y ** 2) * 2)
 
-    def dwdy(self, x, y):
-        return self.amplitude * 1e3 * x * (
+    def dwdy(self, x, y): 
+        return self.omega * self.amplitude * 1e3 * x * ( 
             1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
-        ) / (x ** 2 + y ** 2)
+        ) / ((x ** 2 + y ** 2) * 2)
 
-    def Jacobian(self, X):
+    def Jacobian(self, X): 
         x = X[0, 0]
         y = X[1, 0]
         phi = np.arctan2(y, x)
-        omega = self.omega * (
+        omega = self.omega * ( 
             self.mean + self.amplitude * _get_omega_choice(phi)
-        ) / 2
+        ) / 2 
         f1x = 1 - 3 * x * x - y * y - y * self.dwdx(x, y)
         f1y = -2 * x * y - omega - y * self.dwdy(x, y)
         f2x = -2 * x * y + omega + x * self.dwdx(x, y)
         f2y = 1 - 3 * y * y - x * x + x * self.dwdy(x, y)
-        J = np.array([[f1x, f1y],
-                      [f2x, f2y]])
+        #print(f1x.shape)
+        #print(f1y.shape)
+        #print(f2x.shape)
+        #print(f2y.shape)
+    
+        J = np.concatenate([
+            np.concatenate([f1x, f1y], 0).T,
+            np.concatenate([f2x, f2y], 0).T
+        ], 0)
+        #print(J.shape)
         return J
 
 class ModHopf_rescale:
     def __init__(self, omega, timescale):
         self.omega = omega
+        #print(self.omega)
         self.C = np.load('../../assets/out/plots/coef.npy')
         self.degree = 15
-        beta = _get_beta(self.omega, self.C, self.degree)
+        self.beta = _get_beta(self.omega, self.C, self.degree)
+        #print(self.beta)
         self.mean = np.abs(1 / (2 * self.beta * (1 - self.beta)))
         self.amplitude = (1 - 2 * self.beta) / (2 * self.beta * (1 - self.beta))
+        #print(self.mean)
+        #print(self.amplitude)
         self.timescale = timescale
 
-    def dif(self, X):
-        x = X[0, 0]
-        y = X[0, 0]
-        fx = (1 - x ** 2 + y ** 2) * x - self.omega * y
-        fy = (1 - x ** 2 + y ** 2) * y + self.omega * x
-        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
-        return F
+    def hopf_simple_step(self, omega, mu, z): 
+        x, y = np.split(z, 2, 0)
+        r = np.sqrt(x * x + y * y)
+        dx = ((mu - r * r) * x - omega * y)
+        dy = ((mu - r * r) * y + omega * x)
+        z = np.concatenate([dx, dy], 0)
+        return z
 
-    def dif_per(self, X, q):
+    def dif(self, X): 
+        x, y = np.split(X, 2, 0)
+        phi = np.arctan2(y, x)
+        omega = self.omega * ( 
+            self.mean + self.amplitude * _get_omega_choice(phi)
+        ) / 2
+        F = self.hopf_simple_step(omega, 1.0, X)
+        return F * self.timescale
+
+    def dif_per(self, X, q): 
         x = X[0, 0]
         y = X[0, 0]
         phi = np.arctan2(y, x)
-        omega = self.omega * (
+        omega = self.omega * ( 
             self.mean + self.amplitude * _get_omega_choice(phi)
-        ) / 2
-        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q[0, 0]
-        fy = (1 - x ** 2 + y ** 2) * y + omega * x + q[1, 0]
-        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
-        return F
-
-    def dif_per(self, X, q1):
-        x = X[0, 0]
-        y = X[0, 0]
-        phi = np.arctan2(y, x)
-        omega = self.omega * (
-            self.mean + self.amplitude * _get_omega_choice(phi)
-        ) / 2
-        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q1
-        fy = (1 - x ** 2 + y ** 2) * y + omega * x
-        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
-        return F
+        ) / 2 
+        r = np.sqrt(x * x + y * y)
+        fx = (1.0 - r * r) * x - omega * y + q[0, 0]
+        fy = (1.0 - r * r) * y + omega * x + q[1, 0]
+        F = np.stack([fx, fy], 0)
+        return F * self.timescale
 
     def dif_per1(self, X, q1):
         x = X[0, 0]
         y = X[0, 0]
         phi = np.arctan2(y, x)
-        omega = self.omega * (
+        omega = self.omega * ( 
             self.mean + self.amplitude * _get_omega_choice(phi)
-        ) / 2
-        fx = (1 - x ** 2 + y ** 2) * x - omega * y + q1
-        fy = (1 - x ** 2 + y ** 2) * y + omega * x
-        F = np.array([[fx], [fy]], dtype = np.float32) * self.timescale
-        return F
+        ) / 2 
+        r = np.sqrt(x * x + y * y)
+        fx = (1.0 - r * r) * x - omega * y + q1
+        fy = (1.0 - r * r) * y + omega * x 
+        F = np.stack([fx, fy], 0)
+        return F * self.timescale
 
     def dwdx(self, x, y):
-        return -self.amplitude * 1e3 * y * (
+        return -self.omega * self.amplitude * 1e3 * y * (
             1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
-        ) / (x ** 2 + y ** 2)
+        ) / ((x ** 2 + y ** 2) * 2)
 
     def dwdy(self, x, y):
-        return self.amplitude * 1e3 * x * (
+        return self.omega * self.amplitude * 1e3 * x * (
             1 - np.tanh(1e3 * np.arctan2(y, x)) ** 2
-        ) / (x ** 2 + y ** 2)
+        ) / ((x ** 2 + y ** 2) * 2)
 
     def Jacobian(self, X):
         x = X[0, 0]
@@ -615,8 +647,16 @@ class ModHopf_rescale:
         f1y = -2 * x * y - omega - y * self.dwdy(x, y)
         f2x = -2 * x * y + omega + x * self.dwdx(x, y)
         f2y = 1 - 3 * y * y - x * x + x * self.dwdy(x, y)
-        J = np.array([[f1x, f1y],
-                      [f2x, f2y]]) * self.timescale
+        #print(f1x.shape)
+        #print(f1y.shape)
+        #print(f2x.shape)
+        #print(f2y.shape)
+        
+        J = np.concatenate([
+            np.concatenate([f1x, f1y], 0).T,
+            np.concatenate([f2x, f2y], 0).T
+        ], 0) * self.timescale
+        #print(J.shape)
         return J
 
 
@@ -677,6 +717,7 @@ class VAN_rescale:
         fx = self.timescale * (self.mu*x - x*x*x/3.0 - y + self.x0)
         fy = self.timescale * (x + self.y0)
         F = np.array([[fx], [fy]])
+        print(F.shape)
         return F
     
     def dif_per(self, X, q):

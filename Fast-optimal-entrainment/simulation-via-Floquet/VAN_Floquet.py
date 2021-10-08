@@ -8,7 +8,7 @@ pi = np.pi
 
 # simulation parameter
 tmax = 100 # running time for convergence
-dt = 2.5e-5 # step width
+dt = 5e-4 # step width
 
 ND = my.ND(tmax, dt)
 
