@@ -30,9 +30,9 @@ pi = np.pi
 
 # initial set
 
-P = 1e0
+P = 1e-2
 alpha = 50
-Delta = -0.5
+Delta = -0
 Initial = 1/4
 dt = 2.5e-5 # step width
 

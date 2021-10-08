@@ -28,7 +28,7 @@ Initial = 1/4 # initial phase (2π*Initial)
 X_phase = int(Tnum*Initial)
 x = np.copy(X0_[:,X_phase:X_phase+1])
 
-Tsimu = int(40/timescale) # simulation time
+Tsimu = int(410/timescale) # simulation time
 Tsimu_num = int(Tsimu/dt)
 Division = 40 # Number of phase measurements per cycle
 PhiCount = int(Tnum/Omega*omega/Division) # phase measurement interval

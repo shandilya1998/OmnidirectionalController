@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import Lagrange_Method as Lag
 import Phase_Method as Pha
 import os
+from VAN_Floquet import *
+from tqdm import tqdm
 
 #######################################################################################
 P = 1e0 # power
@@ -54,7 +56,7 @@ AP = 0 # VAN_Average array position
 
 XP = 0 # VAN_X array position
 
-for tt in range(Tsimu_num):
+for tt in tqdm(range(Tsimu_num)):
     #External Force Phase
     EFP = Omega * tt / omega
     EFP = EFP - int(EFP / Tnum) * Tnum
