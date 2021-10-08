@@ -176,6 +176,17 @@ plt.ylim(-1.4,1.4)
 plt.legend(fontsize=17)
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 
+## v0_dif
+filename = "v0_dif.pdf"
+filepath = figpath + filename
+
+plt.figure(3)
+plt.plot(Time_ax, v0_dif[0,:], label = r"$v_dif{0x}$", color = 'r')
+plt.plot(Time_ax, v0_dif[1,:], linestyle = '--', label = r"$v_dif{0y}$", color = 'g')
+plt.xlabel(r"$\theta$", size=20) 
+plt.ylabel(r"$v_dif0$", size = 20) 
+plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
+
 ## save data
 X0_.dump(datapath + 'X0_.dat')
 u0_.dump(datapath + 'u0_.dat')

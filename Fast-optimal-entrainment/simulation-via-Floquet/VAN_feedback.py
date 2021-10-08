@@ -9,9 +9,12 @@ P = 1e0 # power
 
 alpha = 50
 
-Delta =  -0.5 # ω - Ω
+Delta =  0 # ω - Ω
 #Delta =  0 # ω - Ω
 
+dt = 5e-3
+omega = 2 * np.pi - 0.5
+Tnum = int(2 * np.pi / (omega * dt))
 Omega = omega - Delta
 Tenum = omega / Omega * Tnum # period with external force
 

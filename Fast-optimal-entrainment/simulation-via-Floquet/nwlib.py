@@ -717,7 +717,6 @@ class VAN_rescale:
         fx = self.timescale * (self.mu*x - x*x*x/3.0 - y + self.x0)
         fy = self.timescale * (x + self.y0)
         F = np.array([[fx], [fy]])
-        print(F.shape)
         return F
     
     def dif_per(self, X, q):
