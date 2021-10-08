@@ -477,7 +477,7 @@ params.update({
                                     },
     'lambda'                      : 1,
     'beta'                        : 1.0,
-    'alpha'                       : 2.0,
+    'alpha'                       : 0.5,
     'power'                       : 0.64
 })
 

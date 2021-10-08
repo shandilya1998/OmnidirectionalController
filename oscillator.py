@@ -148,7 +148,7 @@ def F(X, omega, degree, C):
     w = np.abs(omega) * (mean + amplitude * _get_omega_choice(phi)) / 2
     return np.concatenate([
         (1 - x ** 2 - y ** 2) * x - w * y,
-        (1 - x ** 2 - y ** 2) * y + w * x)
+        (1 - x ** 2 - y ** 2) * y + w * x
     ], -1)
 
 def jacobian(X, omega, C, degree):
@@ -213,7 +213,7 @@ def Q(t, P, phase, X0_0, v, lmbda, omega, C, degree, dt):
     dzsfdt = (zsf2 - zsf1) / (2 * dt)
     return np.sqrt(P/np.linalg.norm(dzsfdt) ** 2) * dzsfdt
 
-def cpg_step_v2(omega, mu, r, z, y, theta, t, phase, C, degree = 15, dt = 0.001):
+def cpg_step_v2(omega, mu, r, z, z_ref, y, theta, t, phase, C, degree = 15, dt = 0.001):
     q = Q(t, params['power'], phase, dt)
     z, w = hopf_mod_step(omega, mu, z, C, degree, dt)
     z += q - params['alpha'] * y
@@ -235,7 +235,7 @@ def cpg_v2(omega, mu, phase, C, degree, N, dt = 0.001):
         1.2 * np.sin(phase)
     ], dtype = np.float32)
     for i in range(N):
-        z, w, r, theta, y, q = cpg_step_v2(omega, mu, r, z, y, theta, t, phase, C, degree, dt)
+        z, w, r, theta, y, q = cpg_step_v2(omega, mu, r, z, z_ref, y, theta, t, phase, C, degree, dt)
         t += dt
         Z.append(z.copy())
         W.append(w.copy())
@@ -246,6 +246,102 @@ def cpg_v2(omega, mu, phase, C, degree, N, dt = 0.001):
     return np.stack(Z, 0), np.stack(W, 0), \
         np.stack(R, 0), np.stack(T, 0), \
         np.stack(Y, 0), np.stack(Q, 0)
+
+
+def feedback():
+    omega = np.random.uniform(low = 0.0, high = 2 * np.pi, size = (1,))
+    mu = np.random.uniform(low = 0.0, high = 1.0, size = (1,))
+    phase = np.random.uniform(low = 0.0, high = 2 * np.pi, size = (1,))
+    N = 100000
+    dt = 0.005
+    Z1 = []
+    Z2 = []
+    Z_r1 = []
+    Z_r2 = []
+    Z_d1 = []
+    Z_d2 = []
+    Y = []
+    z1 = np.array([1, 0], dtype = np.float32)
+    z_r1 = mu * np.concatenate([np.cos(phase), np.sin(phase)], -1)
+    z_r2 = mu * z1.copy() / np.linalg.norm(z1)
+    z_d1 = z1.copy()
+    z_d2 = z1.copy() 
+    z2 = z1.copy()
+    C = _get_polynomial_coef(params['degree'], params['thresholds'], dt * 50)
+    for i in tqdm(range(N)):
+        z1, w, z_d1 = cpg_step(omega, mu, z_d1, z1, phase, C, params['degree'], dt)
+        z2, w, z_d2 = cpg_step(omega, mu, z_d2, z2, phase, C, params['degree'], dt)
+        z_r1, w = hopf_mod_step(omega, mu, z_r1, C, params['degree'], dt)
+        z_r2, w = hopf_mod_step(omega, mu, z_r2, C, params['degree'], dt)
+        y = z2 - z_r2
+        z2 -= params['alpha'] * y
+        Z1.append(z1.copy())
+        Z2.append(z2.copy())
+        Z_r1.append(z_r1.copy())
+        Z_r2.append(z_r2.copy())
+        Z_d1.append(z_d1.copy())
+        Z_d2.append(z_d2.copy())
+        Y.append(y.copy())
+    Z1 = np.stack(Z1, 0)
+    Z2 = np.stack(Z2, 0)
+    Z_r1 = np.stack(Z_r1, 0)
+    Z_r2 = np.stack(Z_r2, 0)
+    Z_d1 = np.stack(Z_d1, 0)
+    Z_d2 = np.stack(Z_d2, 0)
+    Y = np.stack(Y, 0)
+    T = np.arange(N) * dt
+    steps = int((2 * np.pi) / (2 * omega * dt))
+    fig, axes = plt.subplots(2, 2, figsize = (20, 10))
+    axes[0][0].plot(T[-steps:], Z1[-steps:, 0],
+        label = 'no feedback', linestyle = '--', color = 'b')
+    axes[0][0].plot(T[-steps:], Z2[-steps:, 0],
+        label = 'feedback', linestyle = '--', color = 'r')
+    axes[0][0].plot(T[-steps:], Z_d1[-steps:, 0],
+        label = 'driver', color = 'g', linestyle = '--')
+    axes[0][0].plot(T[-steps:], Z_r1[-steps:, 0],
+        label = 'reference', color = 'k')
+    axes[0][0].legend()
+    axes[0][0].set_xlabel('time')
+    axes[0][0].set_ylabel('real part')
+    axes[0][1].plot(
+        T[-steps:], Z1[-steps:, 1],
+        label = 'no feedback', linestyle = '--', color = 'b')
+    axes[0][1].plot(
+        T[-steps:], Z2[-steps:, 1],
+        label = 'feedback', linestyle = '--', color = 'r')
+    axes[0][1].plot(T[-steps:], Z_d1[-steps:, 1], 
+        label = 'driver', color = 'g', linestyle = '--')
+    axes[0][1].plot(T[-steps:], Z_r1[-steps:, 1],
+        label = 'reference', color = 'k')
+    axes[0][1].legend()
+    axes[0][1].set_xlabel('time')
+    axes[0][1].set_ylabel('imag part')
+    axes[1][0].plot(T, np.sqrt(np.square(Z1[:, 0]) + np.square(Z1[:, 1])),
+        label = 'no feedback', linestyle = '--', color = 'b')
+    axes[1][0].plot(T, np.sqrt(np.square(Z2[:, 0]) + np.square(Z2[:, 1])),
+        label = 'feedback', linestyle = '--', color = 'r')
+    axes[1][0].legend()
+    axes[1][0].set_xlabel('time')
+    axes[1][0].set_ylabel('amplitude')
+    length = N - N % steps
+    err1 = np.arctan2(Z1[:, 1], Z1[:, 0]) - \
+        np.arctan2(Z_r1[:, 1], Z_r1[:, 0])
+    err2 = np.arctan2(Z2[:, 1], Z2[:, 0]) - \
+        np.arctan2(Z_r2[:, 1], Z_r2[:, 0])
+    err1 = np.sum(
+        err1[:length].reshape(int(err1.shape[0] / steps), steps), -1
+    ) / steps
+    err2 = np.sum(
+        err2[:length].reshape(int(err2.shape[0] / steps), steps), -1
+    ) / steps
+    axes[1][1].plot(np.arange(err1.shape[0]), err1,
+        label = 'no feedback', linestyle = '--', color = 'b')
+    axes[1][1].plot(np.arange(err2.shape[0]), err2,
+        label = 'feedback', linestyle = '--', color = 'r')
+    axes[1][1].legend()
+    axes[1][1].set_xlabel('time')
+    axes[1][1].set_ylabel('error in phase')
+    plt.show()
 
 
 if __name__ == '__main__':
