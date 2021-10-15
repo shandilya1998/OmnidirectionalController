@@ -43,31 +43,31 @@ def Calc_phase_via_Floquet(x, X0_, v0_, X_phase, Tnum):
     # We assume that X0(θ) is in [X_phase-Interval, X_phase+Interval]. 
     # Here, X_phase is phase before 1 step. 
     Interval = int(Tnum/50) # search X0(θ) for "Interval" steps
-    y = x - X0_[:,X_phase:X_phase+1]
-    R = np.dot(y.T, v0_[:,X_phase:X_phase+1]) # R = <x - X0(θ'), v0(θ')>
+    y = x - X0_[X_phase:X_phase+1]
+    R = np.dot(y.T, v0_[X_phase:X_phase+1]) # R = <x - X0(θ'), v0(θ')>
     # First, we assume that X0(θ) is in [Phase_Temp-1, Phase_temp]. 
     if R >= 0: # The present phase goes ahead of 1 step before.
         for ts in range(Interval):
             Phase_Temp = (X_phase + ts) % Tnum
-            y = x - X0_[:,Phase_Temp:Phase_Temp+1]
-            R = np.dot(y.T, v0_[:,Phase_Temp:Phase_Temp+1])
+            y = x - X0_[Phase_Temp:Phase_Temp+1]
+            R = np.dot(y.T, v0_[Phase_Temp:Phase_Temp+1])
             #Next, we find accurate phase by Linear interpolation. 
             if (R < 0): # θ in [Phase_Temp-1, Phase_Temp]
-                beta = Linear_interpolation(x, v0_[:,Phase_Temp:Phase_Temp+1], np.array([v0_[:,(Phase_Temp-1)%Tnum]]).T, X0_[:,Phase_Temp:Phase_Temp+1], np.array([X0_[:,(Phase_Temp-1)%Tnum]]).T)
+                beta = Linear_interpolation(x, v0_[Phase_Temp:Phase_Temp+1], np.array([v0_[(Phase_Temp-1)%Tnum]]).T, X0_[Phase_Temp:Phase_Temp+1], np.array([X0_[(Phase_Temp-1)%Tnum]]).T)
                 #phase = Phase_Temp + beta
-                x0 = (1-beta) * np.array([X0_[:,(Phase_Temp-1)%Tnum]]).T + beta * X0_[:,Phase_Temp:Phase_Temp+1]
+                x0 = (1-beta) * np.array([X0_[(Phase_Temp-1)%Tnum]]).T + beta * X0_[Phase_Temp:Phase_Temp+1]
                 y = x - x0
                 break
     else:# The present phase goes behind 1 step before.
         for ts in range(Interval):
             Phase_Temp = (X_phase - ts) % Tnum
-            y = x - X0_[:,Phase_Temp:Phase_Temp+1]
-            R = np.dot(y.T, v0_[:,Phase_Temp:Phase_Temp+1])
+            y = x - X0_[Phase_Temp:Phase_Temp+1]
+            R = np.dot(y.T, v0_[Phase_Temp:Phase_Temp+1])
             #Next, we find accurate phase by Linear interpolation. 
             if (R >= 0): # θ in [Phase_Temp-1, Phase_Temp]
-                beta = Linear_interpolation(x, v0_[:,Phase_Temp:Phase_Temp+1], np.array([v0_[:,(Phase_Temp-1)%Tnum]]).T, X0_[:,Phase_Temp:Phase_Temp+1], np.array([X0_[:,(Phase_Temp-1)%Tnum]]).T)
+                beta = Linear_interpolation(x, v0_[Phase_Temp:Phase_Temp+1], np.array([v0_[(Phase_Temp-1)%Tnum]]).T, X0_[Phase_Temp:Phase_Temp+1], np.array([X0_[(Phase_Temp-1)%Tnum]]).T)
                 #phase = Phase_Temp + beta
-                x0 = (1-beta) * np.array([X0_[:,(Phase_Temp-1)%Tnum]]).T + beta * X0_[:,Phase_Temp:Phase_Temp+1]
+                x0 = (1-beta) * np.array([X0_[(Phase_Temp-1)%Tnum]]).T + beta * X0_[Phase_Temp:Phase_Temp+1]
                 y = x - x0
                 break
     if ts == Interval - 1:
@@ -90,7 +90,7 @@ def Calc_phase_directory(x, F, X0_, Tnum, dt, rotations = 3):
     # Find recent contacts for X_Temp
     Distance = 10000
     for tt in range(Tnum):
-        Y = X_Temp - X0_[:,tt:tt+1]
+        Y = X_Temp - X0_[tt:tt+1]
         Distance_Temp = np.linalg.norm(Y)
         if Distance > Distance_Temp:
             X_phase = tt

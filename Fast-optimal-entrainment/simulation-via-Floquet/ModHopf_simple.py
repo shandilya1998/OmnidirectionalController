@@ -24,7 +24,7 @@ print("nu = ", nu, " mu = ", mu)
 #%%
 Initial = 1/4 # initial phase (2π*Initial)
 X_phase = int(Tnum*Initial)
-x = np.copy(X0_[:,X_phase:X_phase+1])
+x = np.copy(X0_[X_phase:X_phase+1])
 
 Tsimu = int(410/timescale) # simulation time
 Tsimu_num = int(Tsimu/dt)
@@ -33,11 +33,11 @@ Devision = 40 # Number of phase measurements per cycle
 
 PhiCount = int(Tnum/Omega*omega/Devision) # phase measurement interval
 
-ModHopf_theta = np.empty((2,int(Tsimu_num/PhiCount))) # save Φ(t)
+ModHopf_theta = np.empty((int(Tsimu_num/PhiCount), 2)) # save Φ(t)
 ModHopf_Average = np.array([[0],[X_phase/Tnum*2*pi]]) # save [Φ(t)]_t
-ModHopf_X = np.empty((2,2*int(Tenum))) # save state X of last two cycle
+ModHopf_X = np.empty((2*int(Tenum), 2)) # save state X of last two cycle
 
-ModHopf_input = np.empty((2,int(Tenum))) # save input
+ModHopf_input = np.empty((int(Tenum), 2)) # save input
 
 SX = Tsimu_num - 2*int(Tenum) # start of state X measurement
 PhaseAverage = 0
@@ -56,14 +56,14 @@ for tt in tqdm(range(Tsimu_num)):
     if(tt%PhiCount==0):
         X_phase = Pha.Calc_phase_directory(x, ModHopf.dif, X0_, Tnum, dt, rotations = 5) # measure phase [0, Tnum-1]
         Phi = Pha.Trans_PI(X_phase - EFP, Tnum) # Φ(t) [-π, π]
-        ModHopf_theta[:,PP:PP+1] = np.array([[tt*dt],[Phi]]) # save Φ(t)
+        ModHopf_theta[PP:PP+1] = np.array([[tt*dt],[Phi]]) # save Φ(t)
         PP = PP + 1
         PhaseAverage += Phi
         AP += 1 
     
     # Linear interpolation
-    v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[:,(int(EFP)+1)%Tnum]]).T
-    v0dif = IDP * v0_dif[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[:,(int(EFP)+1)%Tnum]]).T     
+    v0 = IDP * v0_[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[(int(EFP)+1)%Tnum]]).T
+    v0dif = IDP * v0_dif[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[(int(EFP)+1)%Tnum]]).T     
     
     # input
     q = 1/2/nu * (-1/omega * v0dif + mu * v0)
@@ -77,7 +77,7 @@ for tt in tqdm(range(Tsimu_num)):
     
     # save state X
     if tt >= SX:
-        ModHopf_X[:,XP:XP+1] = x
+        ModHopf_X[XP:XP+1] = x
         XP += 1
     
     # save phase Average [Φ(t)]_t
@@ -89,7 +89,7 @@ for tt in tqdm(range(Tsimu_num)):
 ################################################################
 X_phase = Pha.Calc_phase_directory(x, ModHopf.dif, X0_, Tnum, dt)
 print("final phi = ", Pha.Trans_PI(X_phase - EFP, Tnum))
-plt.plot(ModHopf_theta[0,:],ModHopf_theta[1,:]) 
+plt.plot(ModHopf_theta[:, 0],ModHopf_theta[:, 1]) 
 plt.grid()
 
 # save input
@@ -100,14 +100,14 @@ for tt in range(int(Tenum)):
     IDP = EFP - int(EFP) # internally dividing point
    
     # Linear interpolation
-    v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[:,(int(EFP)+1)%Tnum]]).T
-    v0dif = IDP * v0_dif[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[:,(int(EFP)+1)%Tnum]]).T     
+    v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[(int(EFP)+1)%Tnum]]).T
+    v0dif = IDP * v0_dif[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[(int(EFP)+1)%Tnum]]).T     
     
     # input
     q = 1/2/nu * (-1/omega * v0dif + mu * v0)
     
     # save 
-    ModHopf_input[:,tt:tt+1] = q
+    ModHopf_input[tt:tt+1] = q
      
 #%%
 Gamma = simple_2D.Calc_Gamma(mu, nu)

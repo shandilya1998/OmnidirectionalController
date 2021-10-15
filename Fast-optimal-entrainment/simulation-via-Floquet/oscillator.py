@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 from nwlib import ModHopf_rescale, _get_omega_choice
 
 def hopf_simple_step(omega, mu, z, dt = 0.005):
-    x, y = np.split(z, 2, 0)
+    x, y = np.split(z, 2, -1)
     r = np.sqrt(x * x + y * y)
     x = x + ((mu - r * r) * x - omega * y) * dt
     y = y + ((mu - r * r) * y + omega * x) * dt
-    z = np.concatenate([x, y], 0)
+    z = np.concatenate([x, y], -1)
     return z
 
 if __name__ == '__main__':

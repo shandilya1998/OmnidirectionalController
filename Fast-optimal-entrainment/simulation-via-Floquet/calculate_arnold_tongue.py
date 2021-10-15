@@ -23,7 +23,7 @@ def simple_Average(P, Delta):
         return PhaseAverage
         
     X_phase = 0 # initial phase
-    x = np.copy(X0_[:,X_phase:X_phase+1])
+    x = np.copy(X0_[X_phase:X_phase+1])
     Tsimu = int(10/np.sqrt(P)) # Adjust according to P
     Tsimu_num = int(Tsimu/dt)
     
@@ -41,8 +41,8 @@ def simple_Average(P, Delta):
         IDP = EFP - int(EFP) # internally dividing point
     
         # Linear interpolation
-        v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[:,(int(EFP)+1)%Tnum]]).T
-        v0dif = IDP * v0_dif[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[:,(int(EFP)+1)%Tnum]]).T     
+        v0 = IDP * v0_[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[(int(EFP)+1)%Tnum]]).T
+        v0dif = IDP * v0_dif[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[(int(EFP)+1)%Tnum]]).T     
     
         # input
         q = 1/2/nu * (-1/omega * v0dif + mu * v0)
@@ -76,7 +76,7 @@ def feedback_Average(P, Delta, alpha):
         return PhaseAverage
         
     X_phase = 0 # initial phase
-    x = np.copy(X0_[:,X_phase:X_phase+1])
+    x = np.copy(X0_[X_phase:X_phase+1])
     Tsimu = int(10/np.sqrt(P)) # Adjust according to P
     Tsimu_num = int(Tsimu/dt)
     
@@ -95,8 +95,8 @@ def feedback_Average(P, Delta, alpha):
         y, X_phase = Pha.Calc_phase_via_Floquet(x, X0_, v0_, X_phase, Tnum)
         
         # Linear interpolation
-        v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[:,(int(EFP)+1)%Tnum]]).T
-        v0dif = IDP * v0_dif[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[:,(int(EFP)+1)%Tnum]]).T     
+        v0 = IDP * v0_[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[(int(EFP)+1)%Tnum]]).T
+        v0dif = IDP * v0_dif[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[(int(EFP)+1)%Tnum]]).T     
     
         # input
         q = 1/2/nu * (-1/omega * v0dif + mu * v0) - alpha * y
@@ -136,7 +136,7 @@ def penalty_Average(P, Delta, k):
     mu = penalty_2D.Calc_mu(nu)
         
     X_phase = 0 # initial phase
-    x = np.copy(X0_[:,X_phase:X_phase+1])
+    x = np.copy(X0_[X_phase:X_phase+1])
     Tsimu = int(10/np.sqrt(P)) # Adjust according to P
     Tsimu_num = int(Tsimu/dt)
     
@@ -153,10 +153,10 @@ def penalty_Average(P, Delta, k):
         IDP = EFP - int(EFP) # internally dividing point
         
         # Linear interpolation
-        v0 = IDP * v0_[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[:,(int(EFP)+1)%Tnum]]).T
-        v0dif = IDP * v0_dif[:,int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[:,(int(EFP)+1)%Tnum]]).T     
-        v1x = IDP * v1_[0,int(EFP)] + (1 - IDP) * v1_[0,(int(EFP)+1)%Tnum]
-        v1y = IDP * v1_[1,int(EFP)] + (1 - IDP) * v1_[1,(int(EFP)+1)%Tnum]
+        v0 = IDP * v0_[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_[(int(EFP)+1)%Tnum]]).T
+        v0dif = IDP * v0_dif[int(EFP):int(EFP)+1] + (1 - IDP) * np.array([v0_dif[(int(EFP)+1)%Tnum]]).T     
+        v1x = IDP * v1_[int(EFP), 0] + (1 - IDP) * v1_[(int(EFP)+1)%Tnum, 0]
+        v1y = IDP * v1_[int(EFP), 1] + (1 - IDP) * v1_[(int(EFP)+1)%Tnum, 1]
 
         InverseMatrix = 1/(nu*nu + k *nu * (v1x*v1x + v1y*v1y))*np.array([[nu+k*v1y*v1y, -k*v1x*v1y],[-k*v1x*v1y, nu+k*v1x*v1x]])
     
@@ -184,8 +184,8 @@ def penalty_Average(P, Delta, k):
 P_number = 11
 D_number = 21
 
-arnold_x = np.empty((D_number, P_number))
-arnold_y = np.empty((D_number, P_number))
+arnold_x = np.empty((P_number, D_number))
+arnold_y = np.empty((P_number, D_number))
 arnold_Average = np.empty((D_number, P_number))
 for n in range(P_number):
     P = 1e-4*(100**(1/(P_number-1)))**n*(timescale**2)
@@ -193,9 +193,9 @@ for n in range(P_number):
         Delta = 1e-3 * (m - D_number//2) * (10**(1/(P_number-1)))**n*timescale
         Average = simple_Average(P, Delta)
         print("P = ", P, " Delta = ", Delta, " Average = ", Average)
-        arnold_x[m, n] = Delta
-        arnold_y[m, n] = P
-        arnold_Average[m, n] = Average
+        arnold_x[n, m] = Delta
+        arnold_y[n, m] = P
+        arnold_Average[n, m] = Average
 
 maximum = 2e-1
 minimum = -2e-1
@@ -225,9 +225,9 @@ plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
 P_number = 11
 D_number = 21
 
-arnold_x = np.empty((D_number, P_number))
-arnold_y = np.empty((D_number, P_number))
-arnold_Average = np.empty((D_number, P_number))
+arnold_x = np.empty((P_number, D_number))
+arnold_y = np.empty((P_number, D_number))
+arnold_Average = np.empty((P_number, D_number))
 
 alpha = 50 # feedback gain
 
@@ -237,9 +237,9 @@ for n in range(P_number):
         Delta = 1e-3 * (m - D_number//2) * (10**(1/(P_number-1)))**n*timescale
         Average = feedback_Average(P, Delta, alpha)
         print("P = ", P, " Delta = ", Delta, " Average = ", Average)
-        arnold_x[m, n] = Delta
-        arnold_y[m, n] = P
-        arnold_Average[m, n] = Average
+        arnold_x[n, m] = Delta
+        arnold_y[n, m] = P
+        arnold_Average[n, m] = Average
 
 maximum = 2e-1
 minimum = -2e-1
@@ -271,9 +271,9 @@ P_number = 11
 D_number = 21
 k = 2e1 #penalty weight
 
-arnold_x = np.empty((D_number, P_number))
-arnold_y = np.empty((D_number, P_number))
-arnold_Average = np.empty((D_number, P_number))
+arnold_x = np.empty((P_number, D_number))
+arnold_y = np.empty((P_number, D_number))
+arnold_Average = np.empty((P_number, D_number))
 
 for n in range(P_number):
     P = 1e-4*(100**(1/(P_number-1)))**n*(timescale**2)
@@ -281,9 +281,9 @@ for n in range(P_number):
         Delta = 1e-3 * (m - D_number//2) * (10**(1/(P_number-1)))**n*timescale
         Average = penalty_Average(P, Delta, k)
         print("P = ", P, " Delta = ", Delta, " Average = ", Average)
-        arnold_x[m, n] = Delta
-        arnold_y[m, n] = P
-        arnold_Average[m, n] = Average
+        arnold_x[n, m] = Delta
+        arnold_y[n, m] = P
+        arnold_Average[n, m] = Average
 
 maximum = 2e-1
 minimum = -2e-1

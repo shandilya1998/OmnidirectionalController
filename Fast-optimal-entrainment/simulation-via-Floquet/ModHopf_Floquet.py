@@ -27,7 +27,7 @@ ModHopf = my.ModHopf_rescale(omega, timescale)
 omega = omega[0][0]
 
 # inital point
-Xstart = np.ones((2,1)) 
+Xstart = np.ones((1,2)) 
 
 print("calculating X to convergence...", end="")
 
@@ -119,8 +119,8 @@ filename = "u0_.pdf"
 filepath = figpath + filename
 
 plt.figure(1)
-plt.plot(Time_ax, u0_[0,:], label = r"$u_{0x}$", color = 'r')
-plt.plot(Time_ax, u0_[1,:], linestyle = '--', label = r"$u_{0y}$", color = 'g')
+plt.plot(Time_ax, u0_[:, 0], label = r"$u_{0x}$", color = 'r')
+plt.plot(Time_ax, u0_[:, 1], linestyle = '--', label = r"$u_{0y}$", color = 'g')
 plt.xlabel(r"$\theta$", size = 20)
 plt.ylabel(r"$u_0$", size = 20)
 
@@ -136,8 +136,8 @@ filename = "u1_.pdf"
 filepath = figpath + filename
 
 plt.figure(2)
-plt.plot(Time_ax, u1_[0,:], label = r"$u_{1x}$", color = 'b')
-plt.plot(Time_ax, u1_[1,:], linestyle = '--', label = r"$u_{1y}$", color = 'orange')
+plt.plot(Time_ax, u1_[:, 0], label = r"$u_{1x}$", color = 'b')
+plt.plot(Time_ax, u1_[:, 1], linestyle = '--', label = r"$u_{1y}$", color = 'orange')
 plt.xlabel(r"$\theta$", size = 20)
 plt.ylabel(r"$u_1$", size = 20)
 
@@ -152,8 +152,8 @@ filename = "v0_.pdf"
 filepath = figpath + filename
 
 plt.figure(3)
-plt.plot(Time_ax, v0_[0,:], label = r"$v_{0x}$", color = 'r')
-plt.plot(Time_ax, v0_[1,:], linestyle = '--', label = r"$v_{0y}$", color = 'g')
+plt.plot(Time_ax, v0_[:, 0], label = r"$v_{0x}$", color = 'r')
+plt.plot(Time_ax, v0_[:, 1], linestyle = '--', label = r"$v_{0y}$", color = 'g')
 plt.xlabel(r"$\theta$", size= 20)
 plt.ylabel(r"$v_0$", size = 20)
 
@@ -168,8 +168,8 @@ filename = "v1_.pdf"
 filepath = figpath + filename
 
 plt.figure(4)
-plt.plot(Time_ax, v1_[0,:], label = r"$v_{1x}$", color = 'b')
-plt.plot(Time_ax, v1_[1,:], linestyle = '--', label = r"$v_{1y}$", color = 'orange')
+plt.plot(Time_ax, v1_[:, 0], label = r"$v_{1x}$", color = 'b')
+plt.plot(Time_ax, v1_[:, 1], linestyle = '--', label = r"$v_{1y}$", color = 'orange')
 plt.xlabel(r"$\theta$", size = 20)
 plt.ylabel(r"$v_1$", size = 20)
 
@@ -184,8 +184,8 @@ filename = "v0_dif.pdf"
 filepath = figpath + filename
 
 plt.figure(5)
-plt.plot(Time_ax, v0_dif[0,:], label = r"$v_{0x}^{dif}$", color = 'r')
-plt.plot(Time_ax, v0_dif[1,:], linestyle = '--', label = r"$v_{0y}^{dif}$", color = 'g')
+plt.plot(Time_ax, v0_dif[:, 0], label = r"$v_{0x}^{dif}$", color = 'r')
+plt.plot(Time_ax, v0_dif[:, 1], linestyle = '--', label = r"$v_{0y}^{dif}$", color = 'g')
 plt.xlabel(r"$\theta$", size=20) 
 plt.ylabel(r"$v_0^{dif}$", size = 20) 
 plt.savefig(filepath, bbox_inches="tight", pad_inches=0.0, transparent=True)
