@@ -12,7 +12,7 @@ def _get_omega_choice(phi):
     return np.tanh(1e3 * (phi))
 
 class ModHopf:
-    def __init__(self, omega, degree = 15, Cpath = '../assets/out/plots/coef.npy'):
+    def __init__(self, omega, degree = 15, Cpath = 'assets/out/plots/coef.npy'):
         self.omega = omega
         self.C = np.load(Cpath)
         self.degree = degree
@@ -89,7 +89,7 @@ class ModHopf:
         return J
 
 class ModHopf_rescale:
-    def __init__(self, omega, timescale, degree = 15, Cpath = '../../assets/out/plots/coef.npy'):
+    def __init__(self, omega, timescale, degree = 15, Cpath = '../assets/out/plots/coef.npy'):
         self.omega = omega
         #print(self.omega)
         self.C = np.load(Cpath)

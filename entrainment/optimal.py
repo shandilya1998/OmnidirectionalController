@@ -1,18 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from simulations.entrainment import phase, lagrange, \
+from entrainment import phase, lagrange, \
     modhopf, integration, floquet
 pi = np.pi
 from constants import params
 from tqdm import tqdm
+import os
 
 def find_optimal_input(
     omega,
     P = 1e0,
     Delta = 0.0,
     degree = 15,
-    Cpath = '../assets/out/plots/coef.npy'
+    Cpath = 'assets/out/plots/coef.npy'
 ):
+    dt = params['dt']
     ND = integration.ND(params['tmax'], dt)
 
     # Van der Pol
@@ -22,7 +24,7 @@ def find_optimal_input(
     OMEGA = np.array([[omega]], dtype = np.float32)
     Tnum = (2 * np.pi / (OMEGA * dt))
     timescale = 1 # Transformation from t to t'=t/timescale
-    ModHopf = modhopf.ModHopf_rescale(OMEGA, timescale)
+    ModHopf = modhopf.ModHopf_rescale(OMEGA, timescale, degree, Cpath)
 
     # inital point
     Xstart = np.ones((2,1)) 
@@ -196,13 +198,12 @@ def find_optimal_input(
     v1_.dump(datapath + 'v1_.dat')
     v0_dif.dump(datapath + 'v0_dif.dat')
 
-
     Omega = omega - Delta
     Tenum = omega / Omega * Tnum # period with external force
 
     # calculate lagrange multipliers
     print("calculate lagrange multipliers ...")
-    simple_2D = Lag.simple(Tnum, v0_, v0_dif, omega, P, Delta)
+    simple_2D = lagrange.simple(Tnum, v0_, v0_dif, omega, P, Delta)
     mu, nu = simple_2D.Calc_mu_nu()
     print("nu = ", nu, " mu = ", mu)
     #%%
